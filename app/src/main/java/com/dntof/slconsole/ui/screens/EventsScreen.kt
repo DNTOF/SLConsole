@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.PersonOff
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,6 +45,8 @@ import com.dntof.slconsole.data.model.SlEvent
 import com.dntof.slconsole.data.remote.WsControlClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.components.EmptyState
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.StatusDot
 import com.dntof.slconsole.ui.components.UiColors
@@ -94,7 +95,7 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
     val events by client.events.collectAsState()
 
     Column(Modifier.fillMaxSize()) {
-        Card(Modifier.fillMaxWidth().padding(16.dp)) {
+        AppSurface(Modifier.fillMaxWidth().padding(16.dp), role = GlassRole.Panel) {
             Column(Modifier.padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusDot(
@@ -198,7 +199,7 @@ private fun eventMeta(event: SlEvent): EventMeta = when (event.event) {
 @Composable
 private fun EventRow(event: SlEvent) {
     val meta = remember(event) { eventMeta(event) }
-    Card(Modifier.fillMaxWidth()) {
+    AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(36.dp).background(meta.color.copy(alpha = 0.15f), CircleShape),

@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Flag
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,6 +33,8 @@ import com.dntof.slconsole.ui.LocalSnackbarHost
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -122,7 +123,7 @@ fun ReportsScreen() {
             ) {
                 items(list.size, key = { list[it].id }) { index ->
                     val report = list[index]
-                    Card(Modifier.fillMaxWidth()) {
+                    AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
                         Column(Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {

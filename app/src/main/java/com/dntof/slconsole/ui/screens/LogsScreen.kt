@@ -16,8 +16,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Article
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.automirrored.outlined.Article
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -136,14 +137,14 @@ fun LogsScreen() {
             }
             val list = files
             if (list == null || list.isEmpty()) {
-                EmptyState(Icons.Outlined.Article, "没有日志文件", "检查插件 log_directory 配置")
+                EmptyState(Icons.AutoMirrored.Outlined.Article, "没有日志文件", "检查插件 log_directory 配置")
             } else {
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(list, key = { it.path }) { file ->
-                        Card(Modifier.fillMaxWidth()) {
+                        AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(file.name ?: file.path, style = MaterialTheme.typography.titleSmall, maxLines = 1)
@@ -219,11 +220,12 @@ fun LogsScreen() {
             ) { auto = it }
             val tailData = tail
             if (tailData != null) {
-                Card(
+                AppSurface(
                     Modifier
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(16.dp),
+                    role = GlassRole.Panel,
                 ) {
                     Text(
                         tailData.lines.joinToString("\n"),

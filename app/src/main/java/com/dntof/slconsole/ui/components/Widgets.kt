@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +41,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.repo.ControlRepository
@@ -59,7 +59,7 @@ fun SectionCard(
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(modifier.fillMaxWidth()) {
+    AppSurface(modifier.fillMaxWidth(), role = GlassRole.Panel) {
         Column(Modifier.padding(16.dp)) {
             if (title != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -82,6 +82,62 @@ fun SectionCard(
                 Spacer(Modifier.height(12.dp))
             }
             content()
+        }
+    }
+}
+
+@Composable
+fun ShortcutTile(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    AppSurface(modifier, onClick = onClick, role = GlassRole.Row) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+fun FeatureTile(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    AppSurface(modifier, onClick = onClick, role = GlassRole.Panel) {
+        Column(Modifier.padding(14.dp)) {
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

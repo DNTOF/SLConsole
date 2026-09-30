@@ -22,10 +22,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -262,14 +263,14 @@ fun FilesScreen() {
                     ) {
                         items(sorted.size, key = { sorted[it].name + sorted[it].type }) { index ->
                             val entry = sorted[index]
-                            Card(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = !entry.isProtected) {
-                                        if (entry.isProtected) return@clickable
-                                        if (entry.type == "dir") path = joinPath(path, entry.name)
-                                        else openFile(entry)
-                                    },
+                            AppSurface(
+                                Modifier.fillMaxWidth(),
+                                enabled = !entry.isProtected,
+                                onClick = {
+                                    if (entry.type == "dir") path = joinPath(path, entry.name)
+                                    else openFile(entry)
+                                },
+                                role = GlassRole.Row,
                             ) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Box(
@@ -288,7 +289,7 @@ fun FilesScreen() {
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(
-                                            if (entry.type == "dir") Icons.Outlined.Folder else Icons.Outlined.InsertDriveFile,
+                                            if (entry.type == "dir") Icons.Outlined.Folder else Icons.AutoMirrored.Outlined.InsertDriveFile,
                                             null,
                                             Modifier.height(18.dp),
                                         )
