@@ -1,8 +1,9 @@
 package com.dntof.slconsole.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Dns
-import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,11 +40,36 @@ import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.ConfirmDialog
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.UiColors
 import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ServerChips(server: ServerConfig) {
+    FlowRow(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        InfoChip(
+            if (server.controlTransport == "ws") "WS" else "HTTP",
+            if (server.controlTransport == "ws") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+        )
+        InfoChip(
+            if (server.verifyToken.isNotBlank()) "监控✓" else "监控✗",
+            if (server.verifyToken.isNotBlank()) UiColors.Online else UiColors.Offline,
+        )
+        InfoChip(
+            if (server.hasControl) "控制✓" else "控制✗",
+            if (server.hasControl) UiColors.Online else UiColors.Offline,
+        )
+    }
+}
 
 @Composable
 fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
@@ -71,48 +96,38 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                 items(servers.size, key = { servers[it].id }) { index ->
                     val server = servers[index]
                     val isActive = server.id == activeId
-                    Card(
-                        Modifier.fillMaxWidth().clickable {
-                            scope.launch { store.setActive(server.id) }
-                        },
+                    AppSurface(
+                        Modifier.fillMaxWidth(),
+                        onClick = { scope.launch { store.setActive(server.id) } },
+                        role = GlassRole.Panel,
                     ) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                Modifier
-                                    .size(12.dp)
-                                    .background(
-                                        if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                        CircleShape,
-                                    ),
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                                Text(
-                                    "${server.addressText} · 每 ${server.refetchIntervalMs / 1000}s 轮询",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Column(Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    Modifier
+                                        .size(12.dp)
+                                        .background(
+                                            if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                            CircleShape,
+                                        ),
                                 )
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                                    Text(
+                                        "${server.addressText} · 每 ${server.refetchIntervalMs / 1000}s 轮询",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                IconButton(onClick = { onEdit(server.id) }) {
+                                    Icon(Icons.Filled.Edit, "编辑")
+                                }
+                                IconButton(onClick = { deleteTarget = server }) {
+                                    Icon(Icons.Outlined.DeleteOutline, "删除", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
-                            InfoChip(
-                                if (server.controlTransport == "ws") "WS" else "HTTP",
-                                if (server.controlTransport == "ws") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
-                            )
-                            // 已保存凭据状态(直接读 DataStore,用于核对"保存后 key 丢失"问题)
-                            InfoChip(
-                                if (server.verifyToken.isNotBlank()) "监控✓" else "监控✗",
-                                if (server.verifyToken.isNotBlank()) UiColors.Online else UiColors.Offline,
-                            )
-                            InfoChip(
-                                if (server.hasControl) "控制✓" else "控制✗",
-                                if (server.hasControl) UiColors.Online else UiColors.Offline,
-                            )
-                            IconButton(onClick = { onEdit(server.id) }) {
-                                Icon(Icons.Filled.Edit, "编辑")
-                            }
-                            IconButton(onClick = { deleteTarget = server }) {
-                                Icon(Icons.Outlined.DeleteOutline, "删除", tint = MaterialTheme.colorScheme.error)
-                            }
+                            ServerChips(server)
                         }
                     }
                 }

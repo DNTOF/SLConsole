@@ -1,36 +1,40 @@
 package com.dntof.slconsole.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SpaceDashboard
 import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,7 +46,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -61,14 +64,15 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -79,13 +83,21 @@ import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
+import com.dntof.slconsole.ui.components.AppBackdrop
+import com.dntof.slconsole.ui.components.AppLayout
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
+import com.dntof.slconsole.ui.components.LocalAppLayout
+import com.dntof.slconsole.ui.components.LocalGlassPlate
+import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.StatusDot
 import com.dntof.slconsole.ui.components.UiColors
+import com.dntof.slconsole.ui.components.liquidGlass
+import com.dntof.slconsole.ui.components.rememberGlassPlateState
 import com.dntof.slconsole.ui.screens.AboutScreen
 import com.dntof.slconsole.ui.screens.AuditScreen
 import com.dntof.slconsole.ui.screens.BansScreen
 import com.dntof.slconsole.ui.screens.ConsoleScreen
-import com.dntof.slconsole.ui.screens.RemoteScreen
 import com.dntof.slconsole.ui.screens.DashboardScreen
 import com.dntof.slconsole.ui.screens.EventsScreen
 import com.dntof.slconsole.ui.screens.FilesScreen
@@ -94,9 +106,11 @@ import com.dntof.slconsole.ui.screens.MapScreen
 import com.dntof.slconsole.ui.screens.MoreScreen
 import com.dntof.slconsole.ui.screens.PlayersScreen
 import com.dntof.slconsole.ui.screens.PluginsScreen
+import com.dntof.slconsole.ui.screens.RemoteScreen
 import com.dntof.slconsole.ui.screens.ReportsScreen
 import com.dntof.slconsole.ui.screens.ServerEditScreen
 import com.dntof.slconsole.ui.screens.ServersScreen
+import com.dntof.slconsole.ui.screens.SettingsScreen
 import com.dntof.slconsole.ui.screens.VoiceScreen
 import kotlinx.coroutines.launch
 
@@ -120,12 +134,15 @@ object Routes {
     const val FILES = "files"
     const val REPORTS = "reports"
     const val SERVERS = "servers"
+    const val SETTINGS = "settings"
     const val ABOUT = "about"
     const val SERVER_EDIT = "serverEdit?serverId={serverId}"
 
     fun serverEdit(id: String?): String = "serverEdit?serverId=${id ?: ""}"
 
-    val SUB_ROUTES = setOf(BANS, LOGS, AUDIT, PLUGINS, REMOTE, VOICE, FILES, REPORTS, SERVERS, ABOUT, SERVER_EDIT)
+    val SUB_ROUTES = setOf(
+        BANS, LOGS, AUDIT, PLUGINS, REMOTE, EVENTS, VOICE, FILES, REPORTS, SERVERS, SETTINGS, ABOUT, SERVER_EDIT,
+    )
 
     val SUB_TITLES = mapOf(
         BANS to "封禁管理",
@@ -133,10 +150,12 @@ object Routes {
         AUDIT to "控制审计",
         PLUGINS to "插件管理",
         REMOTE to "远程控制",
+        EVENTS to "实时动态",
         VOICE to "语音监听",
         FILES to "文件管理",
         REPORTS to "举报管理",
         SERVERS to "服务器管理",
+        SETTINGS to "外观",
         ABOUT to "关于",
         SERVER_EDIT to "编辑服务器",
     )
@@ -149,8 +168,7 @@ private val TABS = listOf(
     TabItem(Routes.PLAYERS, "玩家", Icons.Outlined.Groups, Icons.Filled.Groups),
     TabItem(Routes.CONSOLE, "控制台", Icons.Outlined.Terminal, Icons.Filled.Terminal),
     TabItem(Routes.MAPS, "地图", Icons.Outlined.Map, Icons.Filled.Map),
-    TabItem(Routes.EVENTS, "动态", Icons.Outlined.Bolt, Icons.Filled.Bolt),
-    TabItem(Routes.MORE, "更多", Icons.Outlined.MoreHoriz, Icons.Filled.MoreHoriz),
+    TabItem(Routes.MORE, "中心", Icons.Outlined.Apps, Icons.Filled.Apps),
 )
 
 /** 读取当前活动服务器配置(无激活时回退到第一个)。 */
@@ -169,17 +187,27 @@ fun AppRoot() {
 
     val serversLoaded by store.serversFlow.collectAsState(initial = null)
     val activeId by store.activeIdFlow.collectAsState(initial = null)
-    val servers = serversLoaded ?: return Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+    val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = null as Boolean?)
+    val servers = serversLoaded
+    if (servers == null || glassPref == null) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
+    val glassEnabled = glassPref == true
     val activeServer = remember(servers, activeId) { servers.find { it.id == activeId } ?: servers.firstOrNull() }
     val monitorState by MonitorEngine.state.collectAsState()
+    val layout = when {
+        LocalConfiguration.current.screenWidthDp >= 1000 -> AppLayout.Expanded
+        LocalConfiguration.current.screenWidthDp >= 600 -> AppLayout.Medium
+        else -> AppLayout.Compact
+    }
+    val plate = rememberGlassPlateState()
 
-    // 服务器配置或活动服务器变化时重启监控轮询
     LaunchedEffect(activeServer) {
         MonitorEngine.setActive(activeServer)
     }
-    // 已删除的服务器:关闭其 WS 客户端
     LaunchedEffect(servers) {
         ControlRepository.retainOnly(servers.map { it.id }.toSet())
     }
@@ -188,104 +216,281 @@ fun AppRoot() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isSubRoute = currentRoute in Routes.SUB_ROUTES
+    val selectedTab = when {
+        TABS.any { it.route == currentRoute } -> currentRoute
+        isSubRoute -> Routes.MORE
+        else -> currentRoute
+    }
 
-    CompositionLocalProvider(LocalSnackbarHost provides snackbarHostState) {
-        Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
-            topBar = {
-                if (isSubRoute) {
-                    SubRouteTopBar(currentRoute) { navController.popBackStack() }
-                } else {
+    CompositionLocalProvider(
+        LocalSnackbarHost provides snackbarHostState,
+        LocalLiquidGlass provides glassEnabled,
+        LocalGlassPlate provides plate,
+        LocalAppLayout provides layout,
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            AppBackdrop(glassEnabled)
+            if (layout == AppLayout.Compact) {
+                CompactShell(
+                    navController = navController,
+                    currentRoute = currentRoute,
+                    isSubRoute = isSubRoute,
+                    selectedTab = selectedTab,
+                    activeServer = activeServer,
+                    servers = servers,
+                    monitorState = monitorState,
+                    snackbarHostState = snackbarHostState,
+                    onSelectServer = { id -> scope.launch { store.setActive(id) } },
+                )
+            } else {
+                WideShell(
+                    navController = navController,
+                    currentRoute = currentRoute,
+                    isSubRoute = isSubRoute,
+                    selectedTab = selectedTab,
+                    expanded = layout == AppLayout.Expanded,
+                    activeServer = activeServer,
+                    servers = servers,
+                    monitorState = monitorState,
+                    snackbarHostState = snackbarHostState,
+                    onSelectServer = { id -> scope.launch { store.setActive(id) } },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactShell(
+    navController: NavHostController,
+    currentRoute: String?,
+    isSubRoute: Boolean,
+    selectedTab: String?,
+    activeServer: ServerConfig?,
+    servers: List<ServerConfig>,
+    monitorState: MonitorEngine.MonitorState,
+    snackbarHostState: SnackbarHostState,
+    onSelectServer: (String) -> Unit,
+) {
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            if (isSubRoute) {
+                BarSurface {
+                    SubRouteTopBar(currentRoute, activeServer) { navController.popBackStack() }
+                }
+            } else {
+                BarSurface {
                     ServerTopBar(
                         active = activeServer,
                         servers = servers,
                         monitorState = monitorState,
-                        onSelect = { id -> scope.launch { store.setActive(id) } },
+                        onSelect = onSelectServer,
+                        onManage = { navController.navigate(Routes.SERVERS) },
+                        onAdd = { navController.navigate(Routes.serverEdit(null)) },
+                        onRefresh = { MonitorEngine.refreshNow() },
+                    )
+                }
+            }
+        },
+        bottomBar = {
+            if (!isSubRoute) {
+                SlBottomNav(selectedTab) { navController.navigateTab(it) }
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        AppNavHost(
+            navController = navController,
+            activeServer = activeServer,
+            modifier = Modifier.padding(padding),
+        )
+    }
+}
+
+@Composable
+private fun WideShell(
+    navController: NavHostController,
+    currentRoute: String?,
+    isSubRoute: Boolean,
+    selectedTab: String?,
+    expanded: Boolean,
+    activeServer: ServerConfig?,
+    servers: List<ServerConfig>,
+    monitorState: MonitorEngine.MonitorState,
+    snackbarHostState: SnackbarHostState,
+    onSelectServer: (String) -> Unit,
+) {
+    Row(Modifier.fillMaxSize()) {
+        SlNavigationRail(
+            selectedTab = selectedTab,
+            expanded = expanded,
+            onSelect = { navController.navigateTab(it) },
+        )
+        Scaffold(
+            modifier = Modifier.weight(1f),
+            containerColor = Color.Transparent,
+            topBar = {
+                BarSurface {
+                    ServerTopBar(
+                        active = activeServer,
+                        servers = servers,
+                        monitorState = monitorState,
+                        onSelect = onSelectServer,
                         onManage = { navController.navigate(Routes.SERVERS) },
                         onAdd = { navController.navigate(Routes.serverEdit(null)) },
                         onRefresh = { MonitorEngine.refreshNow() },
                     )
                 }
             },
-            bottomBar = {
-                if (!isSubRoute) {
-                    SlBottomNav(currentRoute) { route ->
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
-            },
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { padding ->
-            NavHost(
-                navController = navController,
-                startDestination = Routes.DASHBOARD,
-                modifier = Modifier.padding(padding),
-            ) {
-                composable(Routes.DASHBOARD) {
-                    DashboardScreen(
-                        onOpenPlayers = { navController.navigate(Routes.PLAYERS) },
-                        onOpenControl = { navController.navigate(Routes.CONSOLE) },
-                        onAddServer = { navController.navigate(Routes.serverEdit(null)) },
-                    )
+            Column(Modifier.padding(padding).fillMaxSize()) {
+                if (isSubRoute) {
+                    SubRouteHeader(currentRoute) { navController.popBackStack() }
                 }
-                composable(Routes.PLAYERS) { PlayersScreen() }
-                composable(Routes.CONSOLE) { ConsoleScreen() }
-                composable(Routes.REMOTE) { RemoteScreen() }
-                composable(Routes.EVENTS) {
-                    EventsScreen(onOpenServerEdit = { navController.navigate(Routes.serverEdit(activeServer?.id)) })
-                }
-                composable(Routes.MORE) {
-                    MoreScreen(onNavigate = { navController.navigate(it) })
-                }
-                composable(Routes.BANS) { BansScreen() }
-                composable(Routes.LOGS) { LogsScreen() }
-                composable(Routes.AUDIT) { AuditScreen() }
-                composable(Routes.PLUGINS) { PluginsScreen() }
-                composable(Routes.MAPS) { MapScreen() }
-                composable(Routes.VOICE) { VoiceScreen() }
-                composable(Routes.FILES) { FilesScreen() }
-                composable(Routes.REPORTS) { ReportsScreen() }
-                composable(Routes.SERVERS) {
-                    ServersScreen(
-                        onEdit = { navController.navigate(Routes.serverEdit(it)) },
-                        onAdd = { navController.navigate(Routes.serverEdit(null)) },
-                    )
-                }
-                composable(
-                    Routes.SERVER_EDIT,
-                    arguments = listOf(navArgument("serverId") {
-                        type = NavType.StringType
-                        nullable = true
-                        defaultValue = null
-                    }),
-                ) { entry ->
-                    ServerEditScreen(
-                        serverId = entry.arguments?.getString("serverId")?.takeIf { it.isNotBlank() },
-                        onDone = { navController.popBackStack() },
-                    )
-                }
-                composable(Routes.ABOUT) { AboutScreen() }
+                AppNavHost(
+                    navController = navController,
+                    activeServer = activeServer,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
 }
 
+@Composable
+private fun BarSurface(content: @Composable () -> Unit) {
+    val glass = LocalLiquidGlass.current
+    Column(
+        Modifier.liquidGlass(
+            shape = RectangleShape,
+            role = GlassRole.Chrome,
+            dark = isSystemInDarkTheme(),
+            framed = false,
+        ),
+    ) {
+        content()
+        HorizontalDivider(
+            color = if (glass) Color.White.copy(alpha = 0.28f) else MaterialTheme.colorScheme.outlineVariant,
+        )
+    }
+}
+
+@Composable
+private fun AppNavHost(
+    navController: NavHostController,
+    activeServer: ServerConfig?,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        NavHost(
+            navController = navController,
+            startDestination = Routes.DASHBOARD,
+            modifier = Modifier.widthIn(max = 1100.dp).fillMaxHeight(),
+        ) {
+            composable(Routes.DASHBOARD) {
+                DashboardScreen(
+                    onOpenPlayers = { navController.navigateTab(Routes.PLAYERS) },
+                    onOpenControl = { navController.navigateTab(Routes.CONSOLE) },
+                    onAddServer = { navController.navigate(Routes.serverEdit(null)) },
+                    onNavigate = { route ->
+                        val tab = route == Routes.DASHBOARD || route == Routes.PLAYERS ||
+                            route == Routes.CONSOLE || route == Routes.MAPS || route == Routes.MORE
+                        if (tab) navController.navigateTab(route) else navController.navigate(route)
+                    },
+                )
+            }
+            composable(Routes.PLAYERS) { PlayersScreen() }
+            composable(Routes.CONSOLE) { ConsoleScreen() }
+            composable(Routes.REMOTE) { RemoteScreen() }
+            composable(Routes.EVENTS) {
+                EventsScreen(onOpenServerEdit = { navController.navigate(Routes.serverEdit(activeServer?.id)) })
+            }
+            composable(Routes.MORE) {
+                MoreScreen(onNavigate = { navController.navigate(it) })
+            }
+            composable(Routes.BANS) { BansScreen() }
+            composable(Routes.LOGS) { LogsScreen() }
+            composable(Routes.AUDIT) { AuditScreen() }
+            composable(Routes.PLUGINS) { PluginsScreen() }
+            composable(Routes.MAPS) { MapScreen() }
+            composable(Routes.VOICE) { VoiceScreen() }
+            composable(Routes.FILES) { FilesScreen() }
+            composable(Routes.REPORTS) { ReportsScreen() }
+            composable(Routes.SERVERS) {
+                ServersScreen(
+                    onEdit = { navController.navigate(Routes.serverEdit(it)) },
+                    onAdd = { navController.navigate(Routes.serverEdit(null)) },
+                )
+            }
+            composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(
+                Routes.SERVER_EDIT,
+                arguments = listOf(navArgument("serverId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }),
+            ) { entry ->
+                ServerEditScreen(
+                    serverId = entry.arguments?.getString("serverId")?.takeIf { it.isNotBlank() },
+                    onDone = { navController.popBackStack() },
+                )
+            }
+            composable(Routes.ABOUT) { AboutScreen() }
+        }
+    }
+}
+
+private fun NavHostController.navigateTab(route: String) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SubRouteTopBar(currentRoute: String?, onBack: () -> Unit) {
+private fun SubRouteTopBar(currentRoute: String?, active: ServerConfig?, onBack: () -> Unit) {
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        title = { Text(Routes.SUB_TITLES[currentRoute] ?: "") },
+        title = {
+            Column {
+                Text(Routes.SUB_TITLES[currentRoute] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    active?.displayName ?: "未添加服务器",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
             }
         },
     )
+}
+
+@Composable
+private fun SubRouteHeader(currentRoute: String?, onBack: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(onClick = onBack) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+        }
+        Text(
+            Routes.SUB_TITLES[currentRoute] ?: "",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -318,7 +523,7 @@ private fun ServerTopBar(
                     size = 12.dp,
                 )
                 Spacer(Modifier.width(10.dp))
-                Column {
+                Column(Modifier.weight(1f, fill = false)) {
                     Text(
                         active?.displayName ?: "未添加服务器",
                         style = MaterialTheme.typography.titleMedium,
@@ -345,7 +550,13 @@ private fun ServerTopBar(
                                 Icon(Icons.Filled.Check, null, Modifier.width(20.dp))
                             }
                         },
-                        trailingIcon = { Text(server.addressText, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingIcon = {
+                            Text(
+                                server.addressText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                         onClick = {
                             onSelect(server.id)
                             menuOpen = false
@@ -371,65 +582,162 @@ private fun ServerTopBar(
     )
 }
 
-
 @Composable
-private fun SlBottomNav(currentRoute: String?, onSelect: (String) -> Unit) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
-        Surface(
-            shape = RoundedCornerShape(30.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.97f),
-            shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+private fun SlBottomNav(selectedTab: String?, onSelect: (String) -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+        AppSurface(
             modifier = Modifier.fillMaxWidth(),
+            role = GlassRole.Chrome,
+            shape = RoundedCornerShape(28.dp),
         ) {
             Row(
-                Modifier.padding(horizontal = 8.dp, vertical = 8.dp).fillMaxWidth(),
+                Modifier.padding(horizontal = 4.dp, vertical = 6.dp).fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 TABS.forEach { tab ->
-                    val selected = currentRoute == tab.route
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(22.dp))
-                            .clickable { onSelect(tab.route) }
-                            .padding(vertical = 6.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            Modifier
-                                .width(46.dp)
-                                .height(30.dp)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                    RoundedCornerShape(50),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                if (selected) tab.iconSelected else tab.icon,
-                                tab.label,
-                                tint = if (selected) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                modifier = Modifier.size(19.dp),
-                            )
-                        }
-                        Text(
-                            tab.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.onSurface
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
+                    NavTab(
+                        tab = tab,
+                        selected = selectedTab == tab.route,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSelect(tab.route) },
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SlNavigationRail(
+    selectedTab: String?,
+    expanded: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    val width = if (expanded) 232.dp else 104.dp
+    Box(
+        Modifier
+            .width(width)
+            .fillMaxHeight()
+            .windowInsetsPadding(WindowInsets.systemBars)
+            .padding(10.dp),
+    ) {
+        AppSurface(
+            modifier = Modifier.fillMaxSize(),
+            role = GlassRole.Chrome,
+            shape = RoundedCornerShape(28.dp),
+        ) {
+            Column(
+                Modifier.fillMaxSize().padding(vertical = 12.dp, horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TABS.forEach { tab ->
+                    RailTab(
+                        tab = tab,
+                        selected = selectedTab == tab.route,
+                        expanded = expanded,
+                        onClick = { onSelect(tab.route) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavTab(
+    tab: TabItem,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier
+                .width(40.dp)
+                .height(28.dp)
+                .background(
+                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    RoundedCornerShape(50),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (selected) tab.iconSelected else tab.icon,
+                tab.label,
+                tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        Text(
+            tab.label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun RailTab(
+    tab: TabItem,
+    selected: Boolean,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    val background = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent
+    if (expanded) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(background)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (selected) tab.iconSelected else tab.icon,
+                tab.label,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                tab.label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    } else {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(background)
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                if (selected) tab.iconSelected else tab.icon,
+                tab.label,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+            Text(
+                tab.label,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
     }
 }

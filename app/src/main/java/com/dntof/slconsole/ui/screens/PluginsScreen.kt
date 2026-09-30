@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -36,6 +35,8 @@ import com.dntof.slconsole.ui.LocalSnackbarHost
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -133,7 +134,7 @@ fun PluginsScreen() {
             ) {
                 items(list.size) { index ->
                     val plugin = list[index]
-                    Card(Modifier.fillMaxWidth()) {
+                    AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
                         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {

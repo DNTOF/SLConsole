@@ -15,11 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -119,7 +120,7 @@ private fun VoicePanel(host: String, voicePort: Int, apiKey: String, players: Li
     val muted by client.muted.collectAsState()
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Card(Modifier.fillMaxWidth()) {
+        AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Panel) {
             Column(Modifier.padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusDot(
@@ -151,7 +152,7 @@ private fun VoicePanel(host: String, voicePort: Int, apiKey: String, players: Li
                     }
                     IconButton(onClick = { client.setMuted(!muted) }) {
                         Icon(
-                            if (muted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
+                            if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
                             if (muted) "取消静音" else "静音",
                         )
                     }

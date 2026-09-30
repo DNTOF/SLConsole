@@ -1,7 +1,6 @@
 package com.dntof.slconsole.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,6 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -56,7 +55,9 @@ import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.ConfirmDialog
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.KeyValueRow
@@ -93,14 +94,27 @@ fun PlayersScreen() {
     }
 
     Column(Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            label = { Text("搜索昵称 / SteamID") },
-            leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text("玩家", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                when {
+                    players.isEmpty() -> "等待玩家加入"
+                    query.isBlank() -> "在线 ${players.size}"
+                    else -> "在线 ${players.size} · 匹配 ${filtered.size}"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("搜索昵称 / SteamID") },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         if (filtered.isEmpty()) {
             EmptyState(
                 Icons.Outlined.Groups,
@@ -126,7 +140,7 @@ fun PlayersScreen() {
 
 @Composable
 private fun PlayerRow(player: PlayerInfo, onClick: () -> Unit) {
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+    AppSurface(Modifier.fillMaxWidth(), onClick = onClick, role = GlassRole.Row) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(38.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
@@ -224,7 +238,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
 
             if (server?.hasControl != true) {
                 Spacer(Modifier.height(16.dp))
-                Card {
+                AppSurface {
                     Text(
                         "在服务器设置中配置 API Key 后,即可使用玩家管理操作。",
                         Modifier.padding(14.dp),

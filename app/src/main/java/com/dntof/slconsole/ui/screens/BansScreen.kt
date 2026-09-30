@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +41,8 @@ import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.KeyValueRow
 import com.dntof.slconsole.ui.components.PromptDialog
 import com.dntof.slconsole.ui.components.PromptField
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -82,7 +83,7 @@ fun BansScreen() {
 
     Column(Modifier.fillMaxSize()) {
         if (server?.hasControl != true) {
-            Card(Modifier.fillMaxWidth().padding(16.dp)) {
+            AppSurface(Modifier.fillMaxWidth().padding(16.dp), role = GlassRole.Panel) {
                 Text(
                     "封禁管理需要控制面 API Key。请在服务器设置中配置后重试。",
                     Modifier.padding(14.dp),
@@ -117,7 +118,7 @@ fun BansScreen() {
                 ) {
                     items(list.size) { index ->
                         val ban = list[index]
-                        Card(Modifier.fillMaxWidth()) {
+                        AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
                             Column(Modifier.padding(14.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {

@@ -1,6 +1,5 @@
 package com.dntof.slconsole.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,8 +15,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.outlined.FactCheck
-import androidx.compose.material3.Card
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
+import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -100,7 +100,7 @@ fun AuditScreen() {
         val list = entries
         if (list == null) return
         if (list.isEmpty()) {
-            EmptyState(Icons.Outlined.FactCheck, "暂无审计记录", "控制操作执行后会记录在这里")
+            EmptyState(Icons.AutoMirrored.Outlined.FactCheck, "暂无审计记录", "控制操作执行后会记录在这里")
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
@@ -109,7 +109,11 @@ fun AuditScreen() {
                 items(list.size) { index ->
                     val entry = list[index]
                     var expanded by remember(entry.time) { mutableStateOf(false) }
-                    Card(Modifier.fillMaxWidth().clickable { expanded = !expanded }) {
+                    AppSurface(
+                        Modifier.fillMaxWidth(),
+                        onClick = { expanded = !expanded },
+                        role = GlassRole.Row,
+                    ) {
                         Column(Modifier.padding(12.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
