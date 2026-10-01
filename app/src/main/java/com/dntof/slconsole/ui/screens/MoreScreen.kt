@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
+import androidx.compose.material.icons.outlined.LibraryMusic
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Gavel
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.BuildConfig
 import com.dntof.slconsole.ui.Routes
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.AppLayout
 import com.dntof.slconsole.ui.components.FeatureTile
 import com.dntof.slconsole.ui.components.LocalAppLayout
@@ -69,6 +71,7 @@ private val HUB_GROUPS = listOf(
             HubEntry(Routes.LOGS, "服务器日志", "尾部读取与关键字过滤", Icons.AutoMirrored.Outlined.Article),
             HubEntry(Routes.AUDIT, "控制审计", "查看操作记录", Icons.AutoMirrored.Outlined.FactCheck),
             HubEntry(Routes.PLUGINS, "插件管理", "EXILED / LabAPI 启停重载", Icons.Outlined.Extension),
+            HubEntry(Routes.ADAPTED, "适配插件", "SLPlayer 控制,OmegaWarhead 状态", Icons.Outlined.LibraryMusic),
             HubEntry(Routes.FILES, "文件管理", "浏览并编辑 FileRoot", Icons.Outlined.Folder),
         ),
     ),
@@ -87,7 +90,7 @@ fun MoreScreen(onNavigate: (String) -> Unit) {
     val columns = if (LocalAppLayout.current == AppLayout.Compact) 2 else 3
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {

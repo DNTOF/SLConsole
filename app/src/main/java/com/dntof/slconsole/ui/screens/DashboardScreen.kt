@@ -57,6 +57,7 @@ import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.Routes
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.EmptyState
@@ -127,7 +128,7 @@ private fun DashboardContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { StatusCard(state, data, server, now) }
@@ -204,7 +205,12 @@ private fun DashboardContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         data.adaptedPlugins.forEach { plugin ->
-                            InfoChip("${plugin.name ?: plugin.id} ${plugin.version ?: ""}".trim())
+                            InfoChip(
+                                "${plugin.name ?: plugin.id} ${plugin.version ?: ""}".trim(),
+                                onClick = if (plugin.id.isBlank()) null else {
+                                    { onNavigate(Routes.adaptedDetail(plugin.id)) }
+                                },
+                            )
                         }
                     }
                 }

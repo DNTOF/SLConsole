@@ -48,6 +48,42 @@ class SlHttpClient(
     suspend fun getData(config: ServerConfig, path: String): HttpResult =
         execute(config, path, body = null, credential = config.verifyToken)
 
+    /**
+     * 数据面 GET,保留原始 JSON。适配插件路由 `GET /plugins/<id>/<route>` 不一定包在 success 信封里。
+     */
+    suspend fun getRaw(config: ServerConfig, path: String): RawHttpResult = withContext(Dispatchers.IO) {
+        val safeCredential = config.verifyToken.filter { it.code in 32..126 }
+        val request = Request.Builder()
+            .url("${config.baseUrl}$path")
+            .header("Accept", "application/json")
+            .header("Authorization", "Bearer $safeCredential")
+            .get()
+            .build()
+        try {
+            client.newCall(request).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                val element = runCatching { AppJson.json.parseToJsonElement(text) }.getOrNull()
+                if (response.isSuccessful && element != null) {
+                    RawHttpResult.Success(element)
+                } else {
+                    val obj = element as? JsonObject
+                    RawHttpResult.Failure(
+                        obj?.get("message").textOrNull() ?: "HTTP ${response.code}",
+                    )
+                }
+            }
+        } catch (e: IOException) {
+            RawHttpResult.Failure("无法连接到 ${config.addressText}(${e.message ?: "网络错误"})")
+        } catch (e: Exception) {
+            RawHttpResult.Failure("请求失败:${e.message ?: "未知错误"}")
+        }
+    }
+
+    sealed interface RawHttpResult {
+        data class Success(val body: JsonElement) : RawHttpResult
+        data class Failure(val message: String) : RawHttpResult
+    }
+
     suspend fun postControl(config: ServerConfig, path: String, body: JsonObject): HttpResult =
         execute(config, path, body = body.toString(), credential = config.apiKey)
 

@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonPrimitive
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
@@ -145,7 +146,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

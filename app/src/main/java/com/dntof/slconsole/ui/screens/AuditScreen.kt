@@ -44,6 +44,7 @@ import com.dntof.slconsole.util.Format
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun AuditScreen() {
@@ -103,7 +104,7 @@ fun AuditScreen() {
             EmptyState(Icons.AutoMirrored.Outlined.FactCheck, "暂无审计记录", "控制操作执行后会记录在这里")
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp).withBottomChrome(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(list.size) { index ->

@@ -52,6 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 private val LINE_OPTIONS = listOf(100, 200, 500, 1000, 2000)
 
@@ -140,7 +141,7 @@ fun LogsScreen() {
                 EmptyState(Icons.AutoMirrored.Outlined.Article, "没有日志文件", "检查插件 log_directory 配置")
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(16.dp).withBottomChrome(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(list, key = { it.path }) { file ->

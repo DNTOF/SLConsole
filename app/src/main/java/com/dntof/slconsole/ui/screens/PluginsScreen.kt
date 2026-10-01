@@ -46,6 +46,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 /** 逐字段安全提取:插件响应里 priority/version 等字段在 LabAPI 与 EXILED 间类型不一致,避免整表解析失败。 */
 private fun parsePlugin(o: JsonObject): PluginInfo? {
@@ -68,7 +69,7 @@ private fun parsePlugin(o: JsonObject): PluginInfo? {
 }
 
 @Composable
-fun PluginsScreen() {
+fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
     val server = rememberActiveServer()
     val scope = rememberCoroutineScope()
     val snackbar = LocalSnackbarHost.current
@@ -104,6 +105,9 @@ fun PluginsScreen() {
     LaunchedEffect(server?.id) { load() }
 
     Column(Modifier.fillMaxSize()) {
+        TextButton(onClick = onOpenAdapted, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Text("适配插件:SLPlayer / OmegaWarhead")
+        }
         SectionCard(
             "已加载插件",
             subtitle = plugins?.let { "共 ${it.size} 个(EXILED / LabAPI)" } ?: "加载中…",
@@ -129,7 +133,7 @@ fun PluginsScreen() {
             EmptyState(Icons.Outlined.Extension, "未发现插件", "服务器上可能没有安装插件")
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp).withBottomChrome(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(list.size) { index ->

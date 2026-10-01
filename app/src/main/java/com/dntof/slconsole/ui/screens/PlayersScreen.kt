@@ -55,6 +55,7 @@ import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.GlassRole
@@ -123,7 +124,7 @@ fun PlayersScreen() {
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp).withBottomChrome(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(filtered, key = { it.steamId + it.nickname }) { player ->

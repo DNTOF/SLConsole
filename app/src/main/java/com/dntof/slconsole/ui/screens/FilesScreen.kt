@@ -63,6 +63,7 @@ import com.dntof.slconsole.util.Format
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 private data class EditingFile(
     val path: String,
@@ -258,7 +259,7 @@ fun FilesScreen() {
                         compareByDescending<FileEntry> { it.type == "dir" }.thenBy { it.name },
                     )
                     LazyColumn(
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(16.dp).withBottomChrome(),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         items(sorted.size, key = { sorted[it].name + sorted[it].type }) { index ->

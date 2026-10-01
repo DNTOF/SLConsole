@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import androidx.compose.ui.text.input.KeyboardType
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun BansScreen() {
@@ -113,7 +114,7 @@ fun BansScreen() {
                 EmptyState(Icons.Outlined.Gavel, "暂无封禁记录", "通过下方按钮可添加离线封禁")
             } else {
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(16.dp).withBottomChrome(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(list.size) { index ->

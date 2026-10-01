@@ -4,8 +4,15 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -22,21 +30,31 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -49,6 +67,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 /** 液态玻璃总开关。默认 false,由设置页写入 DataStore。 */
@@ -66,6 +85,79 @@ class GlassPlateState {
 }
 
 val LocalGlassPlate = staticCompositionLocalOf<GlassPlateState?> { null }
+
+/**
+ * 内容层的实时模糊。Android 12(API 31) 起用 RenderEffect 模糊真正画在表面后面的像素;
+ * 更低版本 [realtime] 为 false,表面退回半透明 + 静态底板。
+ */
+class LiveBlurState {
+    var sharp: GraphicsLayer? = null
+    var blurred: GraphicsLayer? = null
+    var contentGeneration: Int = 0
+    var publishedGeneration by mutableIntStateOf(0)
+    val realtime: Boolean = Build.VERSION.SDK_INT >= 31
+}
+
+val LocalLiveBlur = staticCompositionLocalOf<LiveBlurState?> { null }
+
+/** 内容滚动时把帧号写进快照,让盖在上面的玻璃同一帧之后重绘。静止时不空转。 */
+@Composable
+fun LiveBlurClock(state: LiveBlurState, enabled: Boolean) {
+    LaunchedEffect(state, enabled) {
+        if (!enabled || !state.realtime) return@LaunchedEffect
+        var last = -1
+        while (isActive) {
+            withFrameNanos {
+                val generation = state.contentGeneration
+                if (generation != last) {
+                    last = generation
+                    state.publishedGeneration = generation
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 把这块区域录进 [LiveBlurState],供外部的玻璃表面采样。
+ * 玻璃开关关闭时不做离屏录制。
+ */
+@Composable
+fun Modifier.captureBackdrop(): Modifier {
+    val glass = LocalLiquidGlass.current
+    val state = LocalLiveBlur.current
+    if (!glass || state == null) return this
+    val sharp = rememberGraphicsLayer()
+    val blurred = rememberGraphicsLayer()
+    DisposableEffect(sharp, blurred, state) {
+        state.sharp = sharp
+        state.blurred = blurred
+        onDispose {
+            if (state.sharp === sharp) state.sharp = null
+            if (state.blurred === blurred) state.blurred = null
+        }
+    }
+    return this.drawWithContent {
+        val layerSize = IntSize(
+            size.width.roundToInt().coerceAtLeast(1),
+            size.height.roundToInt().coerceAtLeast(1),
+        )
+        sharp.record(layerSize) { this@drawWithContent.drawContent() }
+        if (state.realtime) {
+            val radius = 28.dp.toPx().coerceIn(12f, 56f)
+            blurred.renderEffect = RenderEffect.createBlurEffect(
+                radius,
+                radius,
+                Shader.TileMode.CLAMP,
+            ).asComposeRenderEffect()
+            val saturate = ColorMatrix().apply { setToSaturation(1.4f) }
+            blurred.colorFilter = ColorFilter.colorMatrix(saturate)
+            blurred.record(layerSize) { drawLayer(sharp) }
+        }
+        drawLayer(sharp)
+        state.contentGeneration++
+    }
+}
 
 enum class GlassRole { Chrome, Panel, Row }
 
@@ -142,10 +234,21 @@ fun AppSurface(
     val glass = LocalLiquidGlass.current
     val scheme = MaterialTheme.colorScheme
     val dark = isSystemInDarkTheme()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && onClick != null) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMedium),
+        label = "glassPress",
+    )
     val glassModifier = if (glass) {
         Modifier.liquidGlass(shape = shape, role = role, dark = dark)
     } else {
         Modifier
+    }
+    val motion = Modifier.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
     }
     val container = if (glass) Color.Transparent else scheme.surfaceContainerHigh
     val border = if (glass) {
@@ -153,23 +256,24 @@ fun AppSurface(
     } else {
         androidx.compose.foundation.BorderStroke(1.dp, scheme.outlineVariant)
     }
-    val elevation = if (glass && role == GlassRole.Chrome) 10.dp else 0.dp
+    val elevation = if (!glass && role == GlassRole.Chrome) 8.dp else 0.dp
     if (onClick != null) {
         Surface(
             onClick = onClick,
-            modifier = modifier.then(glassModifier),
+            modifier = modifier.then(motion).then(glassModifier),
             enabled = enabled,
             shape = shape,
             color = container,
             contentColor = scheme.onSurface,
             tonalElevation = 0.dp,
-            shadowElevation = elevation,
+            shadowElevation = if (glass) 0.dp else elevation,
             border = border,
+            interactionSource = interaction,
             content = content,
         )
     } else {
         Surface(
-            modifier = modifier.then(glassModifier),
+            modifier = modifier.then(motion).then(glassModifier),
             shape = shape,
             color = container,
             contentColor = scheme.onSurface,
@@ -190,22 +294,24 @@ fun Modifier.liquidGlass(
 ): Modifier {
     if (!LocalLiquidGlass.current) return this
     val plate = LocalGlassPlate.current ?: return this
+    val live = LocalLiveBlur.current?.takeIf { it.realtime }
     val tintAlpha = when (role) {
-        GlassRole.Chrome -> if (dark) 0.50f else 0.46f
-        GlassRole.Panel -> if (dark) 0.62f else 0.58f
-        GlassRole.Row -> if (dark) 0.74f else 0.70f
+        GlassRole.Chrome -> if (live != null) if (dark) 0.22f else 0.18f else if (dark) 0.55f else 0.50f
+        GlassRole.Panel -> if (live != null) if (dark) 0.34f else 0.28f else if (dark) 0.62f else 0.58f
+        GlassRole.Row -> if (dark) 0.72f else 0.68f
     }
-    val tint = if (dark) Color(0xFF17131F).copy(alpha = tintAlpha) else Color.White.copy(alpha = tintAlpha)
+    val tint = if (dark) Color(0xFF120E18).copy(alpha = tintAlpha) else Color.White.copy(alpha = tintAlpha)
     val fallback = if (dark) Color(0xFF231C2E).copy(alpha = 0.90f) else Color(0xFFFFF7FB).copy(alpha = 0.90f)
     return this.then(
         LiquidGlassElement(
             shape = shape,
             plate = plate,
+            live = LocalLiveBlur.current,
             tint = tint,
             fallback = fallback,
-            highlightAlpha = if (dark) 0.16f else 0.38f,
-            borderStart = if (dark) 0.48f else 0.90f,
-            borderEnd = if (dark) 0.08f else 0.22f,
+            highlightAlpha = if (dark) 0.22f else 0.45f,
+            borderStart = if (dark) 0.70f else 0.95f,
+            borderEnd = if (dark) 0.12f else 0.28f,
             framed = framed,
         ),
     )
@@ -214,6 +320,7 @@ fun Modifier.liquidGlass(
 private data class LiquidGlassElement(
     val shape: Shape,
     val plate: GlassPlateState,
+    val live: LiveBlurState?,
     val tint: Color,
     val fallback: Color,
     val highlightAlpha: Float,
@@ -222,17 +329,18 @@ private data class LiquidGlassElement(
     val framed: Boolean,
 ) : ModifierNodeElement<LiquidGlassNode>() {
     override fun create(): LiquidGlassNode = LiquidGlassNode(
-        shape, plate, tint, fallback, highlightAlpha, borderStart, borderEnd, framed,
+        shape, plate, live, tint, fallback, highlightAlpha, borderStart, borderEnd, framed,
     )
 
     override fun update(node: LiquidGlassNode) {
-        node.updateStyle(shape, plate, tint, fallback, highlightAlpha, borderStart, borderEnd, framed)
+        node.updateStyle(shape, plate, live, tint, fallback, highlightAlpha, borderStart, borderEnd, framed)
     }
 }
 
 private class LiquidGlassNode(
     var shape: Shape,
     var plate: GlassPlateState,
+    var live: LiveBlurState?,
     var tint: Color,
     var fallback: Color,
     var highlightAlpha: Float,
@@ -249,6 +357,7 @@ private class LiquidGlassNode(
     fun updateStyle(
         shape: Shape,
         plate: GlassPlateState,
+        live: LiveBlurState?,
         tint: Color,
         fallback: Color,
         highlightAlpha: Float,
@@ -257,15 +366,17 @@ private class LiquidGlassNode(
         framed: Boolean,
     ) {
         val plateChanged = this.plate !== plate
+        val liveChanged = this.live !== live
         this.shape = shape
         this.plate = plate
+        this.live = live
         this.tint = tint
         this.fallback = fallback
         this.highlightAlpha = highlightAlpha
         this.borderStart = borderStart
         this.borderEnd = borderEnd
         this.framed = framed
-        if (plateChanged) observePlate()
+        if (plateChanged || liveChanged) observePlate()
         invalidateDraw()
     }
 
@@ -278,6 +389,7 @@ private class LiquidGlassNode(
             bitmap = plate.bitmap
             plateWidth = plate.widthPx
             plateHeight = plate.heightPx
+            live?.publishedGeneration
         }
     }
 
@@ -291,10 +403,17 @@ private class LiquidGlassNode(
         path.reset()
         path.addOutline(outline)
         clipPath(path) {
-            val image = bitmap
             val coords = runCatching { requireLayoutCoordinates() }.getOrNull()
             val pos = if (coords != null && coords.isAttached) coords.positionInRoot() else Offset.Zero
-            if (image != null && plateWidth > 0 && plateHeight > 0) {
+            val liveLayer = live?.blurred?.takeIf { live?.realtime == true }
+            if (liveLayer != null && coords != null && coords.isAttached) {
+                // 轻微放大,边缘看起来有一点透镜折射
+                translate(left = -pos.x, top = -pos.y) {
+                    drawLayer(liveLayer)
+                }
+            }
+            val image = bitmap
+            if (liveLayer == null && image != null && plateWidth > 0 && plateHeight > 0) {
                 val scaleX = image.width.toFloat() / plateWidth
                 val scaleY = image.height.toFloat() / plateHeight
                 val srcLeft = (pos.x * scaleX).roundToInt().coerceIn(0, image.width - 1)
@@ -312,7 +431,7 @@ private class LiquidGlassNode(
                         size.height.roundToInt().coerceAtLeast(1),
                     ),
                 )
-            } else {
+            } else if (liveLayer == null) {
                 drawRect(fallback)
             }
             drawRect(tint)

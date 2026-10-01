@@ -46,6 +46,7 @@ import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.dntof.slconsole.ui.withBottomChrome
 
 private fun formatReportTime(iso: String?): String {
     if (iso.isNullOrBlank()) return "—"
@@ -118,7 +119,7 @@ fun ReportsScreen() {
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp).withBottomChrome(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(list.size, key = { list[it].id }) { index ->

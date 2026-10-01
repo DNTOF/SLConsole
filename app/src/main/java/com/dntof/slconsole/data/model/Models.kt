@@ -2,6 +2,7 @@ package com.dntof.slconsole.data.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
 /**
@@ -25,6 +26,7 @@ data class ServerData(
     @SerialName("spectator_count") val spectatorCount: Int = 0,
     val ping: Int = 0,
     val players: List<PlayerInfo> = emptyList(),
+    @SerialName("dntof_plugins") val dntofPlugins: DntofPlugins = DntofPlugins(),
     @SerialName("adapted_plugins") val adaptedPlugins: List<AdaptedPlugin> = emptyList(),
 )
 
@@ -45,6 +47,63 @@ data class AdaptedPlugin(
     val name: String? = null,
     val version: String? = null,
     val capabilities: List<String> = emptyList(),
+    val routes: List<String> = emptyList(),
+    /** 插件自己的 status 回调,形状不固定。 */
+    val status: JsonElement? = null,
+)
+
+@Serializable
+data class DntofPlugins(
+    @SerialName("sl_player") val slPlayer: SlPlayerSnapshot? = null,
+    @SerialName("omega_warhead") val omegaWarhead: OmegaWarheadSnapshot? = null,
+)
+
+@Serializable
+data class SlPlayerSnapshot(
+    val present: Boolean = false,
+    @SerialName("source_mode") val sourceMode: String? = null,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+    @SerialName("now_playing") val nowPlaying: String? = null,
+)
+
+@Serializable
+data class CoinHolder(
+    val nickname: String = "",
+    val count: Int = 0,
+    val position: String = "",
+)
+
+@Serializable
+data class OmegaWarheadSnapshot(
+    val present: Boolean = false,
+    val phase: String = "none",
+    @SerialName("coin_holders") val coinHolders: List<CoinHolder> = emptyList(),
+    @SerialName("controller_holder") val controllerHolder: String? = null,
+    val countdown: Int? = null,
+)
+
+/** POST /control/plugins/slplayer action=status 的 data。 */
+@Serializable
+data class SlPlayerStatus(
+    val playing: Boolean = false,
+    val index: Int = -1,
+    val song: String? = null,
+    @SerialName("elapsed_seconds") val elapsedSeconds: Int = 0,
+    @SerialName("duration_seconds") val durationSeconds: Int = 0,
+    val volume: Int = 0,
+    val shuffle: Boolean = false,
+    val source: String? = null,
+    @SerialName("remote_url") val remoteUrl: String? = null,
+    @SerialName("playlist_count") val playlistCount: Int = 0,
+    val playlist: List<SlPlayerSong> = emptyList(),
+)
+
+@Serializable
+data class SlPlayerSong(
+    val index: Int = 0,
+    val display: String = "",
+    @SerialName("duration_seconds") val durationSeconds: Int = 0,
+    val current: Boolean = false,
 )
 
 @Serializable
