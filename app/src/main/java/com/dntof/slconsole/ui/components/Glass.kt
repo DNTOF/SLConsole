@@ -2,9 +2,13 @@ package com.dntof.slconsole.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.RenderEffect
+import android.graphics.RenderNode
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -20,7 +24,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,11 +43,12 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.positionInRoot
@@ -61,7 +65,6 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.withContext
 
 /** 液态玻璃总开关。默认 false,由设置页写入 DataStore。 */
@@ -82,27 +85,20 @@ class GlassPlateState {
 val LocalGlassPlate = staticCompositionLocalOf<GlassPlateState?> { null }
 
 /**
- * 内容快照。玻璃只采样模糊后的位图,不把 GraphicsLayer 画进另一个 GraphicsLayer。
- * 硬件渲染的 RenderNode 树只要出现环,prepareTree 就会栈溢出。
+ * 背景模糊层。只在 API 31+ 使用,而且这层的显示列表里只有缩小后的背景,
+ * 背景录制时玻璃表面完全不参与,所以两层不会互相引用。
  */
 class LiveBlurState {
-    var sharp: GraphicsLayer? = null
     var safeFrames: Int = 0
 
-    /** 正在把内容录进快照。这段时间玻璃不能再引用任何离屏层。 */
+    /** 正在录背景。玻璃表面在这段时间什么都不画,包括自己的文字。 */
     var recording: Boolean = false
     var failed: Boolean = false
     var onFailure: ((Throwable) -> Unit)? = null
     var capturedWidth: Int = 1
     var capturedHeight: Int = 1
-
-    /** 下一次绘制是快照写回触发的,不要因此再排一次快照。 */
-    var suppressNext: Boolean = false
-
-    /** 正在把层导出成位图。这段时间不要重录,避免和快照抢同一块显示列表。 */
-    var snapshotting: Boolean = false
-    var lastRequestNs: Long = 0L
-    val requests = Channel<Unit>(Channel.CONFLATED)
+    var blurNode: RenderNode? = null
+    val gpu: Boolean = Build.VERSION.SDK_INT >= 31
 
     fun reportFailure(error: Throwable) {
         if (failed) return
@@ -118,65 +114,26 @@ class LiveBlurState {
 val LocalLiveBlur = staticCompositionLocalOf<LiveBlurState?> { null }
 
 /**
- * 保留给调用方。模糊结果是位图,不需要帧时钟去推动另一层 RenderNode。
+ * 保留给调用方。模糊在同一次绘制里完成,不需要额外的帧时钟。
  */
 @Composable
 fun LiveBlurClock(state: LiveBlurState, enabled: Boolean) = Unit
 
 /**
- * 把内容录进独立的 [GraphicsLayer],再把像素快照模糊成位图。
- * 玻璃表面只画这张位图。录制出来的层不会被画进另一个层,也不会被屏幕上的玻璃再次引用。
+ * 录下不含玻璃表面的背景,再用一块独立的缩小 RenderNode 做 GPU 模糊。
+ * 这块模糊层不会被画进背景录制,背景录制也不会包含它,避免 RenderNode 成环。
+ * 只在内容本身重绘时更新(滚动、数据变化),不读回像素,也不挡第一帧。
  */
 @Composable
 fun Modifier.captureBackdrop(): Modifier {
     val glass = LocalLiquidGlass.current
     val state = LocalLiveBlur.current
-    val plate = LocalGlassPlate.current
-    if (!glass || state == null || plate == null) return this
+    if (!glass || state == null || !state.gpu) return this
     val sharp = rememberGraphicsLayer()
-    DisposableEffect(sharp, state) {
-        state.sharp = sharp
-        onDispose {
-            if (state.sharp === sharp) state.sharp = null
-        }
-    }
-    LaunchedEffect(sharp, state, plate) {
-        for (ignored in state.requests) {
-            val layer = state.sharp ?: continue
-            val width = state.capturedWidth
-            val height = state.capturedHeight
-            state.snapshotting = true
-            try {
-                val image = layer.toImageBitmap()
-                val software = image.asAndroidBitmap().let { raw ->
-                    if (raw.config == Bitmap.Config.HARDWARE) {
-                        raw.copy(Bitmap.Config.ARGB_8888, false)
-                    } else {
-                        raw
-                    }
-                } ?: continue
-                val blurred = withContext(Dispatchers.Default) {
-                    blurContentSnapshot(software)
-                }
-                // 先挡住紧接着的那一次重绘,避免快照写回自己再触发快照。
-                state.suppressNext = true
-                plate.contentSnapshot = true
-                plate.widthPx = width
-                plate.heightPx = height
-                plate.bitmap = blurred.asImageBitmap()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                android.util.Log.e("GlassGuard", "backdrop snapshot failed", error)
-            } finally {
-                state.snapshotting = false
-            }
-        }
-    }
+    val view = androidx.compose.ui.platform.LocalView.current
     return this.drawWithContent {
-        if (state.failed || state.snapshotting) {
+        if (state.failed) {
             drawContent()
-            if (!state.failed) state.safeFrames++
             return@drawWithContent
         }
         val layerSize = IntSize(
@@ -184,10 +141,14 @@ fun Modifier.captureBackdrop(): Modifier {
             size.height.roundToInt().coerceAtLeast(1),
         )
         var recorded = false
-        val echo = state.suppressNext
-        state.suppressNext = false
         try {
-            // 录制时玻璃只画纯色兜底,显示列表里不会出现任何 GraphicsLayer。
+            // 第一帧先把内容画出来,模糊层从下一帧开始,避免启动时卡在离屏录制上。
+            if (state.safeFrames == 0) {
+                drawContent()
+                state.safeFrames = 1
+                view.postInvalidateOnAnimation()
+                return@drawWithContent
+            }
             state.recording = true
             state.capturedWidth = layerSize.width
             state.capturedHeight = layerSize.height
@@ -196,11 +157,7 @@ fun Modifier.captureBackdrop(): Modifier {
                 recorded = true
             }
             state.recording = false
-            val now = System.nanoTime()
-            if (!echo && !state.snapshotting && now - state.lastRequestNs > 200_000_000L) {
-                state.lastRequestNs = now
-                state.requests.trySend(Unit)
-            }
+            updateGpuBlur(state, sharp, layerSize.width, layerSize.height)
             drawContent()
             state.safeFrames++
         } catch (error: Throwable) {
@@ -211,6 +168,56 @@ fun Modifier.captureBackdrop(): Modifier {
             }
             state.reportFailure(error)
         }
+    }
+}
+
+private fun updateGpuBlur(state: LiveBlurState, sharp: GraphicsLayer, width: Int, height: Int) {
+    if (!state.gpu) return
+    try {
+        updateGpuBlurInner(state, sharp, width, height)
+    } catch (error: Throwable) {
+        android.util.Log.e("GlassGuard", "gpu blur update failed", error)
+    }
+}
+
+private fun updateGpuBlurInner(state: LiveBlurState, sharp: GraphicsLayer, width: Int, height: Int) {
+    val source = androidRenderNode(sharp) ?: return
+    val dw = (width / 4).coerceAtLeast(8)
+    val dh = (height / 4).coerceAtLeast(8)
+    val node = state.blurNode ?: RenderNode("slc-glass-blur").also { state.blurNode = it }
+    if (node.width != dw || node.height != dh) {
+        node.setPosition(0, 0, dw, dh)
+    }
+    // 半径按缩小后的像素计,放大回屏幕大约是 28px,能看出背后的色块但不会糊成一片白。
+    val radius = 7f
+    val blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
+    val saturate = android.graphics.ColorMatrix().apply { setSaturation(1.15f) }
+    node.setRenderEffect(RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(saturate), blur))
+    val canvas = node.beginRecording()
+    try {
+        canvas.save()
+        canvas.scale(dw.toFloat() / width, dh.toFloat() / height)
+        canvas.drawRenderNode(source)
+        canvas.restore()
+    } finally {
+        node.endRecording()
+    }
+}
+
+private val graphicsLayerImplMethod by lazy(LazyThreadSafetyMode.NONE) {
+    GraphicsLayer::class.java.getMethod("getImpl\$ui_graphics_release")
+}
+
+private fun androidRenderNode(layer: GraphicsLayer): RenderNode? {
+    return try {
+        val impl = graphicsLayerImplMethod.invoke(layer) ?: return null
+        val field = impl.javaClass.getDeclaredField("renderNode")
+        field.isAccessible = true
+        val value = field.get(impl)
+        value as? RenderNode
+    } catch (error: Throwable) {
+        android.util.Log.e("GlassGuard", "backdrop render node unavailable", error)
+        null
     }
 }
 
@@ -358,11 +365,13 @@ fun Modifier.liquidGlass(
 ): Modifier {
     if (!LocalLiquidGlass.current) return this
     val plate = LocalGlassPlate.current ?: return this
-    val sampled = plate.contentSnapshot
+    val gpu = LocalLiveBlur.current?.gpu == true
+    // 只有顶栏和底栏采样实时背景。卡片若也采样,就会把刚录进去的自己的字再糊一遍。
+    val samplesBackdrop = role == GlassRole.Chrome && gpu
     val tintAlpha = when (role) {
-        GlassRole.Chrome -> if (sampled) if (dark) 0.22f else 0.18f else if (dark) 0.55f else 0.50f
-        GlassRole.Panel -> if (sampled) if (dark) 0.34f else 0.28f else if (dark) 0.62f else 0.58f
-        GlassRole.Row -> if (dark) 0.72f else 0.68f
+        GlassRole.Chrome -> if (samplesBackdrop) if (dark) 0.10f else 0.06f else if (dark) 0.55f else 0.50f
+        GlassRole.Panel -> if (dark) 0.22f else 0.16f
+        GlassRole.Row -> if (dark) 0.55f else 0.48f
     }
     val tint = if (dark) Color(0xFF120E18).copy(alpha = tintAlpha) else Color.White.copy(alpha = tintAlpha)
     val fallback = if (dark) Color(0xFF231C2E).copy(alpha = 0.90f) else Color(0xFFFFF7FB).copy(alpha = 0.90f)
@@ -370,10 +379,10 @@ fun Modifier.liquidGlass(
         LiquidGlassElement(
             shape = shape,
             plate = plate,
-            live = LocalLiveBlur.current,
+            live = if (samplesBackdrop) LocalLiveBlur.current else null,
             tint = tint,
             fallback = fallback,
-            highlightAlpha = if (dark) 0.22f else 0.45f,
+            highlightAlpha = if (samplesBackdrop) 0.10f else if (dark) 0.16f else 0.22f,
             borderStart = if (dark) 0.70f else 0.95f,
             borderEnd = if (dark) 0.12f else 0.28f,
             framed = framed,
@@ -475,34 +484,52 @@ private class LiquidGlassNode(
     }
 
     private fun ContentDrawScope.drawGlass() {
+        // 录背景时不能把模糊层再画进去,否则两层互相引用。内容本身要留下,底栏才能模糊到它。
+        if (live?.recording == true) {
+            drawContent()
+            return
+        }
         val outline = shape.createOutline(size, layoutDirection, this)
         path.reset()
         path.addOutline(outline)
         clipPath(path) {
             val coords = runCatching { requireLayoutCoordinates() }.getOrNull()
             val pos = if (coords != null && coords.isAttached) coords.positionInRoot() else Offset.Zero
-            // 录制进快照时只留纯色,避免把底板或离屏层再画进正在录的层。
-            val image = if (live?.recording == true) null else bitmap
-            if (image != null && plateWidth > 0 && plateHeight > 0) {
-                val scaleX = image.width.toFloat() / plateWidth
-                val scaleY = image.height.toFloat() / plateHeight
-                val srcLeft = (pos.x * scaleX).roundToInt().coerceIn(0, image.width - 1)
-                val srcTop = (pos.y * scaleY).roundToInt().coerceIn(0, image.height - 1)
-                val srcW = (size.width * scaleX).roundToInt().coerceAtLeast(1)
-                    .coerceAtMost(image.width - srcLeft)
-                val srcH = (size.height * scaleY).roundToInt().coerceAtLeast(1)
-                    .coerceAtMost(image.height - srcTop)
-                drawImage(
-                    image,
-                    srcOffset = IntOffset(srcLeft, srcTop),
-                    srcSize = IntSize(srcW, srcH),
-                    dstSize = IntSize(
-                        size.width.roundToInt().coerceAtLeast(1),
-                        size.height.roundToInt().coerceAtLeast(1),
-                    ),
-                )
+            val node = live?.blurNode
+            val fullW = live?.capturedWidth ?: 0
+            val fullH = live?.capturedHeight ?: 0
+            if (node != null && fullW > 0 && fullH > 0 && node.width > 0 && node.height > 0) {
+                drawIntoCanvas { canvas ->
+                    val native = canvas.nativeCanvas
+                    native.save()
+                    native.translate(-pos.x, -pos.y)
+                    native.scale(fullW.toFloat() / node.width, fullH.toFloat() / node.height)
+                    native.drawRenderNode(node)
+                    native.restore()
+                }
             } else {
-                drawRect(fallback)
+                val image = bitmap
+                if (image != null && plateWidth > 0 && plateHeight > 0) {
+                    val scaleX = image.width.toFloat() / plateWidth
+                    val scaleY = image.height.toFloat() / plateHeight
+                    val srcLeft = (pos.x * scaleX).roundToInt().coerceIn(0, image.width - 1)
+                    val srcTop = (pos.y * scaleY).roundToInt().coerceIn(0, image.height - 1)
+                    val srcW = (size.width * scaleX).roundToInt().coerceAtLeast(1)
+                        .coerceAtMost(image.width - srcLeft)
+                    val srcH = (size.height * scaleY).roundToInt().coerceAtLeast(1)
+                        .coerceAtMost(image.height - srcTop)
+                    drawImage(
+                        image,
+                        srcOffset = IntOffset(srcLeft, srcTop),
+                        srcSize = IntSize(srcW, srcH),
+                        dstSize = IntSize(
+                            size.width.roundToInt().coerceAtLeast(1),
+                            size.height.roundToInt().coerceAtLeast(1),
+                        ),
+                    )
+                } else {
+                    drawRect(fallback)
+                }
             }
             drawRect(tint)
             drawRect(
@@ -527,15 +554,6 @@ private class LiquidGlassNode(
             )
         }
     }
-}
-
-/** 把内容快照缩小后再做盒式模糊。结果是位图,不进入 RenderNode 树。 */
-internal fun blurContentSnapshot(source: Bitmap): Bitmap {
-    val bw = (source.width / 8).coerceIn(48, 200)
-    val bh = (source.height.toFloat() / source.width.coerceAtLeast(1) * bw).roundToInt().coerceIn(64, 360)
-    val small = Bitmap.createScaledBitmap(source, bw, bh, true)
-    boxBlur(small, radius = 6)
-    return small
 }
 
 /** 把当前窗口的彩色背景画到小图上再做两次盒式模糊。任何 API 都能跑,失败时调用方退回纯色。 */
