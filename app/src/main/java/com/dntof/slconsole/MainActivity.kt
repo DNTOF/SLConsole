@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.dntof.slconsole.data.local.GlassGuard
 import com.dntof.slconsole.ui.AppRoot
 import com.dntof.slconsole.ui.theme.SLConsoleTheme
 
@@ -22,9 +23,10 @@ class MainActivity : ComponentActivity() {
             window.isNavigationBarContrastEnforced = false
             window.isStatusBarContrastEnforced = false
         }
+        val startupNotice = GlassGuard.recoverIfNeeded(this)
         setContent {
             SLConsoleTheme {
-                AppRoot()
+                AppRoot(startupNotice = startupNotice)
             }
         }
     }

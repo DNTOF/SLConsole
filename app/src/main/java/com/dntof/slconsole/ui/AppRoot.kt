@@ -69,7 +69,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,6 +82,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -93,6 +96,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.data.local.GlassGuard
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
@@ -131,6 +135,7 @@ import com.dntof.slconsole.ui.screens.ServerEditScreen
 import com.dntof.slconsole.ui.screens.ServersScreen
 import com.dntof.slconsole.ui.screens.SettingsScreen
 import com.dntof.slconsole.ui.screens.VoiceScreen
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
@@ -219,7 +224,7 @@ fun rememberActiveServer(): ServerConfig? {
 }
 
 @Composable
-fun AppRoot() {
+fun AppRoot(startupNotice: String? = null) {
     val navController = rememberNavController()
     val store = ServiceLocator.serverStore
     val scope = rememberCoroutineScope()
@@ -244,6 +249,13 @@ fun AppRoot() {
     }
     val plate = rememberGlassPlateState()
     val liveBlur = remember { LiveBlurState() }
+    val context = LocalContext.current
+    // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
+    SideEffect {
+        if (glassEnabled && liveBlur.safeFrames < 2 && !liveBlur.failed) {
+            GlassGuard.markRenderStart(context)
+        }
+    }
 
     LaunchedEffect(activeServer) {
         MonitorEngine.setActive(activeServer)
@@ -253,6 +265,34 @@ fun AppRoot() {
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(startupNotice) {
+        if (!startupNotice.isNullOrBlank()) snackbarHostState.showSnackbar(startupNotice)
+    }
+    LaunchedEffect(glassEnabled) {
+        if (!glassEnabled) {
+            liveBlur.safeFrames = 0
+            liveBlur.failed = false
+            GlassGuard.markRenderOk(context)
+            return@LaunchedEffect
+        }
+        while (isActive) {
+            withFrameNanos { }
+            if (liveBlur.failed) break
+            if (liveBlur.safeFrames >= 2) {
+                GlassGuard.markRenderOk(context)
+                break
+            }
+        }
+    }
+    SideEffect {
+        liveBlur.onFailure = {
+            scope.launch {
+                GlassGuard.markRenderOk(context)
+                ServiceLocator.settingsStore.setLiquidGlass(false)
+                snackbarHostState.showSnackbar(GlassGuard.FAILURE_NOTICE)
+            }
+        }
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isSubRoute = currentRoute in Routes.SUB_ROUTES

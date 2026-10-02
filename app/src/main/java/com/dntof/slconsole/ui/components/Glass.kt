@@ -30,7 +30,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
@@ -66,8 +65,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 /** 液态玻璃总开关。默认 false,由设置页写入 DataStore。 */
@@ -93,30 +92,34 @@ val LocalGlassPlate = staticCompositionLocalOf<GlassPlateState?> { null }
 class LiveBlurState {
     var sharp: GraphicsLayer? = null
     var blurred: GraphicsLayer? = null
-    var contentGeneration: Int = 0
-    var publishedGeneration by mutableIntStateOf(0)
+    var safeFrames: Int = 0
+
+    /** 正在把内容录进 sharp 层。这段时间不能再 drawLayer,否则会把图层画进自己。 */
+    var recording: Boolean = false
+    var failed: Boolean = false
+    var onFailure: ((Throwable) -> Unit)? = null
     val realtime: Boolean = Build.VERSION.SDK_INT >= 31
+
+    fun reportFailure(error: Throwable) {
+        if (failed) return
+        failed = true
+        android.util.Log.e("GlassGuard", "liquid glass draw failed", error)
+        val callback = onFailure
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            callback?.invoke(error)
+        }
+    }
 }
 
 val LocalLiveBlur = staticCompositionLocalOf<LiveBlurState?> { null }
 
-/** 内容滚动时把帧号写进快照,让盖在上面的玻璃同一帧之后重绘。静止时不空转。 */
+/**
+ * 以前用帧号驱动底栏重绘,但任意一处失效都会让根节点把整棵树再画一遍,
+ * 帧号一变就会把捕获再跑一遍,静止时也停不下来。内容滚动本身会让根节点重绘,
+ * 底栏在同一次绘制里就能采到新的模糊层,所以这里不再订阅帧号。
+ */
 @Composable
-fun LiveBlurClock(state: LiveBlurState, enabled: Boolean) {
-    LaunchedEffect(state, enabled) {
-        if (!enabled || !state.realtime) return@LaunchedEffect
-        var last = -1
-        while (isActive) {
-            withFrameNanos {
-                val generation = state.contentGeneration
-                if (generation != last) {
-                    last = generation
-                    state.publishedGeneration = generation
-                }
-            }
-        }
-    }
-}
+fun LiveBlurClock(state: LiveBlurState, enabled: Boolean) = Unit
 
 /**
  * 把这块区域录进 [LiveBlurState],供外部的玻璃表面采样。
@@ -138,24 +141,47 @@ fun Modifier.captureBackdrop(): Modifier {
         }
     }
     return this.drawWithContent {
+        if (state.failed) {
+            drawContent()
+            return@drawWithContent
+        }
         val layerSize = IntSize(
             size.width.roundToInt().coerceAtLeast(1),
             size.height.roundToInt().coerceAtLeast(1),
         )
-        sharp.record(layerSize) { this@drawWithContent.drawContent() }
-        if (state.realtime) {
-            val radius = 28.dp.toPx().coerceIn(12f, 56f)
-            blurred.renderEffect = RenderEffect.createBlurEffect(
-                radius,
-                radius,
-                Shader.TileMode.CLAMP,
-            ).asComposeRenderEffect()
-            val saturate = ColorMatrix().apply { setToSaturation(1.4f) }
-            blurred.colorFilter = ColorFilter.colorMatrix(saturate)
-            blurred.record(layerSize) { drawLayer(sharp) }
+        var recorded = false
+        try {
+            // 第一遍只进离屏层,玻璃不能 drawLayer(blurred):
+            // 那条命令会留在 sharp 的显示列表里,blurred.record { drawLayer(sharp) } 重放时
+            // 等于把正在录制的层画进自己,RenderNode 会抛 IllegalArgumentException。
+            state.recording = true
+            sharp.record(layerSize) {
+                this@drawWithContent.drawContent()
+                recorded = true
+            }
+            state.recording = false
+            if (state.realtime) {
+                val radius = 28.dp.toPx().coerceIn(1f, 48f)
+                blurred.renderEffect = RenderEffect.createBlurEffect(
+                    radius,
+                    radius,
+                    Shader.TileMode.CLAMP,
+                ).asComposeRenderEffect()
+                val saturate = ColorMatrix().apply { setToSaturation(1.35f) }
+                blurred.colorFilter = ColorFilter.colorMatrix(saturate)
+                blurred.record(layerSize) { drawLayer(sharp) }
+            }
+            // 第二遍才画到屏幕上。此时 blurred 已经录完,玻璃可以采样它。
+            drawContent()
+            state.safeFrames++
+        } catch (error: Throwable) {
+            state.recording = false
+            if (error is CancellationException) throw error
+            if (!recorded) {
+                runCatching { drawContent() }
+            }
+            state.reportFailure(error)
         }
-        drawLayer(sharp)
-        state.contentGeneration++
     }
 }
 
@@ -172,6 +198,7 @@ fun rememberGlassPlateState(): GlassPlateState = remember { GlassPlateState() }
 fun AppBackdrop(glassEnabled: Boolean, modifier: Modifier = Modifier) {
     val dark = isSystemInDarkTheme()
     val plate = LocalGlassPlate.current
+    val live = LocalLiveBlur.current
     val background = MaterialTheme.colorScheme.background
     var size by remember { mutableStateOf(IntSize.Zero) }
 
@@ -183,8 +210,15 @@ fun AppBackdrop(glassEnabled: Boolean, modifier: Modifier = Modifier) {
         }
         val widthPx = size.width
         val heightPx = size.height
-        val bitmap = withContext(Dispatchers.Default) {
-            renderGlassPlate(widthPx, heightPx, dark)
+        val bitmap = try {
+            withContext(Dispatchers.Default) {
+                renderGlassPlate(widthPx, heightPx, dark)
+            }
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            target.bitmap = null
+            live?.reportFailure(error)
+            return@LaunchedEffect
         }
         target.bitmap = bitmap.asImageBitmap()
         target.widthPx = widthPx
@@ -333,7 +367,9 @@ private data class LiquidGlassElement(
     )
 
     override fun update(node: LiquidGlassNode) {
-        node.updateStyle(shape, plate, live, tint, fallback, highlightAlpha, borderStart, borderEnd, framed)
+        node.updateStyle(
+            shape, plate, live, tint, fallback, highlightAlpha, borderStart, borderEnd, framed,
+        )
     }
 }
 
@@ -389,7 +425,6 @@ private class LiquidGlassNode(
             bitmap = plate.bitmap
             plateWidth = plate.widthPx
             plateHeight = plate.heightPx
-            live?.publishedGeneration
         }
     }
 
@@ -399,13 +434,26 @@ private class LiquidGlassNode(
     }
 
     override fun ContentDrawScope.draw() {
+        try {
+            drawGlass()
+        } catch (error: Throwable) {
+            if (error is CancellationException) throw error
+            drawRect(fallback)
+            drawContent()
+            live?.reportFailure(error)
+        }
+    }
+
+    private fun ContentDrawScope.drawGlass() {
         val outline = shape.createOutline(size, layoutDirection, this)
         path.reset()
         path.addOutline(outline)
         clipPath(path) {
             val coords = runCatching { requireLayoutCoordinates() }.getOrNull()
             val pos = if (coords != null && coords.isAttached) coords.positionInRoot() else Offset.Zero
-            val liveLayer = live?.blurred?.takeIf { live?.realtime == true }
+            val liveLayer = live?.blurred?.takeIf {
+                live?.realtime == true && live?.recording != true && live?.failed != true
+            }
             if (liveLayer != null && coords != null && coords.isAttached) {
                 // 轻微放大,边缘看起来有一点透镜折射
                 translate(left = -pos.x, top = -pos.y) {
