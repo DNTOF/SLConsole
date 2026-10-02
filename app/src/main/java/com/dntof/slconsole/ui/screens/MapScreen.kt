@@ -71,7 +71,9 @@ import com.dntof.slconsole.mapgen.MapGenData
 import com.dntof.slconsole.mapgen.MapGenerator
 import com.dntof.slconsole.mapgen.MapRoomUi
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.scrollUnderChrome
 import com.dntof.slconsole.ui.components.DropdownField
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
@@ -137,7 +139,7 @@ fun MapScreen() {
     }
 
     if (!server.hasControl) {
-        Column(Modifier.fillMaxSize().padding(16.dp).bottomChromePadding()) {
+        Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
             SectionCard("地图视图", subtitle = "需要控制面 API Key") {
                 Text(
                     "地图种子与设施控制都走控制通道。请在服务器设置中配置 API Key 后重试。",
@@ -153,7 +155,7 @@ fun MapScreen() {
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .bottomChromePadding(),
+            .scrollUnderChrome(),
     ) {
         SectionCard(
             "地图视图",

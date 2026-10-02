@@ -82,41 +82,51 @@ fun BansScreen() {
 
     LaunchedEffect(server?.id) { load() }
 
-    Column(Modifier.fillMaxSize()) {
-        if (server?.hasControl != true) {
-            AppSurface(Modifier.fillMaxWidth().padding(16.dp), role = GlassRole.Panel) {
-                Text(
-                    "封禁管理需要控制面 API Key。请在服务器设置中配置后重试。",
-                    Modifier.padding(14.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            SectionCard(
-                "封禁列表",
-                subtitle = bans?.let { "共 ${it.size} 条记录" } ?: "加载中…",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                actions = {
-                    IconButton(onClick = { load() }) { Icon(Icons.Outlined.Refresh, "刷新") }
-                    IconButton(onClick = { showAdd = true }) { Icon(Icons.Outlined.Add, "新增封禁") }
-                },
-            ) {
-                error?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            if (server?.hasControl != true) {
+                AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Panel) {
+                    Text(
+                        "封禁管理需要控制面 API Key。请在服务器设置中配置后重试。",
+                        Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                SectionCard(
+                    "封禁列表",
+                    subtitle = bans?.let { "共 ${it.size} 条记录" } ?: "加载中…",
+                    actions = {
+                        IconButton(onClick = { load() }) { Icon(Icons.Outlined.Refresh, "刷新") }
+                        IconButton(onClick = { showAdd = true }) { Icon(Icons.Outlined.Add, "新增封禁") }
+                    },
+                ) {
+                    error?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
-
         val list = bans
-        if (list != null) {
-            if (list.isEmpty()) {
-                EmptyState(Icons.Outlined.Gavel, "暂无封禁记录", "通过下方按钮可添加离线封禁")
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp).withBottomChrome(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+        if (list == null) {
+            item {
+                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else if (list.isEmpty()) {
+            item {
+                EmptyState(
+                    Icons.Outlined.Gavel,
+                    "暂无封禁记录",
+                    "通过下方按钮可添加离线封禁",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
+        } else {
                     items(list.size) { index ->
                         val ban = list[index]
                         AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
@@ -148,9 +158,7 @@ fun BansScreen() {
                         }
                     }
                 }
-            }
         }
-    }
 
     if (showAdd) {
         PromptDialog(

@@ -21,7 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.Button
-import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.scrollUnderChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.Icon
@@ -78,7 +78,7 @@ fun VoiceScreen() {
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .bottomChromePadding(),
+            .scrollUnderChrome(),
     ) {
         SectionCard(
             "语音监听",

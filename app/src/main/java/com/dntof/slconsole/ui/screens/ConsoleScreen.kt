@@ -43,6 +43,8 @@ import androidx.compose.material3.CardDefaults
 import com.dntof.slconsole.data.model.ConsoleOutputData
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.ui.LocalTopChrome
+import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
@@ -67,7 +69,7 @@ fun ConsoleScreen() {
         return
     }
     if (!server.hasControl) {
-        Column(Modifier.fillMaxSize().padding(16.dp).bottomChromePadding()) {
+        Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
             SectionCard("控制台", subtitle = "需要控制面 API Key") {
                 Text(
                     "控制台通过 API Key 执行服务器命令。请在服务器设置中配置 API Key 后重试。",
@@ -118,7 +120,7 @@ fun ConsoleScreen() {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+            .padding(start = 12.dp, end = 12.dp)
             .bottomChromePadding(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -130,7 +132,12 @@ fun ConsoleScreen() {
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(containerColor = Color(TERMINAL_BG)),
         ) {
-            Column(Modifier.padding(10.dp)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp, top = LocalTopChrome.current + 10.dp),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "● ● ●",
@@ -160,7 +167,6 @@ fun ConsoleScreen() {
                             lineHeight = 17.sp,
                         ),
                         color = Color(TERMINAL_TEXT),
-                        modifier = Modifier.fillMaxSize().verticalScroll(scroll),
                     )
                 }
             }

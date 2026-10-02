@@ -53,6 +53,7 @@ import com.dntof.slconsole.data.model.FileReadData
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
@@ -165,161 +166,164 @@ fun FilesScreen() {
 
     LaunchedEffect(server?.id, path) { load(path) }
 
-    Column(Modifier.fillMaxSize()) {
-        // 路径导航 + 操作
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(
-                onClick = { path = parentPath(path) },
-                enabled = path.isNotEmpty(),
-            ) { Text("上级") }
-            TextButton(onClick = { path = "" }) { Text("根目录") }
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { load(path) }) { Text("刷新") }
-        }
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PathChip("根", path.isEmpty()) { path = "" }
-            var acc = ""
-            path.split("/").forEach { segment ->
-                if (segment.isBlank()) return@forEach
-                acc = if (acc.isEmpty()) segment else "$acc/$segment"
-                Text(" / ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                PathChip(segment, acc == path) { path = acc }
-            }
-        }
-        HorizontalDivider(Modifier.padding(vertical = 4.dp))
-
-        val file = editing
-        if (file != null) {
-            Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp).bottomChromePadding()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { editing = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            file.path,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 2,
-                        )
-                        Text(
-                            Format.bytes(file.size),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+    val file = editing
+    if (file != null) {
+        Column(Modifier.fillMaxSize().belowTopBar().padding(start = 16.dp, end = 16.dp, top = 8.dp).bottomChromePadding()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { editing = null }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
                 }
-                readError?.let {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        it,
-                        Modifier.padding(vertical = 6.dp),
+                        file.path,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 2,
+                    )
+                    Text(
+                        Format.bytes(file.size),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedTextField(
-                    value = file.content,
-                    onValueChange = { editing = file.copy(content = it) },
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            }
+            readError?.let {
+                Text(
+                    it,
+                    Modifier.padding(vertical = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
+            }
+            OutlinedTextField(
+                value = file.content,
+                onValueChange = { editing = file.copy(content = it) },
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(onClick = { editing = null }, modifier = Modifier.weight(1f)) { Text("取消") }
+                Button(onClick = { saveConfirm = true }, enabled = !saving, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Outlined.Save, null, Modifier.height(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (saving) "保存中…" else "保存")
+                }
+            }
+        }
+    } else {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp).withBottomChrome(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = { path = parentPath(path) },
+                        enabled = path.isNotEmpty(),
+                    ) { Text("上级") }
+                    TextButton(onClick = { path = "" }) { Text("根目录") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { load(path) }) { Text("刷新") }
+                }
                 Row(
-                    Modifier.fillMaxWidth().padding(top = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(onClick = { editing = null }, modifier = Modifier.weight(1f)) { Text("取消") }
-                    Button(onClick = { saveConfirm = true }, enabled = !saving, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.Save, null, Modifier.height(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(if (saving) "保存中…" else "保存")
+                    PathChip("根", path.isEmpty()) { path = "" }
+                    var acc = ""
+                    path.split("/").forEach { segment ->
+                        if (segment.isBlank()) return@forEach
+                        acc = if (acc.isEmpty()) segment else "$acc/$segment"
+                        Text(" / ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        PathChip(segment, acc == path) { path = acc }
                     }
                 }
             }
-        } else {
-            SectionCard(
-                "文件浏览",
-                subtitle = listing?.let { "${it.count} 项 · ${if (it.path.isEmpty()) "FileRoot 根目录" else it.path}" } ?: "加载中…",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            ) {
-                listError?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            item {
+                SectionCard(
+                    "文件浏览",
+                    subtitle = listing?.let { "${it.count} 项 · ${if (it.path.isEmpty()) "FileRoot 根目录" else it.path}" } ?: "加载中…",
+                ) {
+                    listError?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
             val entries = listing?.entries
-            if (entries != null) {
-                if (entries.isEmpty()) {
-                    EmptyState(Icons.Outlined.Folder, "目录为空", "在 SLDataAPI 配置中设置的 FileRoot 为空")
-                } else {
-                    val sorted = entries.sortedWith(
-                        compareByDescending<FileEntry> { it.type == "dir" }.thenBy { it.name },
+            if (entries == null) {
+                item { Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            } else if (entries.isEmpty()) {
+                item {
+                    EmptyState(
+                        Icons.Outlined.Folder,
+                        "目录为空",
+                        "在 SLDataAPI 配置中设置的 FileRoot 为空",
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                     )
-                    LazyColumn(
-                        contentPadding = PaddingValues(16.dp).withBottomChrome(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                }
+            } else {
+                val sorted = entries.sortedWith(
+                    compareByDescending<FileEntry> { it.type == "dir" }.thenBy { it.name },
+                )
+                items(sorted.size, key = { sorted[it].name + sorted[it].type }) { index ->
+                    val entry = sorted[index]
+                    AppSurface(
+                        Modifier.fillMaxWidth(),
+                        enabled = !entry.isProtected,
+                        onClick = {
+                            if (entry.type == "dir") path = joinPath(path, entry.name)
+                            else openFile(entry)
+                        },
+                        role = GlassRole.Row,
                     ) {
-                        items(sorted.size, key = { sorted[it].name + sorted[it].type }) { index ->
-                            val entry = sorted[index]
-                            AppSurface(
-                                Modifier.fillMaxWidth(),
-                                enabled = !entry.isProtected,
-                                onClick = {
-                                    if (entry.type == "dir") path = joinPath(path, entry.name)
-                                    else openFile(entry)
-                                },
-                                role = GlassRole.Row,
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(32.dp)
+                                    .background(
+                                        if (entry.isProtected) {
+                                            MaterialTheme.colorScheme.errorContainer
+                                        } else if (entry.type == "dir") {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.surfaceVariant
+                                        },
+                                        CircleShape,
+                                    ),
+                                contentAlignment = Alignment.Center,
                             ) {
-                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        Modifier
-                                            .size(32.dp)
-                                            .background(
-                                                if (entry.isProtected) {
-                                                    MaterialTheme.colorScheme.errorContainer
-                                                } else if (entry.type == "dir") {
-                                                    MaterialTheme.colorScheme.secondaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surfaceVariant
-                                                },
-                                                CircleShape,
-                                            ),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            if (entry.type == "dir") Icons.Outlined.Folder else Icons.AutoMirrored.Outlined.InsertDriveFile,
-                                            null,
-                                            Modifier.height(18.dp),
-                                        )
-                                    }
-                                    Spacer(Modifier.width(10.dp))
-                                    Column(Modifier.weight(1f)) {
-                                        Text(
-                                            if (entry.type == "dir") "${entry.name}/" else entry.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontFamily = FontFamily.Monospace,
-                                            maxLines = 1,
-                                            color = if (entry.isProtected) {
-                                                MaterialTheme.colorScheme.error
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
-                                        )
-                                        if (entry.type == "file") {
-                                            Text(
-                                                "${Format.bytes(entry.size)} · ${entry.modified ?: ""}",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                    }
-                                    if (entry.isProtected) InfoChip("受保护", MaterialTheme.colorScheme.error)
+                                Icon(
+                                    if (entry.type == "dir") Icons.Outlined.Folder else Icons.AutoMirrored.Outlined.InsertDriveFile,
+                                    null,
+                                    Modifier.height(18.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    if (entry.type == "dir") "${entry.name}/" else entry.name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    color = if (entry.isProtected) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    },
+                                )
+                                if (entry.type == "file") {
+                                    Text(
+                                        "${Format.bytes(entry.size)} · ${entry.modified ?: ""}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
+                            if (entry.isProtected) InfoChip("受保护", MaterialTheme.colorScheme.error)
                         }
                     }
                 }

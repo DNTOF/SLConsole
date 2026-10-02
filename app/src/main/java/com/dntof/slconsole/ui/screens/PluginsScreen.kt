@@ -104,38 +104,49 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
 
     LaunchedEffect(server?.id) { load() }
 
-    Column(Modifier.fillMaxSize()) {
-        TextButton(onClick = onOpenAdapted, modifier = Modifier.padding(horizontal = 8.dp)) {
-            Text("适配插件:SLPlayer / OmegaWarhead")
-        }
-        SectionCard(
-            "已加载插件",
-            subtitle = plugins?.let { "共 ${it.size} 个(EXILED / LabAPI)" } ?: "加载中…",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            actions = {
-                TextButton(onClick = { pendingAction = "apply" }) { Text("应用暂存") }
-                TextButton(onClick = { pendingAction = "reload" }) { Text("重载") }
-            },
-        ) {
-            error?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            TextButton(onClick = onOpenAdapted) {
+                Text("适配插件:SLPlayer / OmegaWarhead")
             }
-            Text(
-                "EXILED 插件应用暂存后立即生效;LabAPI 插件需重启回合后生效。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            SectionCard(
+                "已加载插件",
+                subtitle = plugins?.let { "共 ${it.size} 个(EXILED / LabAPI)" } ?: "加载中…",
+                actions = {
+                    TextButton(onClick = { pendingAction = "apply" }) { Text("应用暂存") }
+                    TextButton(onClick = { pendingAction = "reload" }) { Text("重载") }
+                },
+            ) {
+                error?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+                Text(
+                    "EXILED 插件应用暂存后立即生效;LabAPI 插件需重启回合后生效。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         val list = plugins
-        if (list == null) return
-        if (list.isEmpty()) {
-            EmptyState(Icons.Outlined.Extension, "未发现插件", "服务器上可能没有安装插件")
+        if (list == null) {
+            item {
+                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else if (list.isEmpty()) {
+            item {
+                EmptyState(
+                    Icons.Outlined.Extension,
+                    "未发现插件",
+                    "服务器上可能没有安装插件",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp).withBottomChrome(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
                 items(list.size) { index ->
                     val plugin = list[index]
                     AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
@@ -193,7 +204,6 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
                         }
                     }
                 }
-            }
         }
     }
 

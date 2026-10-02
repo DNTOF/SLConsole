@@ -262,9 +262,10 @@ fun EmptyState(
     subtitle: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.fillMaxSize().padding(32.dp),
 ) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

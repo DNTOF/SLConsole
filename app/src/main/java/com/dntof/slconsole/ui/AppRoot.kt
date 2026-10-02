@@ -144,6 +144,9 @@ val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
 /** 底栏/系统导航区高度。列表用它加 contentPadding,视口本身仍延伸到栏下。 */
 val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
 
+/** 顶栏高度。滚动内容用它做 contentPadding,静止时第一项仍在顶栏下面。 */
+val LocalTopChrome = staticCompositionLocalOf { 0.dp }
+
 /** 内容最后一项和悬浮胶囊之间再留一截,避免贴在胶囊上。 */
 private val BottomChromeGap = 12.dp
 
@@ -152,10 +155,25 @@ fun PaddingValues.withBottomChrome(): PaddingValues {
     val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
     return PaddingValues(
         start = calculateStartPadding(direction),
-        top = calculateTopPadding(),
+        top = calculateTopPadding() + LocalTopChrome.current,
         end = calculateEndPadding(direction),
         bottom = calculateBottomPadding() + LocalBottomChrome.current + BottomChromeGap,
     )
+}
+
+/** 不滚动的一块内容从顶栏下沿开始排,避免标题被玻璃盖住。 */
+@Composable
+fun Modifier.belowTopBar(): Modifier = padding(top = LocalTopChrome.current)
+
+/**
+ * 放在 verticalScroll 里面:视口铺到顶栏和底栏之下,首尾内容仍停在栏外。
+ */
+@Composable
+fun Modifier.scrollUnderChrome(): Modifier {
+    val top = LocalTopChrome.current
+    val chrome = LocalBottomChrome.current + BottomChromeGap
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    return padding(top = top, bottom = maxOf(chrome, imeBottom))
 }
 
 /**
@@ -244,15 +262,16 @@ fun AppRoot(startupNotice: String? = null) {
 
     val serversLoaded by store.serversFlow.collectAsState(initial = null)
     val activeId by store.activeIdFlow.collectAsState(initial = null)
-    val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = null as Boolean?)
+    // 玻璃开关先按关闭绘制,DataStore 回来后再切,避免整屏转圈等这一项。
+    val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = false)
     val servers = serversLoaded
-    if (servers == null || glassPref == null) {
+    if (servers == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
-    val glassEnabled = glassPref == true
+    val glassEnabled = glassPref
     val activeServer = remember(servers, activeId) { servers.find { it.id == activeId } ?: servers.firstOrNull() }
     val monitorState by MonitorEngine.state.collectAsState()
     val layout = when {
@@ -382,11 +401,14 @@ private fun CompactShell(
     val bottomChrome = if (showTabs) bottomOverlay else navInset
     Box(Modifier.fillMaxSize()) {
         BackdropScene {
-            CompositionLocalProvider(LocalBottomChrome provides bottomChrome) {
+            CompositionLocalProvider(
+                LocalBottomChrome provides bottomChrome,
+                LocalTopChrome provides topBarHeight,
+            ) {
                 AppNavHost(
                     navController = navController,
                     activeServer = activeServer,
-                    modifier = Modifier.padding(top = topBarHeight).fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -445,20 +467,27 @@ private fun WideShell(
     var topBarHeight by remember { mutableStateOf(64.dp) }
     Box(Modifier.fillMaxSize()) {
         BackdropScene {
-            CompositionLocalProvider(LocalBottomChrome provides navInset) {
-                Column(
-                    Modifier
-                        .padding(start = railWidth, top = topBarHeight)
-                        .fillMaxSize(),
-                ) {
-                    if (isSubRoute) {
+            Column(
+                Modifier
+                    .padding(start = railWidth)
+                    .fillMaxSize(),
+            ) {
+                if (isSubRoute) {
+                    Box(Modifier.padding(top = topBarHeight)) {
                         SubRouteHeader(currentRoute) { navController.popBackStack() }
                     }
-                    AppNavHost(
-                        navController = navController,
-                        activeServer = activeServer,
-                        modifier = Modifier.weight(1f),
-                    )
+                }
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    CompositionLocalProvider(
+                        LocalBottomChrome provides navInset,
+                        LocalTopChrome provides if (isSubRoute) 0.dp else topBarHeight,
+                    ) {
+                        AppNavHost(
+                            navController = navController,
+                            activeServer = activeServer,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
