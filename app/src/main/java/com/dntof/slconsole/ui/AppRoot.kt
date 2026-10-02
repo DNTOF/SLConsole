@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBars
@@ -145,6 +146,9 @@ val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
 /** 底栏/系统导航区高度。列表用它加 contentPadding,视口本身仍延伸到栏下。 */
 val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
 
+/** 内容最后一项和悬浮胶囊之间再留一截,避免贴在胶囊上。 */
+private val BottomChromeGap = 12.dp
+
 @Composable
 fun PaddingValues.withBottomChrome(): PaddingValues {
     val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
@@ -152,8 +156,19 @@ fun PaddingValues.withBottomChrome(): PaddingValues {
         start = calculateStartPadding(direction),
         top = calculateTopPadding(),
         end = calculateEndPadding(direction),
-        bottom = calculateBottomPadding() + LocalBottomChrome.current,
+        bottom = calculateBottomPadding() + LocalBottomChrome.current + BottomChromeGap,
     )
+}
+
+/**
+ * 把固定在底部的控件抬到胶囊之上。键盘弹出时改用 IME 高度,
+ * 输入框跟着键盘走,不会和胶囊高度叠成两截空白。
+ */
+@Composable
+fun Modifier.bottomChromePadding(): Modifier {
+    val chrome = LocalBottomChrome.current + BottomChromeGap
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    return padding(bottom = maxOf(chrome, imeBottom))
 }
 
 object Routes {

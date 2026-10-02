@@ -53,6 +53,7 @@ import com.dntof.slconsole.data.model.FileReadData
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
@@ -195,7 +196,7 @@ fun FilesScreen() {
 
         val file = editing
         if (file != null) {
-            Column(Modifier.fillMaxSize().padding(16.dp)) {
+            Column(Modifier.fillMaxSize().padding(start = 16.dp, end = 16.dp, top = 16.dp).bottomChromePadding()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { editing = null }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -44,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import com.dntof.slconsole.data.model.ConsoleOutputData
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -67,7 +67,7 @@ fun ConsoleScreen() {
         return
     }
     if (!server.hasControl) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(16.dp).bottomChromePadding()) {
             SectionCard("控制台", subtitle = "需要控制面 API Key") {
                 Text(
                     "控制台通过 API Key 执行服务器命令。请在服务器设置中配置 API Key 后重试。",
@@ -118,8 +118,8 @@ fun ConsoleScreen() {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(12.dp)
-            .imePadding(),
+            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+            .bottomChromePadding(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // 终端面板

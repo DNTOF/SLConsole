@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Article
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.FilterChip
@@ -167,7 +168,7 @@ fun LogsScreen() {
             }
         }
     } else {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().bottomChromePadding()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.AppSurface
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.EmptyState
@@ -90,7 +92,7 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp).withBottomChrome(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(servers.size, key = { servers[it].id }) { index ->
@@ -136,7 +138,10 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
 
         FloatingActionButton(
             onClick = onAdd,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .bottomChromePadding()
+                .padding(end = 20.dp, bottom = 8.dp),
         ) {
             Icon(Icons.Filled.Add, "添加服务器")
         }

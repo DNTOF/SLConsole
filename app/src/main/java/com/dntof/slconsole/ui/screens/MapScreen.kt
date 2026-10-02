@@ -6,9 +6,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,6 +71,7 @@ import com.dntof.slconsole.mapgen.MapGenData
 import com.dntof.slconsole.mapgen.MapGenerator
 import com.dntof.slconsole.mapgen.MapRoomUi
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.DropdownField
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
@@ -133,7 +137,7 @@ fun MapScreen() {
     }
 
     if (!server.hasControl) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Column(Modifier.fillMaxSize().padding(16.dp).bottomChromePadding()) {
             SectionCard("地图视图", subtitle = "需要控制面 API Key") {
                 Text(
                     "地图种子与设施控制都走控制通道。请在服务器设置中配置 API Key 后重试。",
@@ -145,7 +149,12 @@ fun MapScreen() {
         return
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .bottomChromePadding(),
+    ) {
         SectionCard(
             "地图视图",
             subtitle = when {
@@ -259,17 +268,32 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
             }
             var userScale by remember { mutableFloatStateOf(1f) }
             var userPan by remember { mutableStateOf(Offset.Zero) }
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "单指滚动页面。双指拖动地图,捏合缩放。",
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = {
+                    userScale = 1f
+                    userPan = Offset.Zero
+                }) { Text("复位") }
+            }
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(440.dp)
+                    .height(340.dp)
                     .clipToBounds()
                     .onSizeChanged { canvasSize = it }
-                    .pointerInput(filteredRooms, projection) {
-                        if (projection == null) return@pointerInput
-                        detectTapGestures(
+                    .pointerInput(filteredRooms, projection, canvasSize) {
+                        val camera = projection ?: return@pointerInput
+                        detectMapCamera(
                             onTap = { tap ->
-                                val (baseScale, ox, oy) = projection
+                                val (baseScale, ox, oy) = camera
                                 val cx = size.width / 2f
                                 val cy = size.height / 2f
                                 val bx = (tap.x - cx - userPan.x) / userScale + cx
@@ -281,17 +305,25 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                                 }
                                 selected = if (hit != null && hit.rawName == selected?.rawName && hit.zone == selected?.zone) null else hit
                             },
-                            onDoubleTap = {
-                                userScale = 1f
-                                userPan = Offset.Zero
+                            onTransform = { panAdd, zoomAdd ->
+                                val (baseScale, ox, oy) = camera
+                                val next = clampMapCamera(
+                                    scale = userScale * zoomAdd,
+                                    pan = userPan + panAdd,
+                                    minX = minX,
+                                    maxX = maxX,
+                                    minZ = minZ,
+                                    maxZ = maxZ,
+                                    baseScale = baseScale,
+                                    ox = ox,
+                                    oy = oy,
+                                    viewW = size.width.toFloat(),
+                                    viewH = size.height.toFloat(),
+                                )
+                                userScale = next.first
+                                userPan = next.second
                             },
                         )
-                    }
-                    .pointerInput(filteredRooms) {
-                        detectTransformGestures { _, panAdd, zoomAdd, _ ->
-                            userScale = (userScale * zoomAdd).coerceIn(1f, 10f)
-                            userPan += panAdd
-                        }
                     },
             ) {
                 val (baseScale, ox, oy) = projection ?: return@Canvas
@@ -548,6 +580,82 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
         FacilityControls(selected) { selected = it }
         Spacer(Modifier.height(24.dp))
     }
+}
+
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectMapCamera(
+    onTap: (Offset) -> Unit,
+    onTransform: (pan: Offset, zoom: Float) -> Unit,
+) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        val start = down.position
+        var twoFinger = false
+        var moved = false
+        var pastSlop = false
+        var zoomAcc = 1f
+        var panAcc = Offset.Zero
+        val slop = viewConfiguration.touchSlop
+        do {
+            val event = awaitPointerEvent()
+            val pressed = event.changes.filter { it.pressed }
+            if (pressed.size >= 2) {
+                twoFinger = true
+                val zoomChange = event.calculateZoom()
+                val panChange = event.calculatePan()
+                if (!pastSlop) {
+                    zoomAcc *= zoomChange
+                    panAcc += panChange
+                    val centroid = event.calculateCentroidSize(useCurrent = false)
+                    if (abs(1f - zoomAcc) * centroid > slop || panAcc.getDistance() > slop) {
+                        pastSlop = true
+                    }
+                }
+                if (pastSlop) {
+                    onTransform(panChange, zoomChange)
+                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                }
+            } else if (!twoFinger && pressed.size == 1) {
+                if ((pressed[0].position - start).getDistance() > slop) moved = true
+            }
+        } while (event.changes.any { it.pressed })
+        if (!twoFinger && !moved) onTap(start)
+    }
+}
+
+/** 缩放限制在刚好看全图到 8 倍之间,平移不能把地图拖出视口(留一圈边)。 */
+private fun clampMapCamera(
+    scale: Float,
+    pan: Offset,
+    minX: Double,
+    maxX: Double,
+    minZ: Double,
+    maxZ: Double,
+    baseScale: Float,
+    ox: Float,
+    oy: Float,
+    viewW: Float,
+    viewH: Float,
+): Pair<Float, Offset> {
+    val nextScale = scale.coerceIn(1f, 8f)
+    val cx = viewW / 2f
+    val cy = viewH / 2f
+    fun contentX(world: Double) = cx + ((ox + (world * baseScale).toFloat()) - cx) * nextScale
+    fun contentY(world: Double) = cy + ((oy + (world * baseScale).toFloat()) - cy) * nextScale
+    val margin = 24f
+    return nextScale to Offset(
+        clampMapAxis(pan.x, contentX(minX), contentX(maxX), viewW, margin),
+        clampMapAxis(pan.y, contentY(minZ), contentY(maxZ), viewH, margin),
+    )
+}
+
+private fun clampMapAxis(pan: Float, start: Float, end: Float, view: Float, margin: Float): Float {
+    val size = end - start
+    if (size <= view - 2 * margin) {
+        return (view - size) / 2f - start
+    }
+    val minPan = view - margin - end
+    val maxPan = margin - start
+    return pan.coerceIn(minOf(minPan, maxPan), maxOf(minPan, maxPan))
 }
 
 private fun closestRoomTo(px: Double, py: Double, pz: Double, rooms: List<MapRoomUi>): MapRoomUi? {
