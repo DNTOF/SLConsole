@@ -66,6 +66,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -105,17 +106,15 @@ import com.dntof.slconsole.ui.components.AppBackdrop
 import com.dntof.slconsole.ui.components.AppLayout
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
-import com.dntof.slconsole.ui.components.LiveBlurClock
-import com.dntof.slconsole.ui.components.LiveBlurState
 import com.dntof.slconsole.ui.components.LocalAppLayout
-import com.dntof.slconsole.ui.components.LocalGlassPlate
+import com.dntof.slconsole.ui.components.LocalChromeBackdrop
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
-import com.dntof.slconsole.ui.components.LocalLiveBlur
+import com.dntof.slconsole.ui.components.LocalOrbBackdrop
 import com.dntof.slconsole.ui.components.StatusDot
-import com.dntof.slconsole.ui.components.captureBackdrop
 import com.dntof.slconsole.ui.components.UiColors
 import com.dntof.slconsole.ui.components.liquidGlass
-import com.dntof.slconsole.ui.components.rememberGlassPlateState
+import com.dntof.slconsole.ui.components.rememberGlassBackdrops
+import com.kyant.backdrop.backdrops.layerBackdrop
 import com.dntof.slconsole.ui.screens.AdaptedPluginDetailScreen
 import com.dntof.slconsole.ui.screens.AdaptedPluginsScreen
 import com.dntof.slconsole.ui.screens.AboutScreen
@@ -136,7 +135,6 @@ import com.dntof.slconsole.ui.screens.ServerEditScreen
 import com.dntof.slconsole.ui.screens.ServersScreen
 import com.dntof.slconsole.ui.screens.SettingsScreen
 import com.dntof.slconsole.ui.screens.VoiceScreen
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
@@ -262,12 +260,12 @@ fun AppRoot(startupNotice: String? = null) {
         LocalConfiguration.current.screenWidthDp >= 600 -> AppLayout.Medium
         else -> AppLayout.Compact
     }
-    val plate = rememberGlassPlateState()
-    val liveBlur = remember { LiveBlurState() }
+    val (orbBackdrop, chromeBackdrop) = rememberGlassBackdrops()
     val context = LocalContext.current
+    var glassFrames by remember { mutableIntStateOf(0) }
     // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
     SideEffect {
-        if (glassEnabled && liveBlur.safeFrames < 2 && !liveBlur.failed) {
+        if (glassEnabled && glassFrames < 2) {
             GlassGuard.markRenderStart(context)
         }
     }
@@ -285,28 +283,13 @@ fun AppRoot(startupNotice: String? = null) {
     }
     LaunchedEffect(glassEnabled) {
         if (!glassEnabled) {
-            liveBlur.safeFrames = 0
-            liveBlur.failed = false
+            glassFrames = 0
             GlassGuard.markRenderOk(context)
             return@LaunchedEffect
         }
-        while (isActive) {
-            withFrameNanos { }
-            if (liveBlur.failed) break
-            if (liveBlur.safeFrames >= 2) {
-                GlassGuard.markRenderOk(context)
-                break
-            }
-        }
-    }
-    SideEffect {
-        liveBlur.onFailure = {
-            scope.launch {
-                GlassGuard.markRenderOk(context)
-                ServiceLocator.settingsStore.setLiquidGlass(false)
-                snackbarHostState.showSnackbar(GlassGuard.FAILURE_NOTICE)
-            }
-        }
+        repeat(2) { withFrameNanos { } }
+        glassFrames = 2
+        GlassGuard.markRenderOk(context)
     }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -320,11 +303,10 @@ fun AppRoot(startupNotice: String? = null) {
     CompositionLocalProvider(
         LocalSnackbarHost provides snackbarHostState,
         LocalLiquidGlass provides glassEnabled,
-        LocalGlassPlate provides plate,
-        LocalLiveBlur provides liveBlur,
+        LocalOrbBackdrop provides orbBackdrop,
+        LocalChromeBackdrop provides chromeBackdrop,
         LocalAppLayout provides layout,
     ) {
-        LiveBlurClock(liveBlur, glassEnabled)
         Box(Modifier.fillMaxSize()) {
             if (layout == AppLayout.Compact) {
                 CompactShell(
@@ -356,6 +338,30 @@ fun AppRoot(startupNotice: String? = null) {
     }
 }
 
+/**
+ * 色块层在内容下面,只给卡片采样。内容层包含色块和页面,顶栏与底栏在这层外面采样。
+ */
+@Composable
+private fun BackdropScene(content: @Composable () -> Unit) {
+    val glass = LocalLiquidGlass.current
+    val orb = LocalOrbBackdrop.current
+    val chrome = LocalChromeBackdrop.current
+    if (glass && orb != null && chrome != null) {
+        Box(Modifier.fillMaxSize().layerBackdrop(orb)) {
+            AppBackdrop(true)
+        }
+        Box(Modifier.fillMaxSize().layerBackdrop(chrome)) {
+            AppBackdrop(true)
+            content()
+        }
+    } else {
+        Box(Modifier.fillMaxSize()) {
+            AppBackdrop(false)
+            content()
+        }
+    }
+}
+
 @Composable
 private fun CompactShell(
     navController: NavHostController,
@@ -375,8 +381,7 @@ private fun CompactShell(
     val showTabs = !isSubRoute
     val bottomChrome = if (showTabs) bottomOverlay else navInset
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().captureBackdrop()) {
-            AppBackdrop(LocalLiquidGlass.current)
+        BackdropScene {
             CompositionLocalProvider(LocalBottomChrome provides bottomChrome) {
                 AppNavHost(
                     navController = navController,
@@ -439,8 +444,7 @@ private fun WideShell(
     val railWidth = if (expanded) 232.dp else 104.dp
     var topBarHeight by remember { mutableStateOf(64.dp) }
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().captureBackdrop()) {
-            AppBackdrop(LocalLiquidGlass.current)
+        BackdropScene {
             CompositionLocalProvider(LocalBottomChrome provides navInset) {
                 Column(
                     Modifier
