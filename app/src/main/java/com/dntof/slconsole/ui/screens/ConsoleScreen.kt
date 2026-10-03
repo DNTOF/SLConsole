@@ -120,11 +120,11 @@ fun ConsoleScreen() {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(start = 12.dp, end = 12.dp)
+            .padding(start = 12.dp, end = 12.dp, top = LocalTopChrome.current)
             .bottomChromePadding(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // 终端面板
+        // 终端面板从顶栏下沿开始,静止时黑底不会铺进顶栏
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -136,7 +136,7 @@ fun ConsoleScreen() {
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(scroll)
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp, top = LocalTopChrome.current + 10.dp),
+                    .padding(10.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(

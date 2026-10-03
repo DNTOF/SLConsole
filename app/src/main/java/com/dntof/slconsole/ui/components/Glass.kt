@@ -180,7 +180,14 @@ fun Modifier.liquidGlass(
     } ?: return this
     val blurReady = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val tintAlpha = when (role) {
-        GlassRole.Chrome -> if (blurReady) if (dark) 0.16f else 0.12f else if (dark) 0.62f else 0.68f
+        // 顶栏盖住状态栏图标和标题。罩色要够,黑内容滚到下面时字仍然可读。
+        GlassRole.Chrome -> if (!framed) {
+            if (blurReady) if (dark) 0.72f else 0.58f else if (dark) 0.82f else 0.78f
+        } else if (blurReady) {
+            if (dark) 0.16f else 0.12f
+        } else {
+            if (dark) 0.62f else 0.68f
+        }
         GlassRole.Panel -> if (blurReady) if (dark) 0.22f else 0.18f else if (dark) 0.72f else 0.78f
         GlassRole.Row -> if (blurReady) if (dark) 0.42f else 0.36f else if (dark) 0.78f else 0.82f
     }

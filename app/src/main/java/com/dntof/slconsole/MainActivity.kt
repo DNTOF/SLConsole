@@ -21,7 +21,11 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= 29) {
             // 关闭系统强制的导航栏对比度遮罩,否则底栏下方会剩一条不透明色带
             window.isNavigationBarContrastEnforced = false
-            window.isStatusBarContrastEnforced = false
+            // API 35 起该开关已废弃,系统不再靠它给状态栏垫色
+            if (Build.VERSION.SDK_INT < 35) {
+                @Suppress("DEPRECATION")
+                window.isStatusBarContrastEnforced = false
+            }
         }
         val startupNotice = GlassGuard.recoverIfNeeded(this)
         setContent {

@@ -527,14 +527,17 @@ private fun WideShell(
 @Composable
 private fun BarSurface(content: @Composable () -> Unit) {
     val glass = LocalLiquidGlass.current
-    Column(
+    val bar = if (glass) {
         Modifier.liquidGlass(
             shape = RectangleShape,
             role = GlassRole.Chrome,
             dark = isSystemInDarkTheme(),
             framed = false,
-        ),
-    ) {
+        )
+    } else {
+        Modifier.background(MaterialTheme.colorScheme.surface)
+    }
+    Column(bar) {
         content()
         HorizontalDivider(
             color = if (glass) Color.White.copy(alpha = 0.28f) else MaterialTheme.colorScheme.outlineVariant,
