@@ -108,6 +108,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.analytics.UsageAnalytics
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.data.local.GlassGuard
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
@@ -290,6 +292,7 @@ fun Modifier.keepAboveIme(): Modifier {
         )
     }
     return this
+        .clarityMask()
         .onSizeChanged { size = it }
         .bringIntoViewRequester(requester)
         .onFocusEvent { focused = it.hasFocus || it.isFocused }
@@ -389,6 +392,12 @@ fun AppRoot(startupNotice: String? = null) {
     }
     val (orbBackdrop, chromeBackdrop) = rememberGlassBackdrops()
     val context = LocalContext.current
+    // 等 DataStore 读出真实开关再决定。不能用默认值先初始化，否则用户关掉之后，下次启动仍会先发出去。
+    LaunchedEffect(Unit) {
+        ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
+            UsageAnalytics.setEnabled(context, enabled)
+        }
+    }
     var glassFrames by remember { mutableIntStateOf(0) }
     // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
     SideEffect {
@@ -553,7 +562,7 @@ private fun CompactShell(
         }
         SnackbarHost(
             snackbarHostState,
-            Modifier.align(Alignment.BottomCenter).padding(bottom = bottomChrome + 8.dp),
+            Modifier.align(Alignment.BottomCenter).padding(bottom = bottomChrome + 8.dp).clarityMask(),
         )
     }
 }
@@ -629,7 +638,7 @@ private fun WideShell(
         }
         SnackbarHost(
             snackbarHostState,
-            Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = navInset + 8.dp),
+            Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = navInset + 8.dp).clarityMask(),
         )
     }
 }
@@ -814,7 +823,7 @@ private fun ServerTopBar(
                     size = 12.dp,
                 )
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f, fill = false)) {
+                Column(Modifier.weight(1f, fill = false).clarityMask()) {
                     Text(
                         active?.displayName ?: "未添加服务器",
                         style = MaterialTheme.typography.titleMedium,
@@ -844,6 +853,7 @@ private fun ServerTopBar(
                         trailingIcon = {
                             Text(
                                 server.addressText,
+                                modifier = Modifier.clarityMask(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

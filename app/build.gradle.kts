@@ -58,5 +58,6 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kyant.backdrop)
+    implementation(libs.clarity.compose)
     debugImplementation(libs.compose.ui.tooling)
 }
