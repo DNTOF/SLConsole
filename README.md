@@ -4,8 +4,6 @@
 
 **SLConsole** 是面向 SCP: Secret Laboratory 服务器管理员的 Android 原生管理 + 监控客户端:直连游戏服务器上的 [SLDataAPI](https://github.com/DNTOF/SLDataAPI) 插件,无需任何中间平台,凭据只保存在本机。
 
-由 DNT_OF 与 FXDYJ 共同开发,源自 Foundation Console(scpsl_webui)移动端化项目。
-
 ## 功能
 
 - **概览监控**:在线状态、玩家数、回合阶段与时长、核弹倒计时、阵营分布、延迟 —— 按配置间隔轮询
@@ -65,6 +63,9 @@ SLDataAPI 2.6.0+ 插件(SCP:SL 游戏服务器,默认端口 8081)
 - SLDataAPI 本身为明文 HTTP/WS,请在可信内网或 TLS 反向代理后使用;
 - 封禁、引爆核弹、重启回合等破坏性操作均有二次确认;
 - 本应用不收集、不上传任何数据。
+
+## 特别鸣谢
+感谢由 FXDYJ 开发的地图绘制JS,源自 [SCPSLMaps](https://scpslmaps.fxdyj.com/)
 
 ## 许可
 
