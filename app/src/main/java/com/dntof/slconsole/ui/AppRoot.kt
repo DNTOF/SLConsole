@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,6 +67,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,9 +82,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -147,17 +157,83 @@ val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
 /** 顶栏高度。滚动内容用它做 contentPadding,静止时第一项仍在顶栏下面。 */
 val LocalTopChrome = staticCompositionLocalOf { 0.dp }
 
+/**
+ * 当前窗口里软键盘挡住的高度。
+ * 优先用 [WindowInsets.ime];MIUI/HyperOS 经常把 inset 报成 0,这时改用可见区域被挡住的高度。
+ */
+data class ImeLift(val overlap: Dp, val rootHeightPx: Int)
+
+val LocalImeLift = staticCompositionLocalOf { ImeLift(0.dp, 0) }
+
 /** 内容最后一项和悬浮胶囊之间再留一截,避免贴在胶囊上。 */
 private val BottomChromeGap = 12.dp
+
+/** 比导航栏更高才当成键盘,避免手势条被算进 IME。 */
+private const val ImeOverlapSlopDp = 80f
+
+internal fun visibleKeyboardOverlapPx(view: View): Int {
+    if (!view.isAttachedToWindow || view.height <= 0) return 0
+    val rect = android.graphics.Rect()
+    view.getWindowVisibleDisplayFrame(rect)
+    if (rect.bottom <= 0) return 0
+    val location = IntArray(2)
+    view.getLocationOnScreen(location)
+    val overlap = location[1] + view.height - rect.bottom
+    val slop = (view.resources.displayMetrics.density * ImeOverlapSlopDp).toInt()
+    return if (overlap > slop) overlap else 0
+}
+
+/** 窗口已经被键盘顶上去时,Compose 再垫一次就会空出两截。 */
+private fun viewStillFillsScreen(view: View): Boolean {
+    if (!view.isAttachedToWindow || view.height <= 0) return true
+    val location = IntArray(2)
+    view.getLocationOnScreen(location)
+    val slop = (view.resources.displayMetrics.density * ImeOverlapSlopDp).toInt()
+    return location[1] + view.height >= view.rootView.height - slop
+}
+
+@Composable
+fun rememberImeLift(): ImeLift {
+    val view = LocalView.current
+    val density = LocalDensity.current
+    val insetBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    var framePx by remember { mutableIntStateOf(0) }
+    var rootHeight by remember { mutableIntStateOf(0) }
+    var fillsScreen by remember { mutableStateOf(true) }
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val nextOverlap = visibleKeyboardOverlapPx(view)
+            val nextHeight = view.height
+            val nextFills = viewStillFillsScreen(view)
+            if (nextOverlap != framePx) framePx = nextOverlap
+            if (nextHeight != rootHeight) rootHeight = nextHeight
+            if (nextFills != fillsScreen) fillsScreen = nextFills
+        }
+        val observer = view.viewTreeObserver
+        observer.addOnGlobalLayoutListener(listener)
+        framePx = visibleKeyboardOverlapPx(view)
+        rootHeight = view.height
+        fillsScreen = viewStillFillsScreen(view)
+        onDispose {
+            if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
+        }
+    }
+    val frameBottom = with(density) { framePx.toDp() }
+    val overlap = if (fillsScreen) maxOf(insetBottom, frameBottom) else 0.dp
+    return ImeLift(overlap, rootHeight)
+}
 
 @Composable
 fun PaddingValues.withBottomChrome(): PaddingValues {
     val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val ime = LocalImeLift.current.overlap
+    val chrome = LocalBottomChrome.current + BottomChromeGap
     return PaddingValues(
         start = calculateStartPadding(direction),
         top = calculateTopPadding() + LocalTopChrome.current,
         end = calculateEndPadding(direction),
-        bottom = calculateBottomPadding() + LocalBottomChrome.current + BottomChromeGap,
+        // 键盘比胶囊高时用键盘高度,列表才能把最后一项滚到键盘上面。两者取较大值,不叠两截空白。
+        bottom = calculateBottomPadding() + maxOf(chrome, ime),
     )
 }
 
@@ -172,8 +248,8 @@ fun Modifier.belowTopBar(): Modifier = padding(top = LocalTopChrome.current)
 fun Modifier.scrollUnderChrome(): Modifier {
     val top = LocalTopChrome.current
     val chrome = LocalBottomChrome.current + BottomChromeGap
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    return padding(top = top, bottom = maxOf(chrome, imeBottom))
+    val ime = LocalImeLift.current.overlap
+    return padding(top = top, bottom = maxOf(chrome, ime))
 }
 
 /**
@@ -183,8 +259,39 @@ fun Modifier.scrollUnderChrome(): Modifier {
 @Composable
 fun Modifier.bottomChromePadding(): Modifier {
     val chrome = LocalBottomChrome.current + BottomChromeGap
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    return padding(bottom = maxOf(chrome, imeBottom))
+    val ime = LocalImeLift.current.overlap
+    return padding(bottom = maxOf(chrome, ime))
+}
+
+/**
+ * 聚焦时把输入框滚到软键盘上方。
+ * 视口仍然铺满全屏(边到边),默认的 bring-into-view 会把被键盘挡住的区域也当成可见。
+ * 这里请求一块比输入框再高出键盘高度的区域,滚动容器就会把输入框停在键盘上沿。
+ */
+@Composable
+fun Modifier.keepAboveIme(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val lift = LocalImeLift.current
+    val density = LocalDensity.current
+    var focused by remember { mutableStateOf(false) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(focused, lift.overlap, lift.rootHeightPx, size) {
+        if (!focused || size.height == 0) return@LaunchedEffect
+        withFrameNanos { }
+        val extra = with(density) { (lift.overlap + 12.dp).toPx() }
+        requester.bringIntoView(
+            Rect(
+                left = 0f,
+                top = 0f,
+                right = size.width.toFloat().coerceAtLeast(1f),
+                bottom = size.height + extra,
+            ),
+        )
+    }
+    return this
+        .onSizeChanged { size = it }
+        .bringIntoViewRequester(requester)
+        .onFocusEvent { focused = it.hasFocus }
 }
 
 object Routes {
@@ -319,12 +426,14 @@ fun AppRoot(startupNotice: String? = null) {
         else -> currentRoute
     }
 
+    val imeLift = rememberImeLift()
     CompositionLocalProvider(
         LocalSnackbarHost provides snackbarHostState,
         LocalLiquidGlass provides glassEnabled,
         LocalOrbBackdrop provides orbBackdrop,
         LocalChromeBackdrop provides chromeBackdrop,
         LocalAppLayout provides layout,
+        LocalImeLift provides imeLift,
     ) {
         Box(Modifier.fillMaxSize()) {
             if (layout == AppLayout.Compact) {

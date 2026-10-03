@@ -41,6 +41,7 @@ import com.dntof.slconsole.ui.rememberActiveServer
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
 
 /** 远程控制:广播 / 管理聊天 / CASSIE / 回合与核弹(命令执行在"控制台"标签页)。 */
@@ -90,7 +91,7 @@ fun RemoteScreen() {
                     label = { Text("广播内容") },
                     minLines = 2,
                     supportingText = { Text("${broadcastText.length}/500") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
                 Text(
                     "显示时长:${broadcastDuration.toInt()} 秒",
@@ -129,7 +130,7 @@ fun RemoteScreen() {
                     label = { Text("管理聊天消息") },
                     minLines = 2,
                     supportingText = { Text("${staffText.length}/500") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
                 LabeledSwitch("静默发送", "不显示发送者", staffSilent) { staffSilent = it }
                 Spacer(Modifier.height(4.dp))
@@ -157,7 +158,7 @@ fun RemoteScreen() {
                     label = { Text("播报文本(英文)") },
                     minLines = 2,
                     supportingText = { Text("${cassieText.length}/500") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
                 Spacer(Modifier.height(4.dp))
                 OutlinedTextField(
@@ -165,7 +166,7 @@ fun RemoteScreen() {
                     onValueChange = { if (it.length <= 500) cassieTranslation = it },
                     label = { Text("字幕翻译(可选)") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
                 LabeledSwitch("保持播报(等待确认)", null, cassieHeld) { cassieHeld = it }
                 LabeledSwitch("包含环境音", null, cassieNoisy) { cassieNoisy = it }

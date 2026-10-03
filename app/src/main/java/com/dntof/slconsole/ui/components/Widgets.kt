@@ -3,6 +3,7 @@ package com.dntof.slconsole.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -11,9 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -31,10 +36,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.dntof.slconsole.ui.LocalImeLift
+import com.dntof.slconsole.ui.keepAboveIme
+import com.dntof.slconsole.ui.rememberImeLift
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
@@ -211,6 +222,54 @@ data class PromptField(
     val singleLine: Boolean = true,
 )
 
+/**
+ * 对话框单独开窗口,不走页面上的滚动 padding。
+ * 把整张卡片放进键盘上方的区域,内容过高时在卡片里滚动。
+ */
+@Composable
+fun ImeDialogFrame(
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val here = rememberImeLift()
+    val parent = LocalImeLift.current
+    val lift = if (here.overlap >= parent.overlap) here else parent
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+        ),
+    ) {
+        CompositionLocalProvider(LocalImeLift provides lift) {
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxSize()
+                    .padding(bottom = lift.overlap)
+                    .padding(horizontal = 24.dp, vertical = 24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .widthIn(max = 560.dp)
+                        .fillMaxWidth()
+                        .heightIn(max = maxHeight),
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 6.dp,
+                ) {
+                    Column(
+                        Modifier
+                            .verticalScroll(rememberScrollState())
+                            .padding(24.dp),
+                        content = content,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun PromptDialog(
     title: String,
@@ -224,35 +283,34 @@ fun PromptDialog(
     val values = remember(fields) {
         mutableStateMapOf<String, String>().apply { fields.forEach { put(it.key, it.initial) } }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column {
-                subtitle?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
-                }
-                fields.forEach { field ->
-                    OutlinedTextField(
-                        value = values[field.key].orEmpty(),
-                        onValueChange = { values[field.key] = it },
-                        label = { Text(field.label) },
-                        singleLine = field.singleLine,
-                        keyboardOptions = KeyboardOptions(keyboardType = field.keyboardType),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-            }
-        },
-        confirmButton = {
+    ImeDialogFrame(onDismiss = onDismiss) {
+        Text(title, style = MaterialTheme.typography.headlineSmall)
+        subtitle?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(12.dp))
+        fields.forEach { field ->
+            OutlinedTextField(
+                value = values[field.key].orEmpty(),
+                onValueChange = { values[field.key] = it },
+                label = { Text(field.label) },
+                singleLine = field.singleLine,
+                keyboardOptions = KeyboardOptions(keyboardType = field.keyboardType),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("取消") }
             TextButton(onClick = { onConfirm(values.toMap()); onDismiss() }) {
-                Text(confirmLabel, color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+                Text(
+                    confirmLabel,
+                    color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                )
             }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
+        }
+    }
 }
 
 @Composable

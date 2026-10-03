@@ -46,6 +46,7 @@ import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalTopChrome
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -198,7 +199,7 @@ fun ConsoleScreen() {
                     imeAction = ImeAction.Send,
                 ),
                 keyboardActions = KeyboardActions(onSend = { exec() }),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).keepAboveIme(),
             )
             IconButton(onClick = { exec() }, enabled = command.isNotBlank() && !running) {
                 Icon(
