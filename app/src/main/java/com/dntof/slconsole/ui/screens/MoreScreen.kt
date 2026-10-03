@@ -80,7 +80,7 @@ private val HUB_GROUPS = listOf(
         listOf(
             HubEntry(Routes.SERVERS, "服务器管理", "切换、添加与删除连接", Icons.Outlined.Dns),
             HubEntry(Routes.SETTINGS, "外观", "液态玻璃与显示", Icons.Outlined.BlurOn),
-            HubEntry(Routes.ABOUT, "关于", "版本、对接契约与安全说明", Icons.Outlined.Info),
+            HubEntry(Routes.ABOUT, "关于", "版本、作者与致谢", Icons.Outlined.Info),
         ),
     ),
 )
@@ -108,7 +108,7 @@ fun MoreScreen(onNavigate: (String) -> Unit) {
         }
         item {
             Text(
-                "SLConsole ${BuildConfig.VERSION_NAME} · Foundation Console 移动端",
+                "SLConsole ${BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

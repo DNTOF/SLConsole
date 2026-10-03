@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,7 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,7 +57,9 @@ import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
+import com.dntof.slconsole.ui.LocalImeLift
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.ConfirmDialog
@@ -62,6 +67,7 @@ import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.KeyValueRow
+import com.dntof.slconsole.ui.components.ImeDialogFrame
 import com.dntof.slconsole.ui.components.PromptDialog
 import com.dntof.slconsole.ui.components.PromptField
 import com.dntof.slconsole.ui.components.SectionCard
@@ -117,7 +123,7 @@ fun PlayersScreen() {
                 label = { Text("搜索昵称 / SteamID") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         if (filtered.isEmpty()) {
@@ -208,7 +214,15 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        contentWindowInsets = {
+            BottomSheetDefaults.windowInsets
+                .union(WindowInsets.ime)
+                .union(WindowInsets(bottom = LocalImeLift.current.overlap))
+        },
+    ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -451,50 +465,47 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
 private fun RoleDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var role by remember { mutableStateOf("ClassD") }
     var expanded by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("设置角色") },
-        text = {
-            Column {
-                Text(
-                    "填入 RoleTypeId 枚举名,或从常用列表选择。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(10.dp))
-                Box {
-                    OutlinedTextField(
-                        value = role,
-                        onValueChange = { role = it },
-                        label = { Text("RoleTypeId") },
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(Icons.Filled.ArrowDropDown, "选择常用角色")
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        ROLE_PRESETS.forEach { preset ->
-                            DropdownMenuItem(
-                                text = { Text(preset, fontFamily = FontFamily.Monospace) },
-                                onClick = {
-                                    role = preset
-                                    expanded = false
-                                },
-                            )
-                        }
+    ImeDialogFrame(onDismiss = onDismiss) {
+        Text("设置角色", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "填入 RoleTypeId 枚举名,或从常用列表选择。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
+        Box {
+            OutlinedTextField(
+                value = role,
+                onValueChange = { role = it },
+                label = { Text("RoleTypeId") },
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(onClick = { expanded = true }) {
+                        Icon(Icons.Filled.ArrowDropDown, "选择常用角色")
                     }
+                },
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
+            )
+            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                ROLE_PRESETS.forEach { preset ->
+                    DropdownMenuItem(
+                        text = { Text(preset, fontFamily = FontFamily.Monospace) },
+                        onClick = {
+                            role = preset
+                            expanded = false
+                        },
+                    )
                 }
             }
-        },
-        confirmButton = {
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onDismiss) { Text("取消") }
             TextButton(onClick = {
                 if (role.isNotBlank()) onConfirm(role.trim())
                 onDismiss()
             }) { Text("设置") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-    )
+        }
+    }
 }

@@ -55,6 +55,7 @@ import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalSnackbarHost
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
@@ -198,7 +199,7 @@ fun FilesScreen() {
             OutlinedTextField(
                 value = file.content,
                 onValueChange = { editing = file.copy(content = it) },
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f).keepAboveIme(),
                 textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
             )
             Row(

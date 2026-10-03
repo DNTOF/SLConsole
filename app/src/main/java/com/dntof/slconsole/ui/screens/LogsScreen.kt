@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Article
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.FilterChip
@@ -217,7 +218,7 @@ fun LogsScreen() {
                     onValueChange = { filter = it },
                     label = { Text("关键字过滤") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).keepAboveIme(),
                 )
                 Spacer(Modifier.width(8.dp))
                 androidx.compose.material3.Button(onClick = { loadTail() }) { Text("刷新") }

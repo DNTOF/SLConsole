@@ -73,6 +73,7 @@ import com.dntof.slconsole.mapgen.MapRoomUi
 import com.dntof.slconsole.ui.LocalSnackbarHost
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.scrollUnderChrome
 import com.dntof.slconsole.ui.components.DropdownField
 import com.dntof.slconsole.ui.components.EmptyState
@@ -704,7 +705,7 @@ private fun FacilityControls(
             label = { Text("灯光时长(秒,1-300)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().keepAboveIme(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
@@ -784,7 +785,7 @@ private fun FacilityControls(
             label = { Text("送层目标(0-20)") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().keepAboveIme(),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {

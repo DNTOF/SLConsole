@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -284,7 +285,7 @@ private fun StatusCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 StatusDot(if (data.online) UiColors.Online else UiColors.Offline, 14.dp)
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(1f).clarityMask()) {
                     Text(
                         data.serverName ?: server?.displayName ?: "未知服务器",
                         style = MaterialTheme.typography.titleLarge,

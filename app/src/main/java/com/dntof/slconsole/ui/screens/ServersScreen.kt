@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.data.model.ServerConfig
@@ -114,7 +115,7 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                                         ),
                                 )
                                 Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
+                                Column(Modifier.weight(1f).clarityMask()) {
                                     Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                                     Text(
                                         "${server.addressText} · 每 ${server.refetchIntervalMs / 1000}s 轮询",

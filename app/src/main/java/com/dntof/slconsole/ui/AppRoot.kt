@@ -11,8 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -48,6 +52,7 @@ import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -59,10 +64,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,9 +84,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -98,7 +110,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.analytics.UsageAnalytics
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.data.local.GlassGuard
+import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
@@ -147,17 +162,84 @@ val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
 /** 顶栏高度。滚动内容用它做 contentPadding,静止时第一项仍在顶栏下面。 */
 val LocalTopChrome = staticCompositionLocalOf { 0.dp }
 
+/**
+ * 当前窗口里软键盘挡住的高度。
+ * 优先用 [WindowInsets.ime];MIUI/HyperOS 经常把 inset 报成 0,这时改用可见区域被挡住的高度。
+ */
+data class ImeLift(val overlap: Dp, val rootHeightPx: Int)
+
+val LocalImeLift = staticCompositionLocalOf { ImeLift(0.dp, 0) }
+
 /** 内容最后一项和悬浮胶囊之间再留一截,避免贴在胶囊上。 */
 private val BottomChromeGap = 12.dp
+
+/** 比导航栏更高才当成键盘,避免手势条被算进 IME。 */
+private const val ImeOverlapSlopDp = 80f
+
+internal fun visibleKeyboardOverlapPx(view: View): Int {
+    if (!view.isAttachedToWindow || view.height <= 0) return 0
+    val rect = android.graphics.Rect()
+    view.getWindowVisibleDisplayFrame(rect)
+    if (rect.bottom <= 0) return 0
+    val location = IntArray(2)
+    view.getLocationOnScreen(location)
+    val overlap = location[1] + view.height - rect.bottom
+    val slop = (view.resources.displayMetrics.density * ImeOverlapSlopDp).toInt()
+    return if (overlap > slop) overlap else 0
+}
+
+/** 窗口已经被键盘顶上去时,Compose 再垫一次就会空出两截。 */
+private fun viewStillFillsScreen(view: View): Boolean {
+    if (!view.isAttachedToWindow || view.height <= 0) return true
+    val location = IntArray(2)
+    view.getLocationOnScreen(location)
+    val slop = (view.resources.displayMetrics.density * ImeOverlapSlopDp).toInt()
+    return location[1] + view.height >= view.rootView.height - slop
+}
+
+@Composable
+fun rememberImeLift(): ImeLift {
+    val view = LocalView.current
+    val density = LocalDensity.current
+    val insetBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    var framePx by remember { mutableIntStateOf(0) }
+    var rootHeight by remember { mutableIntStateOf(0) }
+    var fillsScreen by remember { mutableStateOf(true) }
+    DisposableEffect(view) {
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            val nextOverlap = visibleKeyboardOverlapPx(view)
+            val nextHeight = view.height
+            val nextFills = viewStillFillsScreen(view)
+            if (nextOverlap != framePx) framePx = nextOverlap
+            if (nextHeight != rootHeight) rootHeight = nextHeight
+            if (nextFills != fillsScreen) fillsScreen = nextFills
+        }
+        val observer = view.viewTreeObserver
+        observer.addOnGlobalLayoutListener(listener)
+        framePx = visibleKeyboardOverlapPx(view)
+        rootHeight = view.height
+        fillsScreen = viewStillFillsScreen(view)
+        onDispose {
+            if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
+        }
+    }
+    val frameBottom = with(density) { framePx.toDp() }
+    // 窗口已经缩到键盘上方时,再垫 inset 会空出两截;这时靠 rootHeight 变化重新 bringIntoView。
+    val overlap = if (fillsScreen) maxOf(insetBottom, frameBottom) else 0.dp
+    return ImeLift(overlap, rootHeight)
+}
 
 @Composable
 fun PaddingValues.withBottomChrome(): PaddingValues {
     val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+    val ime = LocalImeLift.current.overlap
+    val chrome = LocalBottomChrome.current + BottomChromeGap
     return PaddingValues(
         start = calculateStartPadding(direction),
         top = calculateTopPadding() + LocalTopChrome.current,
         end = calculateEndPadding(direction),
-        bottom = calculateBottomPadding() + LocalBottomChrome.current + BottomChromeGap,
+        // 键盘比胶囊高时用键盘高度,列表才能把最后一项滚到键盘上面。两者取较大值,不叠两截空白。
+        bottom = calculateBottomPadding() + maxOf(chrome, ime),
     )
 }
 
@@ -172,8 +254,8 @@ fun Modifier.belowTopBar(): Modifier = padding(top = LocalTopChrome.current)
 fun Modifier.scrollUnderChrome(): Modifier {
     val top = LocalTopChrome.current
     val chrome = LocalBottomChrome.current + BottomChromeGap
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    return padding(top = top, bottom = maxOf(chrome, imeBottom))
+    val ime = LocalImeLift.current.overlap
+    return padding(top = top, bottom = maxOf(chrome, ime))
 }
 
 /**
@@ -183,8 +265,40 @@ fun Modifier.scrollUnderChrome(): Modifier {
 @Composable
 fun Modifier.bottomChromePadding(): Modifier {
     val chrome = LocalBottomChrome.current + BottomChromeGap
-    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    return padding(bottom = maxOf(chrome, imeBottom))
+    val ime = LocalImeLift.current.overlap
+    return padding(bottom = maxOf(chrome, ime))
+}
+
+/**
+ * 聚焦时把输入框滚到软键盘上方。
+ * 视口仍然铺满全屏(边到边),默认的 bring-into-view 会把被键盘挡住的区域也当成可见。
+ * 这里请求一块比输入框再高出键盘高度的区域,滚动容器就会把输入框停在键盘上沿。
+ */
+@Composable
+fun Modifier.keepAboveIme(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val lift = LocalImeLift.current
+    val density = LocalDensity.current
+    var focused by remember { mutableStateOf(false) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(focused, lift.overlap, lift.rootHeightPx, size) {
+        if (!focused || size.height == 0) return@LaunchedEffect
+        withFrameNanos { }
+        val extra = with(density) { (lift.overlap + 12.dp).toPx() }
+        requester.bringIntoView(
+            Rect(
+                left = 0f,
+                top = 0f,
+                right = size.width.toFloat().coerceAtLeast(1f),
+                bottom = size.height + extra,
+            ),
+        )
+    }
+    return this
+        .clarityMask()
+        .onSizeChanged { size = it }
+        .bringIntoViewRequester(requester)
+        .onFocusEvent { focused = it.hasFocus || it.isFocused }
 }
 
 object Routes {
@@ -264,6 +378,17 @@ fun AppRoot(startupNotice: String? = null) {
     val activeId by store.activeIdFlow.collectAsState(initial = null)
     // 玻璃开关先按关闭绘制,DataStore 回来后再切,避免整屏转圈等这一项。
     val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = false)
+    val signContext = LocalContext.current
+    // 签名不一致时每次冷启动提示一次,关掉后本次进程内不再弹出
+    var showUnofficial by remember {
+        mutableStateOf(!SignatureCheck.noticeDismissed && !SignatureCheck.isOfficial(signContext))
+    }
+    if (showUnofficial) {
+        UnofficialBuildDialog(onDismiss = {
+            SignatureCheck.noticeDismissed = true
+            showUnofficial = false
+        })
+    }
     val servers = serversLoaded
     if (servers == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
@@ -281,6 +406,12 @@ fun AppRoot(startupNotice: String? = null) {
     }
     val (orbBackdrop, chromeBackdrop) = rememberGlassBackdrops()
     val context = LocalContext.current
+    // 等 DataStore 读出真实开关再决定。不能用默认值先初始化，否则用户关掉之后，下次启动仍会先发出去。
+    LaunchedEffect(Unit) {
+        ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
+            UsageAnalytics.setEnabled(context, enabled)
+        }
+    }
     var glassFrames by remember { mutableIntStateOf(0) }
     // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
     SideEffect {
@@ -319,12 +450,14 @@ fun AppRoot(startupNotice: String? = null) {
         else -> currentRoute
     }
 
+    val imeLift = rememberImeLift()
     CompositionLocalProvider(
         LocalSnackbarHost provides snackbarHostState,
         LocalLiquidGlass provides glassEnabled,
         LocalOrbBackdrop provides orbBackdrop,
         LocalChromeBackdrop provides chromeBackdrop,
         LocalAppLayout provides layout,
+        LocalImeLift provides imeLift,
     ) {
         Box(Modifier.fillMaxSize()) {
             if (layout == AppLayout.Compact) {
@@ -355,6 +488,23 @@ fun AppRoot(startupNotice: String? = null) {
             }
         }
     }
+}
+
+@Composable
+private fun UnofficialBuildDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("非官方版本") },
+        text = {
+            Text(
+                "当前安装包的签名与官方签名不一致，可能被修改或重新打包。" +
+                    "请从官方渠道下载：${SignatureCheck.RELEASES_URL}",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("我知道了") }
+        },
+    )
 }
 
 /**
@@ -443,7 +593,7 @@ private fun CompactShell(
         }
         SnackbarHost(
             snackbarHostState,
-            Modifier.align(Alignment.BottomCenter).padding(bottom = bottomChrome + 8.dp),
+            Modifier.align(Alignment.BottomCenter).padding(bottom = bottomChrome + 8.dp).clarityMask(),
         )
     }
 }
@@ -519,7 +669,7 @@ private fun WideShell(
         }
         SnackbarHost(
             snackbarHostState,
-            Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = navInset + 8.dp),
+            Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = navInset + 8.dp).clarityMask(),
         )
     }
 }
@@ -704,7 +854,7 @@ private fun ServerTopBar(
                     size = 12.dp,
                 )
                 Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f, fill = false)) {
+                Column(Modifier.weight(1f, fill = false).clarityMask()) {
                     Text(
                         active?.displayName ?: "未添加服务器",
                         style = MaterialTheme.typography.titleMedium,
@@ -734,6 +884,7 @@ private fun ServerTopBar(
                         trailingIcon = {
                             Text(
                                 server.addressText,
+                                modifier = Modifier.clarityMask(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

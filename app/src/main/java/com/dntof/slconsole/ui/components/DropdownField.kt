@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.dntof.slconsole.ui.keepAboveIme
 
 /** 只读下拉选择字段(用于门/电梯/角色等枚举选择)。 */
 @Composable
@@ -39,7 +40,7 @@ fun DropdownField(
                     Icon(Icons.Filled.ArrowDropDown, null)
                 }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().keepAboveIme(),
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->

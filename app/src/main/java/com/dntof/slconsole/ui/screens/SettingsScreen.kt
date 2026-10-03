@@ -12,8 +12,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.analytics.ClarityDefaults
+import com.dntof.slconsole.analytics.UsageAnalytics
 import com.dntof.slconsole.ui.components.LabeledSwitch
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.SectionCard
@@ -23,7 +26,9 @@ import com.dntof.slconsole.ui.withBottomChrome
 @Composable
 fun SettingsScreen() {
     val glass by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = LocalLiquidGlass.current)
+    val analytics by ServiceLocator.settingsStore.usageAnalyticsFlow.collectAsState(initial = ClarityDefaults.ENABLED)
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp).withBottomChrome(),
@@ -52,6 +57,22 @@ fun SettingsScreen() {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+        item {
+            Text("隐私", style = MaterialTheme.typography.headlineSmall)
+        }
+        item {
+            SectionCard("使用统计", subtitle = "默认开启") {
+                LabeledSwitch(
+                    title = "帮助改进（匿名使用统计）",
+                    subtitle = "匿名记录界面怎么被使用，用来改进应用。不记录服务器地址、密钥和控制台内容。关闭后立即停止，下次打开也不再收集。",
+                    checked = analytics,
+                    onCheckedChange = { enabled ->
+                        UsageAnalytics.setEnabled(context, enabled)
+                        scope.launch { ServiceLocator.settingsStore.setUsageAnalytics(enabled) }
+                    },
                 )
             }
         }

@@ -46,6 +46,8 @@ import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalTopChrome
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
+import com.dntof.slconsole.ui.keepAboveIme
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.rememberActiveServer
@@ -128,7 +130,8 @@ fun ConsoleScreen() {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .clarityMask(),
             shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(containerColor = Color(TERMINAL_BG)),
         ) {
@@ -198,7 +201,7 @@ fun ConsoleScreen() {
                     imeAction = ImeAction.Send,
                 ),
                 keyboardActions = KeyboardActions(onSend = { exec() }),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).keepAboveIme(),
             )
             IconButton(onClick = { exec() }, enabled = command.isNotBlank() && !running) {
                 Icon(

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.Button
 import com.dntof.slconsole.ui.scrollUnderChrome
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.Icon
@@ -102,6 +103,7 @@ fun VoiceScreen() {
                 val source = if (configuredPort > 0) "服务器配置" else "监控自动获取"
                 Text(
                     "监听 ${server.addressText} 的语音流(端口 $voicePort · $source)。多为近距离/对讲频道混音,请调低音量后开始。",
+                    modifier = Modifier.clarityMask(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

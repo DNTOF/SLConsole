@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonPrimitive
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
@@ -166,7 +167,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 onValueChange = { label = it },
                 label = { Text("显示名称(可选)") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
@@ -175,7 +176,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 onValueChange = { host = it },
                 label = { Text("主机(IP 或域名)") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
@@ -185,7 +186,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 label = { Text("端口(默认 8081)") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
@@ -195,7 +196,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 label = { Text("VerifyToken(数据面凭据,必填)") },
                 supportingText = { Text("插件 config.yml 中的 verify_token,用于拉取监控数据") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
@@ -205,7 +206,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 label = { Text("API Key(控制面凭据,可选)") },
                 supportingText = { Text("sld_live_ / sld_duty_ 开头;不填则只能看监控,无法控制") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
@@ -216,7 +217,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 supportingText = { Text("留空 = 自动从监控读取;服务器 voice_port 非默认 8082 或监控不可用时必填") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {

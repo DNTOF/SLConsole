@@ -51,6 +51,7 @@ import com.dntof.slconsole.ui.components.KeyValueRow
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
+import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
@@ -272,7 +273,7 @@ private fun SlPlayerPanel(snapshot: String?) {
             onValueChange = { fetchUrl = it },
             label = { Text("云端歌单 URL") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().keepAboveIme(),
         )
         Spacer(Modifier.height(6.dp))
         OutlinedButton(
