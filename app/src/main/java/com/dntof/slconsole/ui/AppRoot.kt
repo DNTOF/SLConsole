@@ -219,6 +219,7 @@ fun rememberImeLift(): ImeLift {
         }
     }
     val frameBottom = with(density) { framePx.toDp() }
+    // 窗口已经缩到键盘上方时,再垫 inset 会空出两截;这时靠 rootHeight 变化重新 bringIntoView。
     val overlap = if (fillsScreen) maxOf(insetBottom, frameBottom) else 0.dp
     return ImeLift(overlap, rootHeight)
 }
@@ -291,7 +292,7 @@ fun Modifier.keepAboveIme(): Modifier {
     return this
         .onSizeChanged { size = it }
         .bringIntoViewRequester(requester)
-        .onFocusEvent { focused = it.hasFocus }
+        .onFocusEvent { focused = it.hasFocus || it.isFocused }
 }
 
 object Routes {
