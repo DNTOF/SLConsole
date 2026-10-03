@@ -52,6 +52,7 @@ import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.SpaceDashboard
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -63,6 +64,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -111,6 +113,7 @@ import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.analytics.UsageAnalytics
 import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.data.local.GlassGuard
+import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
@@ -375,6 +378,17 @@ fun AppRoot(startupNotice: String? = null) {
     val activeId by store.activeIdFlow.collectAsState(initial = null)
     // 玻璃开关先按关闭绘制,DataStore 回来后再切,避免整屏转圈等这一项。
     val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = false)
+    val signContext = LocalContext.current
+    // 签名不一致时每次冷启动提示一次,关掉后本次进程内不再弹出
+    var showUnofficial by remember {
+        mutableStateOf(!SignatureCheck.noticeDismissed && !SignatureCheck.isOfficial(signContext))
+    }
+    if (showUnofficial) {
+        UnofficialBuildDialog(onDismiss = {
+            SignatureCheck.noticeDismissed = true
+            showUnofficial = false
+        })
+    }
     val servers = serversLoaded
     if (servers == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
@@ -474,6 +488,23 @@ fun AppRoot(startupNotice: String? = null) {
             }
         }
     }
+}
+
+@Composable
+private fun UnofficialBuildDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("非官方版本") },
+        text = {
+            Text(
+                "当前安装包的签名与官方签名不一致，可能被修改或重新打包。" +
+                    "请从官方渠道下载：${SignatureCheck.RELEASES_URL}",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("我知道了") }
+        },
+    )
 }
 
 /**

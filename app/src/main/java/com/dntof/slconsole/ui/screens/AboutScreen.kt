@@ -1,21 +1,29 @@
 package com.dntof.slconsole.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.BuildConfig
+import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.ui.components.AuthorCard
+import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun AboutScreen() {
+    val context = LocalContext.current
+    val official = remember { SignatureCheck.isOfficial(context) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp).withBottomChrome(),
@@ -23,10 +31,20 @@ fun AboutScreen() {
     ) {
         item {
             SectionCard("版本") {
-                Text(
-                    "SLConsole ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        "SLConsole ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (official) {
+                        InfoChip("官方签名", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        InfoChip("非官方版本", color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
         item {

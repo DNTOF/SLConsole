@@ -8,3 +8,8 @@
 /captures
 .externalNativeBuild
 .cxx
+
+# 签名文件不要提交
+*.jks
+*.keystore
+keystore.properties
