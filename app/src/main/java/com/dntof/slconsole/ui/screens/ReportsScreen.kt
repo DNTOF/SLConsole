@@ -46,6 +46,7 @@ import kotlinx.serialization.json.put
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.dntof.slconsole.ui.withBottomChrome
 
 private fun formatReportTime(iso: String?): String {
     if (iso.isNullOrBlank()) return "—"
@@ -96,31 +97,38 @@ fun ReportsScreen() {
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        SectionCard(
-            "举报管理",
-            subtitle = reports?.let { "${it.size} 条待处理 · 每 15 秒自动刷新" } ?: "加载中…",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            actions = { TextButton(onClick = { load() }) { Text("刷新") } },
-        ) {
-            error?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            SectionCard(
+                "举报管理",
+                subtitle = reports?.let { "${it.size} 条待处理 · 每 15 秒自动刷新" } ?: "加载中…",
+                actions = { TextButton(onClick = { load() }) { Text("刷新") } },
+            ) {
+                error?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
             }
         }
 
         val list = reports
-        if (list == null) return
-        if (list.isEmpty()) {
-            EmptyState(
-                Icons.Filled.CheckCircle,
-                "所有举报均已处理",
-                "启用 report_enabled 后,玩家通过服务器设置面板提交的举报会显示在这里。",
-            )
+        if (list == null) {
+            item {
+                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else if (list.isEmpty()) {
+            item {
+                EmptyState(
+                    Icons.Filled.CheckCircle,
+                    "所有举报均已处理",
+                    "启用 report_enabled 后,玩家通过服务器设置面板提交的举报会显示在这里。",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
                 items(list.size, key = { list[it].id }) { index ->
                     val report = list[index]
                     AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
@@ -175,7 +183,6 @@ fun ReportsScreen() {
                         }
                     }
                 }
-            }
         }
     }
 

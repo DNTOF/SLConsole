@@ -13,12 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ui.components.KeyValueRow
 import com.dntof.slconsole.ui.components.SectionCard
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun AboutScreen() {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

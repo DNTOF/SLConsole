@@ -71,3 +71,5 @@ SLDataAPI 2.6.0+ 插件(SCP:SL 游戏服务器,默认端口 8081)
 本项目以 [GPL-3.0](LICENSE) 许可发布。
 
 Copyright (C) 2026 DNT_OF
+
+液态玻璃绘制使用 [Backdrop](https://github.com/Kyant0/AndroidLiquidGlass) 1.0.6（Kyant，[Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)）。

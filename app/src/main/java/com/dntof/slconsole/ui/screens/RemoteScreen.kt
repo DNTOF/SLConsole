@@ -41,6 +41,7 @@ import com.dntof.slconsole.ui.rememberActiveServer
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 /** 远程控制:广播 / 管理聊天 / CASSIE / 回合与核弹(命令执行在"控制台"标签页)。 */
 @Composable
@@ -78,7 +79,7 @@ fun RemoteScreen() {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

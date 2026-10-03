@@ -143,14 +143,23 @@ fun FeatureTile(
 }
 
 @Composable
-fun InfoChip(text: String, color: Color = MaterialTheme.colorScheme.secondary) {
-    Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.15f)) {
+fun InfoChip(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.secondary,
+    onClick: (() -> Unit)? = null,
+) {
+    val label: @Composable () -> Unit = {
         Text(
             text,
             Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             color = color,
         )
+    }
+    if (onClick != null) {
+        Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.15f), onClick = onClick, content = label)
+    } else {
+        Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.15f), content = label)
     }
 }
 
@@ -253,9 +262,10 @@ fun EmptyState(
     subtitle: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.fillMaxSize().padding(32.dp),
 ) {
     Column(
-        Modifier.fillMaxSize().padding(32.dp),
+        modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

@@ -55,6 +55,7 @@ import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.GlassRole
@@ -93,8 +94,12 @@ fun PlayersScreen() {
         else players.filter { it.nickname.contains(query, true) || it.steamId.contains(query, true) }
     }
 
-    Column(Modifier.fillMaxSize()) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
             Text("玩家", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Text(
                 when {
@@ -116,19 +121,17 @@ fun PlayersScreen() {
             )
         }
         if (filtered.isEmpty()) {
-            EmptyState(
-                Icons.Outlined.Groups,
-                if (players.isEmpty()) "暂无在线玩家" else "没有匹配的玩家",
-                "玩家加入后自动出现在这里",
-            )
+            item {
+                EmptyState(
+                    Icons.Outlined.Groups,
+                    if (players.isEmpty()) "暂无在线玩家" else "没有匹配的玩家",
+                    "玩家加入后自动出现在这里",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(filtered, key = { it.steamId + it.nickname }) { player ->
-                    PlayerRow(player, onClick = { selected = player })
-                }
+            items(filtered, key = { it.steamId + it.nickname }) { player ->
+                PlayerRow(player, onClick = { selected = player })
             }
         }
     }

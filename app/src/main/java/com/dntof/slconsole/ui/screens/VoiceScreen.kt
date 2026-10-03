@@ -1,6 +1,8 @@
 package com.dntof.slconsole.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.Button
+import com.dntof.slconsole.ui.scrollUnderChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.Icon
@@ -71,7 +74,12 @@ fun VoiceScreen() {
         return
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .scrollUnderChrome(),
+    ) {
         SectionCard(
             "语音监听",
             subtitle = "实时代码语音转发(SLDataAPI voice_enabled)",

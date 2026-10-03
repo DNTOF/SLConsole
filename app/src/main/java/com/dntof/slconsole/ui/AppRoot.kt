@@ -8,13 +8,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -45,7 +56,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -56,20 +66,28 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -80,6 +98,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.data.local.GlassGuard
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
@@ -88,12 +107,16 @@ import com.dntof.slconsole.ui.components.AppLayout
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.LocalAppLayout
-import com.dntof.slconsole.ui.components.LocalGlassPlate
+import com.dntof.slconsole.ui.components.LocalChromeBackdrop
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
+import com.dntof.slconsole.ui.components.LocalOrbBackdrop
 import com.dntof.slconsole.ui.components.StatusDot
 import com.dntof.slconsole.ui.components.UiColors
 import com.dntof.slconsole.ui.components.liquidGlass
-import com.dntof.slconsole.ui.components.rememberGlassPlateState
+import com.dntof.slconsole.ui.components.rememberGlassBackdrops
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.dntof.slconsole.ui.screens.AdaptedPluginDetailScreen
+import com.dntof.slconsole.ui.screens.AdaptedPluginsScreen
 import com.dntof.slconsole.ui.screens.AboutScreen
 import com.dntof.slconsole.ui.screens.AuditScreen
 import com.dntof.slconsole.ui.screens.BansScreen
@@ -118,6 +141,52 @@ val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
     error("SnackbarHostState not provided")
 }
 
+/** 底栏/系统导航区高度。列表用它加 contentPadding,视口本身仍延伸到栏下。 */
+val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
+
+/** 顶栏高度。滚动内容用它做 contentPadding,静止时第一项仍在顶栏下面。 */
+val LocalTopChrome = staticCompositionLocalOf { 0.dp }
+
+/** 内容最后一项和悬浮胶囊之间再留一截,避免贴在胶囊上。 */
+private val BottomChromeGap = 12.dp
+
+@Composable
+fun PaddingValues.withBottomChrome(): PaddingValues {
+    val direction = androidx.compose.ui.platform.LocalLayoutDirection.current
+    return PaddingValues(
+        start = calculateStartPadding(direction),
+        top = calculateTopPadding() + LocalTopChrome.current,
+        end = calculateEndPadding(direction),
+        bottom = calculateBottomPadding() + LocalBottomChrome.current + BottomChromeGap,
+    )
+}
+
+/** 不滚动的一块内容从顶栏下沿开始排,避免标题被玻璃盖住。 */
+@Composable
+fun Modifier.belowTopBar(): Modifier = padding(top = LocalTopChrome.current)
+
+/**
+ * 放在 verticalScroll 里面:视口铺到顶栏和底栏之下,首尾内容仍停在栏外。
+ */
+@Composable
+fun Modifier.scrollUnderChrome(): Modifier {
+    val top = LocalTopChrome.current
+    val chrome = LocalBottomChrome.current + BottomChromeGap
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    return padding(top = top, bottom = maxOf(chrome, imeBottom))
+}
+
+/**
+ * 把固定在底部的控件抬到胶囊之上。键盘弹出时改用 IME 高度,
+ * 输入框跟着键盘走,不会和胶囊高度叠成两截空白。
+ */
+@Composable
+fun Modifier.bottomChromePadding(): Modifier {
+    val chrome = LocalBottomChrome.current + BottomChromeGap
+    val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+    return padding(bottom = maxOf(chrome, imeBottom))
+}
+
 object Routes {
     const val DASHBOARD = "dashboard"
     const val PLAYERS = "players"
@@ -129,6 +198,10 @@ object Routes {
     const val LOGS = "logs"
     const val AUDIT = "audit"
     const val PLUGINS = "plugins"
+    const val ADAPTED = "adapted"
+    const val ADAPTED_DETAIL = "adaptedDetail/{pluginId}"
+
+    fun adaptedDetail(id: String): String = "adaptedDetail/${android.net.Uri.encode(id)}"
     const val MAPS = "maps"
     const val VOICE = "voice"
     const val FILES = "files"
@@ -141,7 +214,7 @@ object Routes {
     fun serverEdit(id: String?): String = "serverEdit?serverId=${id ?: ""}"
 
     val SUB_ROUTES = setOf(
-        BANS, LOGS, AUDIT, PLUGINS, REMOTE, EVENTS, VOICE, FILES, REPORTS, SERVERS, SETTINGS, ABOUT, SERVER_EDIT,
+        BANS, LOGS, AUDIT, PLUGINS, ADAPTED, ADAPTED_DETAIL, REMOTE, EVENTS, VOICE, FILES, REPORTS, SERVERS, SETTINGS, ABOUT, SERVER_EDIT,
     )
 
     val SUB_TITLES = mapOf(
@@ -149,6 +222,8 @@ object Routes {
         LOGS to "服务器日志",
         AUDIT to "控制审计",
         PLUGINS to "插件管理",
+        ADAPTED to "适配插件",
+        ADAPTED_DETAIL to "插件详情",
         REMOTE to "远程控制",
         EVENTS to "实时动态",
         VOICE to "语音监听",
@@ -180,22 +255,23 @@ fun rememberActiveServer(): ServerConfig? {
 }
 
 @Composable
-fun AppRoot() {
+fun AppRoot(startupNotice: String? = null) {
     val navController = rememberNavController()
     val store = ServiceLocator.serverStore
     val scope = rememberCoroutineScope()
 
     val serversLoaded by store.serversFlow.collectAsState(initial = null)
     val activeId by store.activeIdFlow.collectAsState(initial = null)
-    val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = null as Boolean?)
+    // 玻璃开关先按关闭绘制,DataStore 回来后再切,避免整屏转圈等这一项。
+    val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = false)
     val servers = serversLoaded
-    if (servers == null || glassPref == null) {
+    if (servers == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
-    val glassEnabled = glassPref == true
+    val glassEnabled = glassPref
     val activeServer = remember(servers, activeId) { servers.find { it.id == activeId } ?: servers.firstOrNull() }
     val monitorState by MonitorEngine.state.collectAsState()
     val layout = when {
@@ -203,7 +279,15 @@ fun AppRoot() {
         LocalConfiguration.current.screenWidthDp >= 600 -> AppLayout.Medium
         else -> AppLayout.Compact
     }
-    val plate = rememberGlassPlateState()
+    val (orbBackdrop, chromeBackdrop) = rememberGlassBackdrops()
+    val context = LocalContext.current
+    var glassFrames by remember { mutableIntStateOf(0) }
+    // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
+    SideEffect {
+        if (glassEnabled && glassFrames < 2) {
+            GlassGuard.markRenderStart(context)
+        }
+    }
 
     LaunchedEffect(activeServer) {
         MonitorEngine.setActive(activeServer)
@@ -213,6 +297,19 @@ fun AppRoot() {
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(startupNotice) {
+        if (!startupNotice.isNullOrBlank()) snackbarHostState.showSnackbar(startupNotice)
+    }
+    LaunchedEffect(glassEnabled) {
+        if (!glassEnabled) {
+            glassFrames = 0
+            GlassGuard.markRenderOk(context)
+            return@LaunchedEffect
+        }
+        repeat(2) { withFrameNanos { } }
+        glassFrames = 2
+        GlassGuard.markRenderOk(context)
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isSubRoute = currentRoute in Routes.SUB_ROUTES
@@ -225,11 +322,11 @@ fun AppRoot() {
     CompositionLocalProvider(
         LocalSnackbarHost provides snackbarHostState,
         LocalLiquidGlass provides glassEnabled,
-        LocalGlassPlate provides plate,
+        LocalOrbBackdrop provides orbBackdrop,
+        LocalChromeBackdrop provides chromeBackdrop,
         LocalAppLayout provides layout,
     ) {
         Box(Modifier.fillMaxSize()) {
-            AppBackdrop(glassEnabled)
             if (layout == AppLayout.Compact) {
                 CompactShell(
                     navController = navController,
@@ -260,6 +357,30 @@ fun AppRoot() {
     }
 }
 
+/**
+ * 色块层在内容下面,只给卡片采样。内容层包含色块和页面,顶栏与底栏在这层外面采样。
+ */
+@Composable
+private fun BackdropScene(content: @Composable () -> Unit) {
+    val glass = LocalLiquidGlass.current
+    val orb = LocalOrbBackdrop.current
+    val chrome = LocalChromeBackdrop.current
+    if (glass && orb != null && chrome != null) {
+        Box(Modifier.fillMaxSize().layerBackdrop(orb)) {
+            AppBackdrop(true)
+        }
+        Box(Modifier.fillMaxSize().layerBackdrop(chrome)) {
+            AppBackdrop(true)
+            content()
+        }
+    } else {
+        Box(Modifier.fillMaxSize()) {
+            AppBackdrop(false)
+            content()
+        }
+    }
+}
+
 @Composable
 private fun CompactShell(
     navController: NavHostController,
@@ -272,13 +393,30 @@ private fun CompactShell(
     snackbarHostState: SnackbarHostState,
     onSelectServer: (String) -> Unit,
 ) {
-    Scaffold(
-        containerColor = Color.Transparent,
-        topBar = {
+    val density = LocalDensity.current
+    val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    var topBarHeight by remember { mutableStateOf(64.dp) }
+    var bottomOverlay by remember { mutableStateOf(0.dp) }
+    val showTabs = !isSubRoute
+    val bottomChrome = if (showTabs) bottomOverlay else navInset
+    Box(Modifier.fillMaxSize()) {
+        BackdropScene {
+            CompositionLocalProvider(
+                LocalBottomChrome provides bottomChrome,
+                LocalTopChrome provides topBarHeight,
+            ) {
+                AppNavHost(
+                    navController = navController,
+                    activeServer = activeServer,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        Box(Modifier.align(Alignment.TopCenter).onSizeChanged {
+            topBarHeight = with(density) { it.height.toDp() }
+        }) {
             if (isSubRoute) {
-                BarSurface {
-                    SubRouteTopBar(currentRoute, activeServer) { navController.popBackStack() }
-                }
+                BarSurface { SubRouteTopBar(currentRoute, activeServer) { navController.popBackStack() } }
             } else {
                 BarSurface {
                     ServerTopBar(
@@ -292,18 +430,20 @@ private fun CompactShell(
                     )
                 }
             }
-        },
-        bottomBar = {
-            if (!isSubRoute) {
+        }
+        if (showTabs) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { bottomOverlay = with(density) { it.height.toDp() } },
+            ) {
                 SlBottomNav(selectedTab) { navController.navigateTab(it) }
             }
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        AppNavHost(
-            navController = navController,
-            activeServer = activeServer,
-            modifier = Modifier.padding(padding),
+        }
+        SnackbarHost(
+            snackbarHostState,
+            Modifier.align(Alignment.BottomCenter).padding(bottom = bottomChrome + 8.dp),
         )
     }
 }
@@ -321,55 +461,83 @@ private fun WideShell(
     snackbarHostState: SnackbarHostState,
     onSelectServer: (String) -> Unit,
 ) {
-    Row(Modifier.fillMaxSize()) {
-        SlNavigationRail(
-            selectedTab = selectedTab,
-            expanded = expanded,
-            onSelect = { navController.navigateTab(it) },
-        )
-        Scaffold(
-            modifier = Modifier.weight(1f),
-            containerColor = Color.Transparent,
-            topBar = {
-                BarSurface {
-                    ServerTopBar(
-                        active = activeServer,
-                        servers = servers,
-                        monitorState = monitorState,
-                        onSelect = onSelectServer,
-                        onManage = { navController.navigate(Routes.SERVERS) },
-                        onAdd = { navController.navigate(Routes.serverEdit(null)) },
-                        onRefresh = { MonitorEngine.refreshNow() },
-                    )
-                }
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-        ) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize()) {
+    val density = LocalDensity.current
+    val navInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val railWidth = if (expanded) 232.dp else 104.dp
+    var topBarHeight by remember { mutableStateOf(64.dp) }
+    Box(Modifier.fillMaxSize()) {
+        BackdropScene {
+            Column(
+                Modifier
+                    .padding(start = railWidth)
+                    .fillMaxSize(),
+            ) {
                 if (isSubRoute) {
-                    SubRouteHeader(currentRoute) { navController.popBackStack() }
+                    Box(Modifier.padding(top = topBarHeight)) {
+                        SubRouteHeader(currentRoute) { navController.popBackStack() }
+                    }
                 }
-                AppNavHost(
-                    navController = navController,
-                    activeServer = activeServer,
-                    modifier = Modifier.weight(1f),
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    CompositionLocalProvider(
+                        LocalBottomChrome provides navInset,
+                        LocalTopChrome provides if (isSubRoute) 0.dp else topBarHeight,
+                    ) {
+                        AppNavHost(
+                            navController = navController,
+                            activeServer = activeServer,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+            }
+        }
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(start = railWidth)
+                .fillMaxWidth()
+                .onSizeChanged { topBarHeight = with(density) { it.height.toDp() } },
+        ) {
+            BarSurface {
+                ServerTopBar(
+                    active = activeServer,
+                    servers = servers,
+                    monitorState = monitorState,
+                    onSelect = onSelectServer,
+                    onManage = { navController.navigate(Routes.SERVERS) },
+                    onAdd = { navController.navigate(Routes.serverEdit(null)) },
+                    onRefresh = { MonitorEngine.refreshNow() },
                 )
             }
         }
+        Box(Modifier.align(Alignment.CenterStart).width(railWidth).fillMaxHeight()) {
+            SlNavigationRail(
+                selectedTab = selectedTab,
+                expanded = expanded,
+                onSelect = { navController.navigateTab(it) },
+            )
+        }
+        SnackbarHost(
+            snackbarHostState,
+            Modifier.align(Alignment.BottomCenter).padding(start = railWidth, bottom = navInset + 8.dp),
+        )
     }
 }
 
 @Composable
 private fun BarSurface(content: @Composable () -> Unit) {
     val glass = LocalLiquidGlass.current
-    Column(
+    val bar = if (glass) {
         Modifier.liquidGlass(
             shape = RectangleShape,
             role = GlassRole.Chrome,
             dark = isSystemInDarkTheme(),
             framed = false,
-        ),
-    ) {
+        )
+    } else {
+        Modifier.background(MaterialTheme.colorScheme.surface)
+    }
+    Column(bar) {
         content()
         HorizontalDivider(
             color = if (glass) Color.White.copy(alpha = 0.28f) else MaterialTheme.colorScheme.outlineVariant,
@@ -413,7 +581,20 @@ private fun AppNavHost(
             composable(Routes.BANS) { BansScreen() }
             composable(Routes.LOGS) { LogsScreen() }
             composable(Routes.AUDIT) { AuditScreen() }
-            composable(Routes.PLUGINS) { PluginsScreen() }
+            composable(Routes.PLUGINS) {
+                PluginsScreen(onOpenAdapted = { navController.navigate(Routes.ADAPTED) })
+            }
+            composable(Routes.ADAPTED) {
+                AdaptedPluginsScreen(onOpen = { navController.navigate(Routes.adaptedDetail(it)) })
+            }
+            composable(
+                Routes.ADAPTED_DETAIL,
+                arguments = listOf(navArgument("pluginId") { type = NavType.StringType }),
+            ) { entry ->
+                AdaptedPluginDetailScreen(
+                    pluginId = android.net.Uri.decode(entry.arguments?.getString("pluginId").orEmpty()),
+                )
+            }
             composable(Routes.MAPS) { MapScreen() }
             composable(Routes.VOICE) { VoiceScreen() }
             composable(Routes.FILES) { FilesScreen() }
@@ -584,11 +765,17 @@ private fun ServerTopBar(
 
 @Composable
 private fun SlBottomNav(selectedTab: String?, onSelect: (String) -> Unit) {
-    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp)) {
+    // 外层保持透明,系统导航区露出背后正在滚动的内容,而不是一条实色带
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+    ) {
         AppSurface(
             modifier = Modifier.fillMaxWidth(),
             role = GlassRole.Chrome,
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(32.dp),
         ) {
             Row(
                 Modifier.padding(horizontal = 4.dp, vertical = 6.dp).fillMaxWidth(),
@@ -650,8 +837,21 @@ private fun NavTab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val pill by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        label = "tabPill",
+    )
+    val scale by animateFloatAsState(
+        if (selected) 1f else 0.94f,
+        spring(dampingRatio = 0.75f),
+        label = "tabScale",
+    )
     Column(
         modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .padding(vertical = 4.dp),
@@ -661,10 +861,7 @@ private fun NavTab(
             Modifier
                 .width(40.dp)
                 .height(28.dp)
-                .background(
-                    if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                    RoundedCornerShape(50),
-                ),
+                .background(pill, RoundedCornerShape(50)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

@@ -17,6 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Article
+import com.dntof.slconsole.ui.belowTopBar
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.FilterChip
@@ -52,6 +54,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 private val LINE_OPTIONS = listOf(100, 200, 500, 1000, 2000)
 
@@ -127,22 +130,30 @@ fun LogsScreen() {
     }
 
     if (selected == null) {
-        Column(Modifier.fillMaxSize()) {
-            SectionCard(
-                "日志文件",
-                subtitle = files?.let { "共 ${it.size} 个文件" } ?: "加载中…",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            ) {
-                error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-            }
-            val list = files
-            if (list == null || list.isEmpty()) {
-                EmptyState(Icons.AutoMirrored.Outlined.Article, "没有日志文件", "检查插件 log_directory 配置")
-            } else {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+        val list = files
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp).withBottomChrome(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                SectionCard(
+                    "日志文件",
+                    subtitle = files?.let { "共 ${it.size} 个文件" } ?: "加载中…",
                 ) {
+                    error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+                }
+            }
+            if (list == null || list.isEmpty()) {
+                item {
+                    EmptyState(
+                        Icons.AutoMirrored.Outlined.Article,
+                        "没有日志文件",
+                        "检查插件 log_directory 配置",
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                    )
+                }
+            } else {
                     items(list, key = { it.path }) { file ->
                         AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -162,11 +173,10 @@ fun LogsScreen() {
                             }
                         }
                     }
-                }
             }
         }
     } else {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().belowTopBar().bottomChromePadding()) {
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

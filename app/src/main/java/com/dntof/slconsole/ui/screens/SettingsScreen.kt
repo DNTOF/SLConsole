@@ -18,6 +18,7 @@ import com.dntof.slconsole.ui.components.LabeledSwitch
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.SectionCard
 import kotlinx.coroutines.launch
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun SettingsScreen() {
@@ -25,7 +26,7 @@ fun SettingsScreen() {
     val scope = rememberCoroutineScope()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
@@ -47,7 +48,7 @@ fun SettingsScreen() {
                     },
                 )
                 Text(
-                    "开启后导航和卡片会透出彩色背景。无法完成模糊时自动改为半透明,文字仍然可读。",
+                    "Android 12 及以上会实时模糊背后正在滚动的内容;更低版本改为半透明。文字仍然可读。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),

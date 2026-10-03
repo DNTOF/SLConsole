@@ -44,6 +44,7 @@ import com.dntof.slconsole.util.Format
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import com.dntof.slconsole.ui.withBottomChrome
 
 @Composable
 fun AuditScreen() {
@@ -74,38 +75,46 @@ fun AuditScreen() {
 
     LaunchedEffect(server?.id) { load() }
 
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("控制审计", style = MaterialTheme.typography.titleMedium)
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("控制审计", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        entries?.let { "最近 ${it.size} 条操作记录(新→旧)" } ?: "加载中…",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { load() }) { Text("刷新") }
+            }
+            error?.let {
                 Text(
-                    entries?.let { "最近 ${it.size} 条操作记录(新→旧)" } ?: "加载中…",
+                    it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
-            TextButton(onClick = { load() }) { Text("刷新") }
-        }
-        error?.let {
-            Text(
-                it,
-                Modifier.padding(horizontal = 16.dp),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
         }
         val list = entries
-        if (list == null) return
-        if (list.isEmpty()) {
-            EmptyState(Icons.AutoMirrored.Outlined.FactCheck, "暂无审计记录", "控制操作执行后会记录在这里")
+        if (list == null) {
+            item {
+                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        } else if (list.isEmpty()) {
+            item {
+                EmptyState(
+                    Icons.AutoMirrored.Outlined.FactCheck,
+                    "暂无审计记录",
+                    "控制操作执行后会记录在这里",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
                 items(list.size) { index ->
                     val entry = list[index]
                     var expanded by remember(entry.time) { mutableStateOf(false) }
@@ -149,7 +158,6 @@ fun AuditScreen() {
                         }
                     }
                 }
-            }
         }
     }
 }

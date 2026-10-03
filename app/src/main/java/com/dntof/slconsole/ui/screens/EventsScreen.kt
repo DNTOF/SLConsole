@@ -44,7 +44,10 @@ import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.model.SlEvent
 import com.dntof.slconsole.data.remote.WsControlClient
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.ui.belowTopBar
+import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.EmptyState
+import com.dntof.slconsole.ui.withBottomChrome
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.SectionCard
@@ -66,7 +69,7 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
         return
     }
     if (!server.hasControl || server.controlTransport != "ws") {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
             SectionCard("实时事件不可用", subtitle = "需要满足以下条件") {
                 Text(
                     "1. 服务器配置中填写 API Key(控制面凭据)\n" +
@@ -94,8 +97,13 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
     val handshake by client.handshakeStatus.collectAsState()
     val events by client.events.collectAsState()
 
-    Column(Modifier.fillMaxSize()) {
-        AppSurface(Modifier.fillMaxWidth().padding(16.dp), role = GlassRole.Panel) {
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp).withBottomChrome(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        item {
+        AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Panel) {
             Column(Modifier.padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusDot(
@@ -136,17 +144,20 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
                 }
             }
         }
+        }
 
         if (events.isEmpty()) {
-            EmptyState(Icons.Outlined.Bolt, "暂无事件", "玩家进出、死亡与回合事件会实时推送到这里")
+            item {
+                EmptyState(
+                    Icons.Outlined.Bolt,
+                    "暂无事件",
+                    "玩家进出、死亡与回合事件会实时推送到这里",
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(events, key = { it.receivedAt.toString() + it.event }) { event ->
-                    EventRow(event)
-                }
+            items(events, key = { it.receivedAt.toString() + it.event }) { event ->
+                EventRow(event)
             }
         }
     }
