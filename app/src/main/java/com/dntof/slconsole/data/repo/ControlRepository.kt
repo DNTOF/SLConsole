@@ -79,7 +79,7 @@ object ControlRepository {
                     ControlOutcome.Failure(
                         message = when (result.status) {
                             404 -> "服务器未开放 WS 控制通道(control_transport 为 http),请在服务器设置改回 HTTP"
-                            401, 403 -> "API Key 校验失败(HTTP ${result.status})"
+                            401, 403 -> "API Key 校验失败(HTTP ${result.status})。改过 apikey.config 里的角色会让这把 Key 失效，请在游戏里新建一把再换上"
                             else -> result.message
                         },
                     )

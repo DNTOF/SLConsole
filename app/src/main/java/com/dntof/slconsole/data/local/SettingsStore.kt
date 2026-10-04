@@ -16,6 +16,7 @@ class SettingsStore(private val context: Context) {
     private val liquidGlassKey = booleanPreferencesKey("liquid_glass")
     private val usageAnalyticsKey = booleanPreferencesKey("usage_analytics")
     private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
+    private val biometricLockKey = booleanPreferencesKey("biometric_lock")
 
     val liquidGlassFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[liquidGlassKey] ?: false
@@ -39,6 +40,17 @@ class SettingsStore(private val context: Context) {
     suspend fun setUsageAnalytics(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[usageAnalyticsKey] = enabled
+        }
+    }
+
+    /** 生物识别解锁，默认关闭。只有认证成功一次之后才会写成 true。 */
+    val biometricLockFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[biometricLockKey] ?: false
+    }
+
+    suspend fun setBiometricLock(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[biometricLockKey] = enabled
         }
     }
 

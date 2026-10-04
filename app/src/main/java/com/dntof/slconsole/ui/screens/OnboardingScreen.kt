@@ -1,7 +1,13 @@
 package com.dntof.slconsole.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +41,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,6 +54,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -57,12 +68,14 @@ import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalImeLift
+import com.dntof.slconsole.security.AppLock
+import com.dntof.slconsole.ui.components.AppIconBadge
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
-private const val STEP_COUNT = 5
+private const val STEP_COUNT = 6
 
 private data class TourCard(val title: String, val body: String, val icon: ImageVector)
 
@@ -89,7 +102,7 @@ private val TOUR = listOf(
     ),
     TourCard(
         "中心",
-        "底栏最后一项。适配插件、文件、语音和封禁都从这里进。外观里可以打开液态玻璃。",
+        "底栏最后一项。适配插件、文件、语音和封禁都从这里进。设置里可以打开液态玻璃。",
         Icons.Outlined.Apps,
     ),
 )
@@ -119,6 +132,23 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
     var analyticsChoice by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val analyticsSelected = analyticsChoice ?: if (replay) storedAnalytics else null
+    val storedLock by settings.biometricLockFlow.collectAsState(initial = false)
+    var lockChoice by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var lockMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    // 用户可能中途去系统设置录指纹，回来时重新查一次。
+    var lockAvailability by remember { mutableStateOf(AppLock.availability(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { lockAvailability = AppLock.availability(context) }
+
+    // 欢迎页入场：只在第一次显示时播一次。系统关闭动画时直接停在最终状态。
+    val reduceMotion = rememberReduceMotion()
+    val entrance = remember { Animatable(if (reduceMotion || step != 0) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (entrance.value < 1f) entrance.animateTo(1f, tween(durationMillis = 1300, easing = LinearEasing))
+    }
+    val entranceProgress = { entrance.value }
+    // 背景相位只在欢迎页组合，离开这一步无限动画就停掉。
+    val welcomePhase: State<Float>? = if (step == 0) rememberWelcomePhase(reduceMotion) else null
 
     fun finish() {
         if (finishing) return
@@ -162,96 +192,126 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                )
-                .windowInsetsPadding(WindowInsets.systemBars),
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            welcomePhase?.let { WelcomeBackdrop(it, Modifier.fillMaxSize()) }
             Column(
                 Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    "新手引导",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                when (step) {
-                    0 -> WelcomeStep()
-                    1 -> AddServerStep(
-                        host = host,
-                        port = port,
-                        verifyToken = verifyToken,
-                        apiKey = apiKey,
-                        testing = testing,
-                        testResult = testResult,
-                        formError = formError,
-                        onHost = { host = it },
-                        onPort = { port = it },
-                        onVerify = { verifyToken = it },
-                        onApiKey = { apiKey = it },
-                        onTest = {
-                            val h = host.trim()
-                            val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
-                            if (h.isEmpty() || verifyToken.isBlank()) {
-                                testResult = false to "请先填写主机地址和 VerifyToken"
-                                return@AddServerStep
-                            }
-                            testing = true
-                            testResult = null
-                            scope.launch {
-                                val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
-                                testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
-                                    is SlHttpClient.HttpResult.Success -> {
-                                        val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
-                                        val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                                        true to "连接成功：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
-                                    }
-                                    is SlHttpClient.HttpResult.Failure -> false to result.message
-                                }
-                                testing = false
-                            }
-                        },
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
                     )
-                    2 -> TourStep()
-                    3 -> ConsentStep(
-                        selected = analyticsSelected,
-                        onPick = { enabled ->
-                            analyticsChoice = enabled
-                            scope.launch { settings.setUsageAnalytics(enabled) }
-                        },
-                    )
-                    else -> DoneStep()
-                }
-            }
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 12.dp + ime),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .windowInsetsPadding(WindowInsets.systemBars),
             ) {
-                StepDots(step)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    TextButton(onClick = { finish() }, enabled = !finishing) { Text("跳过") }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { if (step > 0) step -= 1 }, enabled = step > 0 && !finishing) {
-                        Text("上一步")
+                    Text(
+                        "新手引导",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = if (step == 0) Modifier.staggerIn(entranceProgress, 0) else Modifier,
+                    )
+                    when (step) {
+                        0 -> WelcomeStep(welcomePhase, entranceProgress)
+                        1 -> AddServerStep(
+                            host = host,
+                            port = port,
+                            verifyToken = verifyToken,
+                            apiKey = apiKey,
+                            testing = testing,
+                            testResult = testResult,
+                            formError = formError,
+                            onHost = { host = it },
+                            onPort = { port = it },
+                            onVerify = { verifyToken = it },
+                            onApiKey = { apiKey = it },
+                            onTest = {
+                                val h = host.trim()
+                                val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
+                                if (h.isEmpty() || verifyToken.isBlank()) {
+                                    testResult = false to "请先填写主机地址和 VerifyToken"
+                                    return@AddServerStep
+                                }
+                                testing = true
+                                testResult = null
+                                scope.launch {
+                                    val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
+                                    testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
+                                        is SlHttpClient.HttpResult.Success -> {
+                                            val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
+                                            val count = (result.body["players_count"] as? JsonPrimitive)?.content
+                                            true to "连接成功：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
+                                        }
+                                        is SlHttpClient.HttpResult.Failure -> false to result.message
+                                    }
+                                    testing = false
+                                }
+                            },
+                        )
+                        2 -> TourStep()
+                        3 -> ConsentStep(
+                            selected = analyticsSelected,
+                            onPick = { enabled ->
+                                analyticsChoice = enabled
+                                scope.launch { settings.setUsageAnalytics(enabled) }
+                            },
+                        )
+                        4 -> BiometricStep(
+                            availability = lockAvailability,
+                            selected = lockChoice ?: if (replay || storedLock) storedLock else null,
+                            message = lockMessage,
+                            onEnable = {
+                                lockMessage = null
+                                AppLock.authenticate(context, title = "开启生物识别解锁") { result ->
+                                    when (result) {
+                                        AppLock.Result.Success -> {
+                                            AppLock.markUnlocked()
+                                            lockChoice = true
+                                            scope.launch { settings.setBiometricLock(true) }
+                                        }
+                                        AppLock.Result.Cancelled -> lockMessage = "已取消，没有开启。"
+                                        AppLock.Result.Unavailable -> lockMessage = "现在不能使用生物识别或锁屏密码。"
+                                        is AppLock.Result.Error -> lockMessage = "没有开启：${result.message}"
+                                    }
+                                }
+                            },
+                            onDecline = {
+                                lockMessage = null
+                                lockChoice = false
+                                scope.launch { settings.setBiometricLock(false) }
+                            },
+                        )
+                        else -> DoneStep()
                     }
-                    Button(onClick = { goNext() }, enabled = !finishing && !testing && !saving) {
-                        Text(if (step >= STEP_COUNT - 1) "完成" else "下一步")
+                }
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .staggerIn(entranceProgress, 4)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 12.dp + ime),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    StepDots(step)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { finish() }, enabled = !finishing) { Text("跳过") }
+                        Spacer(Modifier.weight(1f))
+                        TextButton(onClick = { if (step > 0) step -= 1 }, enabled = step > 0 && !finishing) {
+                            Text("上一步")
+                        }
+                        Button(onClick = { goNext() }, enabled = !finishing && !testing && !saving) {
+                            Text(if (step >= STEP_COUNT - 1) "完成" else "下一步")
+                        }
                     }
                 }
             }
@@ -259,13 +319,90 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun WelcomeStep() {
-    Text("欢迎使用 SLConsole", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+private fun WelcomeStep(phase: State<Float>?, progress: () -> Float) {
+    val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    Box(
+        Modifier
+            .padding(top = 12.dp, bottom = 4.dp)
+            .staggerIn(progress, 0, distance = 24.dp)
+            .then(if (phase != null) Modifier.logoGlow(phase, glowColor, 76.dp) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        AppIconBadge(size = 84.dp)
+    }
+    Text(
+        "欢迎使用 SLConsole",
+        style = MaterialTheme.typography.headlineMedium,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.staggerIn(progress, 1),
+    )
     Text(
         "这是用来查看和管理 SCP:SL 服务器的手机客户端。它直接连接你服务器上的 SLDataAPI，地址和密钥只保存在这台手机上。",
         style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.staggerIn(progress, 2),
     )
+    FlowRow(
+        modifier = Modifier.staggerIn(progress, 3),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf("实时监控", "远程控制", "地图与语音", "文件与插件").forEach { label ->
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BiometricStep(
+    availability: AppLock.Availability,
+    selected: Boolean?,
+    message: String?,
+    onEnable: () -> Unit,
+    onDecline: () -> Unit,
+) {
+    Text("生物识别解锁", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(
+        "打开后，启动应用或离开超过 30 秒再回来时，要先用指纹、面容或锁屏密码解锁。默认关闭，以后也可以在设置里改。",
+        style = MaterialTheme.typography.bodyLarge,
+    )
+    if (availability != AppLock.Availability.Ready) {
+        Text(
+            "暂不可用：${AppLock.unavailableText(availability)}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (selected == true) {
+            Button(onClick = onEnable, modifier = Modifier.weight(1f)) { Text("开启") }
+        } else {
+            OutlinedButton(onClick = onEnable, modifier = Modifier.weight(1f)) { Text("开启") }
+        }
+        if (selected == false) {
+            Button(onClick = onDecline, modifier = Modifier.weight(1f)) { Text("暂不") }
+        } else {
+            OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) { Text("暂不") }
+        }
+    }
+    when {
+        message != null -> Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        selected == true -> Text("已开启。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        selected == false -> Text("先不开启。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 @Composable
@@ -299,7 +436,7 @@ private fun AddServerStep(
         fontFamily = FontFamily.Monospace,
     )
     Text(
-        "把最后的 admin 换成 duty，就是值班权限。Key 可以先不填，只看监控。",
+        "Key 的权限在创建时就定了。要值班（duty）Key，创建时把最后的 admin 写成 duty。之后要 admin 权限，就在游戏里再建一把 admin Key，到应用里换上。Key 可以先不填，只看监控。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -351,7 +488,7 @@ private fun AddServerStep(
 private fun TourStep() {
     Text("主要功能", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "底栏有五项。中心里还能进适配插件和外观设置。",
+        "底栏有五项。中心里还能进适配插件和设置。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -390,7 +527,7 @@ private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(
-        "跳过的话保持现在的默认：开启。你可以以后在外观设置里关掉。",
+        "跳过的话保持现在的默认：开启。你可以以后在设置里关掉。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -412,7 +549,7 @@ private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
 private fun DoneStep() {
     Text("可以开始了", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "用底栏在概览、玩家、控制台、地图和中心之间切换。以后想再看一遍，到外观或关于里点「重新查看新手引导」。",
+        "用底栏在概览、玩家、控制台、地图和中心之间切换。以后想再看一遍，到设置或关于里点「重新查看新手引导」。",
         style = MaterialTheme.typography.bodyLarge,
     )
 }

@@ -10,6 +10,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -17,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.analytics.ClarityDefaults
 import com.dntof.slconsole.analytics.UsageAnalytics
+import com.dntof.slconsole.security.AppLock
 import androidx.compose.material3.TextButton
 import com.dntof.slconsole.ui.LocalReplayOnboarding
 import com.dntof.slconsole.ui.components.LabeledSwitch
@@ -29,6 +33,8 @@ import com.dntof.slconsole.ui.withBottomChrome
 fun SettingsScreen() {
     val glass by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = LocalLiquidGlass.current)
     val analytics by ServiceLocator.settingsStore.usageAnalyticsFlow.collectAsState(initial = ClarityDefaults.ENABLED)
+    val biometricLock by ServiceLocator.settingsStore.biometricLockFlow.collectAsState(initial = false)
+    var lockHint by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     LazyColumn(
@@ -37,9 +43,9 @@ fun SettingsScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("外观", style = MaterialTheme.typography.headlineSmall)
+            Text("设置", style = MaterialTheme.typography.headlineSmall)
             Text(
-                "只影响显示,不改变监控和控制功能。",
+                "外观、隐私和解锁方式，只在这台设备上生效。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -76,6 +82,48 @@ fun SettingsScreen() {
                         scope.launch { ServiceLocator.settingsStore.setUsageAnalytics(enabled) }
                     },
                 )
+            }
+        }
+        item {
+            SectionCard("生物识别解锁", subtitle = "默认关闭") {
+                LabeledSwitch(
+                    title = "生物识别解锁",
+                    subtitle = "打开后，启动应用或离开超过 30 秒再回来时，要先用指纹、面容或锁屏密码解锁。",
+                    checked = biometricLock,
+                    onCheckedChange = { enabled ->
+                        if (!enabled) {
+                            lockHint = null
+                            scope.launch { ServiceLocator.settingsStore.setBiometricLock(false) }
+                            return@LabeledSwitch
+                        }
+                        val availability = AppLock.availability(context)
+                        if (availability != AppLock.Availability.Ready) {
+                            lockHint = AppLock.unavailableText(availability)
+                            return@LabeledSwitch
+                        }
+                        // 先认证成功一次再保存，免得打开后自己解不开。
+                        AppLock.authenticate(context, title = "开启生物识别解锁") { result ->
+                            lockHint = when (result) {
+                                AppLock.Result.Success -> {
+                                    AppLock.markUnlocked()
+                                    scope.launch { ServiceLocator.settingsStore.setBiometricLock(true) }
+                                    null
+                                }
+                                AppLock.Result.Cancelled -> "已取消，没有开启。"
+                                AppLock.Result.Unavailable -> AppLock.unavailableText(AppLock.availability(context))
+                                is AppLock.Result.Error -> "没有开启：${result.message}"
+                            }
+                        }
+                    },
+                )
+                lockHint?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
         }
         item {

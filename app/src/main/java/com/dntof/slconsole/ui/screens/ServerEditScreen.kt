@@ -204,7 +204,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 value = apiKey,
                 onValueChange = { apiKey = it },
                 label = { Text("API Key(控制面凭据,可选)") },
-                supportingText = { Text("sld_live_ / sld_duty_ 开头;不填则只能看监控,无法控制") },
+                supportingText = { Text("sld_live_ / sld_duty_ 开头,权限在创建时就定了。要 admin 权限请在游戏里新建 admin Key 再换上;不填则只能看监控") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )

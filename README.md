@@ -53,7 +53,7 @@ SLDataAPI 2.6.0 及以上。2.6.1 是预发布，里面的内测功能默认关�
 
 1. 游戏服务器安装 SLDataAPI 2.6.0 或更新版本,`verify_token` 为强口令(弱口令会触发 fail-closed 503)。2.6.1 预发布的适配插件动作和大文件分块默认关闭,需要时再在测试服打开;
 2. `control_enabled: true`,按需选择 `control_transport: http | ws`(与 app 内设置一致);
-3. 通过服务器控制台创建 API Key:`sldataapi apikey create <id> <duty|admin>`,按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点;
+3. 通过服务器控制台创建 API Key:`sldataapi apikey create <id> <duty|admin>`。Key 的角色在创建时就定了,事后改 `apikey.config` 里的角色不会生效,还会导致认证失败;要 admin 权限就新建一把 admin Key 并在 app 里换上。按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点;
 4. 启用语音需 `voice_enabled: true`,并确认语音端口可被手机直连(不走网页反向代理);
 5. 防火墙放行 8081(及语音端口)。
 

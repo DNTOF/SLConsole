@@ -5,10 +5,10 @@ import com.dntof.slconsole.data.repo.ControlRepository
 /** 把 2.6.1 内测端点的失败翻译成界面上能看懂的句子。 */
 object BetaHints {
     const val ADAPTED_FORBIDDEN =
-        "这把 API Key 还不能调用适配插件动作。请在 apikey.config 的 endpoints_override 里写上 \"/control/adapted/\": true，也可以只放开某一个插件。admin 和 duty 默认都不包含这项。"
+        "这把 API Key 还不能调用适配插件动作。请在 apikey.config 里这把 Key 的 endpoints_override 加上 \"/control/adapted/\": true，也可以只放开某一个插件。admin 和 duty Key 默认都没有这项，不要去改 Key 的角色。"
 
     const val FILES_FORBIDDEN =
-        "这把 API Key 还不能访问文件。请在 endpoints_override 里写上 \"/control/files/\": true。文件端点默认拒绝，admin 也不会自动放开。"
+        "这把 API Key 还不能访问文件。请在 apikey.config 里这把 Key 的 endpoints_override 加上 \"/control/files/\": true。文件端点默认拒绝，admin Key 也一样，不要去改 Key 的角色。"
 
     const val ACTION_TIMEOUT = "插件处理超时"
 

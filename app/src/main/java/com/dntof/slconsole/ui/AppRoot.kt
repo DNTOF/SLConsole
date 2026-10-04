@@ -144,6 +144,8 @@ import com.dntof.slconsole.ui.screens.LogsScreen
 import com.dntof.slconsole.ui.screens.MapScreen
 import com.dntof.slconsole.ui.screens.MoreScreen
 import com.dntof.slconsole.ui.screens.OnboardingScreen
+import com.dntof.slconsole.ui.screens.AppLockGate
+import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.screens.PlayersScreen
 import com.dntof.slconsole.ui.screens.PluginsScreen
 import com.dntof.slconsole.ui.screens.RemoteScreen
@@ -349,7 +351,7 @@ object Routes {
         FILES to "文件管理",
         REPORTS to "举报管理",
         SERVERS to "服务器管理",
-        SETTINGS to "外观",
+        SETTINGS to "设置",
         ABOUT to "关于",
         SERVER_EDIT to "编辑服务器",
     )
@@ -383,6 +385,9 @@ fun AppRoot(startupNotice: String? = null) {
     val activeId by store.activeIdFlow.collectAsState(initial = null)
     var onboardingCompleted by remember { mutableStateOf<Boolean?>(null) }
     var replayOnboarding by rememberSaveable { mutableStateOf(false) }
+    // 生物识别解锁开关。读出来之前和转圈一起等，免得主界面先闪一下。
+    val lockPref by ServiceLocator.settingsStore.biometricLockFlow.collectAsState(initial = null)
+    val appUnlocked by AppLock.unlocked.collectAsState()
     LaunchedEffect(Unit) {
         ServiceLocator.settingsStore.onboardingCompletedFlow.collect { onboardingCompleted = it }
     }
@@ -408,10 +413,15 @@ fun AppRoot(startupNotice: String? = null) {
         }
     }
     val servers = serversLoaded
-    if (servers == null || onboardingCompleted == null) {
+    if (servers == null || onboardingCompleted == null || lockPref == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
+        return
+    }
+    // 上锁时只画锁屏，主界面不组合，内容不会露出来。Clarity 的初始化在上面，不受影响。
+    if (lockPref == true && !appUnlocked) {
+        AppLockGate()
         return
     }
     val glassEnabled = glassPref
