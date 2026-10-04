@@ -20,6 +20,7 @@ import com.dntof.slconsole.BuildConfig
 import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.ui.LocalReplayOnboarding
 import com.dntof.slconsole.ui.components.AuthorCard
+import com.dntof.slconsole.ui.components.GenuineBadge
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.withBottomChrome
@@ -44,7 +45,7 @@ fun AboutScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (official) {
-                        InfoChip("官方签名", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        GenuineBadge()
                     } else {
                         InfoChip("非官方版本", color = MaterialTheme.colorScheme.error)
                     }
