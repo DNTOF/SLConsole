@@ -170,7 +170,7 @@ private fun DashboardContent(
                 ) {
                     data.players.take(5).forEach { player ->
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp).clarityMask(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(

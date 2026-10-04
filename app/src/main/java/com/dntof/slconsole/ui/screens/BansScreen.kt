@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -83,7 +84,7 @@ fun BansScreen() {
     LaunchedEffect(server?.id) { load() }
 
     LazyColumn(
-        Modifier.fillMaxSize(),
+        Modifier.fillMaxSize().clarityMask(),
         contentPadding = PaddingValues(16.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

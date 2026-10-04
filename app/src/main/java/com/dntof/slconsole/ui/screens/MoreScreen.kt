@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Article
 import androidx.compose.material.icons.automirrored.outlined.FactCheck
-import androidx.compose.material.icons.outlined.BlurOn
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
@@ -24,6 +23,7 @@ import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SettingsRemote
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -79,7 +79,7 @@ private val HUB_GROUPS = listOf(
         "应用",
         listOf(
             HubEntry(Routes.SERVERS, "服务器管理", "切换、添加与删除连接", Icons.Outlined.Dns),
-            HubEntry(Routes.SETTINGS, "外观", "液态玻璃与显示", Icons.Outlined.BlurOn),
+            HubEntry(Routes.SETTINGS, "设置", "外观、隐私与解锁", Icons.Outlined.Settings),
             HubEntry(Routes.ABOUT, "关于", "版本、作者与致谢", Icons.Outlined.Info),
         ),
     ),

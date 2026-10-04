@@ -16,7 +16,7 @@
 - **服务器日志**:文件列表、尾部读取(100–2000 行、关键字过滤、自动刷新)
 - **控制审计**:操作审计记录查看
 - **插件管理**:EXILED / LabAPI 插件列表、暂存启停、应用暂存、重载
-- **文件管理**:FileRoot 目录浏览、文本文件查看 / 编辑 / 保存、受保护文件标识
+- **文件管理**:FileRoot 目录浏览、文本文件查看 / 编辑 / 保存、受保护文件标识。服务器打开 2.6.1 的 `file_chunks` 内测后,较大的文件会分段读写
 - **举报管理**:待处理举报列表与处理
 - **多服务器**:添加任意数量的服务器,一键切换;凭据经 AndroidKeyStore AES-256-GCM 加密存储
 
@@ -29,7 +29,7 @@ SLConsole (Android, Kotlin + Jetpack Compose)
   │  WS     ws://host:8081/control    Bearer <API Key>       控制调用 + 实时事件
   │  WS     ws://host:<voice_port>/ws Bearer <API Key>       语音流(float32 PCM)
   ▼
-SLDataAPI 2.6.0+ 插件(SCP:SL 游戏服务器,默认端口 8081)
+SLDataAPI 2.6.0 及以上。2.6.1 是预发布，里面的内测功能默认关闭，不打开时和 2.6.0 一样。
 ```
 
 - 数据面与控制面为两套独立凭据(与 Web 端 upstream.js 注入规则一致);
@@ -51,9 +51,9 @@ SLDataAPI 2.6.0+ 插件(SCP:SL 游戏服务器,默认端口 8081)
 
 ## 服务器端前置条件
 
-1. 游戏服务器安装 SLDataAPI 2.6.0+,`verify_token` 为强口令(弱口令会触发 fail-closed 503);
+1. 游戏服务器安装 SLDataAPI 2.6.0 或更新版本,`verify_token` 为强口令(弱口令会触发 fail-closed 503)。2.6.1 预发布的适配插件动作和大文件分块默认关闭,需要时再在测试服打开;
 2. `control_enabled: true`,按需选择 `control_transport: http | ws`(与 app 内设置一致);
-3. 通过服务器控制台创建 API Key:`sldataapi apikey create <id> <duty|admin>`,按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点;
+3. 通过服务器控制台创建 API Key:`sldataapi apikey create <id> <duty|admin>`。Key 的角色在创建时就定了,事后改 `apikey.config` 里的角色不会生效,还会导致认证失败;要 admin 权限就新建一把 admin Key 并在 app 里换上。按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点;
 4. 启用语音需 `voice_enabled: true`,并确认语音端口可被手机直连(不走网页反向代理);
 5. 防火墙放行 8081(及语音端口)。
 

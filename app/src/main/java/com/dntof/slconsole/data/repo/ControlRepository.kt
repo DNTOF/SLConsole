@@ -15,7 +15,11 @@ object ControlRepository {
     sealed interface ControlOutcome {
         /** data 为原始 JsonElement:举报列表等端点返回的是裸数组,不能假定总是对象。 */
         data class Success(val message: String?, val data: JsonElement?) : ControlOutcome
-        data class Failure(val message: String, val transportHint: String? = null) : ControlOutcome
+        data class Failure(
+            val message: String,
+            val transportHint: String? = null,
+            val status: Int = 0,
+        ) : ControlOutcome
     }
 
     private val http = SlHttpClient()
@@ -48,6 +52,7 @@ object ControlRepository {
                     result.message
                 },
                 transportHint = result.transportHint,
+                status = result.status,
             )
         }
     }
@@ -68,13 +73,20 @@ object ControlRepository {
                     ControlOutcome.Success(result.message, result.data)
                 }
             }
-            is WsControlClient.CallResult.Failure -> ControlOutcome.Failure(
-                message = when (result.handshakeCode) {
-                    404 -> "服务器未开放 WS 控制通道(control_transport 为 http),请在服务器设置改回 HTTP"
-                    401, 403 -> "API Key 校验失败(HTTP ${result.handshakeCode})"
-                    else -> result.message
-                },
-            )
+            is WsControlClient.CallResult.Failure -> {
+                // 握手失败和某一次 call 的 403 不是一回事。call 的 403 要留给界面提示 endpoints_override。
+                if (result.fromHandshake) {
+                    ControlOutcome.Failure(
+                        message = when (result.status) {
+                            404 -> "服务器未开放 WS 控制通道(control_transport 为 http),请在服务器设置改回 HTTP"
+                            401, 403 -> "API Key 校验失败(HTTP ${result.status})。改过 apikey.config 里的角色会让这把 Key 失效，请在游戏里新建一把再换上"
+                            else -> result.message
+                        },
+                    )
+                } else {
+                    ControlOutcome.Failure(message = result.message, status = result.status)
+                }
+            }
         }
     }
 

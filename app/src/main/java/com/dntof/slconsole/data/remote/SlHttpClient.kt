@@ -116,7 +116,7 @@ class SlHttpClient(
                         message = obj?.get("message").textOrNull()
                             ?: when (response.code) {
                                 401 -> "鉴权失败,请检查凭据"
-                                403 -> "API Key 无权访问该端点"
+                                403 -> "API Key 无权访问该端点。需要 admin 权限时，请在游戏里用 sldataapi apikey create <id> admin 新建一把 Key，并在应用里换上"
                                 404 -> "端点不存在(检查传输模式配置)"
                                 503 -> "数据接口已关闭(verify_token 无效或强度不足)"
                                 else -> "HTTP ${response.code}"

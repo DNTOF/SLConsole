@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonObject
 
 /**
  * GET /get_sl_data 响应(SLDataAPI 2.6.0 契约,字段名 snake_case)。
+ * 2.6.1 预发布在打开 beta_adapted_plugin_actions 时,适配插件会多一个 actions 列表;没打开时这个字段不会出现。
  */
 @Serializable
 data class ServerData(
@@ -48,6 +49,11 @@ data class AdaptedPlugin(
     val version: String? = null,
     val capabilities: List<String> = emptyList(),
     val routes: List<String> = emptyList(),
+    /**
+     * 2.6.1 内测写操作的路径名,例如 echo、bump。
+     * 服务器只在 beta_adapted_plugin_actions 打开时才带这个字段,旧版没有它。
+     */
+    val actions: List<String> = emptyList(),
     /** 插件自己的 status 回调,形状不固定。 */
     val status: JsonElement? = null,
 )
@@ -244,6 +250,36 @@ data class FileReadData(
     val size: Long = 0,
     val modified: String? = null,
     val content: String = "",
+)
+
+/** POST /control/files/stat。sha256 只在可读的配置文件上出现。 */
+@Serializable
+data class FileStatData(
+    val path: String = "",
+    val type: String = "file",
+    val size: Long = 0,
+    val sha256: String? = null,
+)
+
+/** POST /control/files/read_chunk。offset 为 0 时带整文件 sha256。 */
+@Serializable
+data class FileChunkReadData(
+    val path: String? = null,
+    val size: Long = 0,
+    val offset: Long = 0,
+    val length: Int = 0,
+    @SerialName("next_offset") val nextOffset: Long = 0,
+    val eof: Boolean = false,
+    val data: String = "",
+    val sha256: String? = null,
+)
+
+/** POST /control/files/write_chunk 成功时 data 里的会话进度。 */
+@Serializable
+data class FileChunkWriteData(
+    @SerialName("upload_id") val uploadId: String = "",
+    val received: Long = 0,
+    val committed: Boolean = false,
 )
 
 /** POST /control/reports (action=list) 的 data 是 ReportRecord 裸数组。 */

@@ -16,7 +16,8 @@ object ClarityDefaults {
 }
 
 /**
- * 只有开关为开时才初始化。初始化放在主线程、且由界面在第一帧之后调用，避免挡住启动。
+ * 只有开关为开时才初始化。第一次打开时，界面会等新手引导结束或被跳过之后才调用这里，
+ * 这样用户选「不开启」时 Clarity 根本不会初始化。
  * 网络不可用时 SDK 会先把数据留在本机；这里再包一层，避免初始化异常把应用打崩。
  */
 object UsageAnalytics {
@@ -32,6 +33,9 @@ object UsageAnalytics {
             if (!initialized) {
                 val config = ClarityConfig(ClarityDefaults.PROJECT_ID)
                 config.logLevel = LogLevel.None
+                // clarity-compose 3.10.0 的公开 ClarityConfig 已经没有 enableWebViewCapture。
+                // WebView 采集改由项目下发的 DynamicConfig.disableWebViewCapture 控制，客户端设不了。
+                // 这个应用本身也不嵌入 WebView。
                 val ok = Clarity.initialize(context.applicationContext, config)
                 if (ok != true) {
                     Log.i(TAG, "clarity initialize returned false")

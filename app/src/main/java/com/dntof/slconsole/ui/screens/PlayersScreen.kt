@@ -46,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.font.FontFamily
@@ -150,7 +151,7 @@ fun PlayersScreen() {
 @Composable
 private fun PlayerRow(player: PlayerInfo, onClick: () -> Unit) {
     AppSurface(Modifier.fillMaxWidth(), onClick = onClick, role = GlassRole.Row) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(12.dp).clarityMask(), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(38.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center,
@@ -224,7 +225,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
         },
     ) {
         Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.clarityMask(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier.size(44.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center,

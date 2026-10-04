@@ -4,18 +4,23 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.fragment.app.FragmentActivity
 import com.dntof.slconsole.data.local.GlassGuard
+import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.AppRoot
 import com.dntof.slconsole.ui.theme.SLConsoleTheme
 import com.dntof.slconsole.ui.visibleKeyboardOverlapPx
 
-class MainActivity : ComponentActivity() {
+/**
+ * BiometricPrompt 需要 FragmentActivity。FragmentActivity 本身继承自 androidx.activity.ComponentActivity，
+ * enableEdgeToEdge、setContent 和下面的键盘 inset 处理都不受影响。
+ */
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -43,9 +48,19 @@ class MainActivity : ComponentActivity() {
         installImeInsetFallback()
     }
 
+    override fun onStart() {
+        super.onStart()
+        AppLock.onAppStarted()
+    }
+
     override fun onResume() {
         super.onResume()
         ensureAdjustResize()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppLock.onAppStopped()
     }
 
     @Suppress("DEPRECATION")

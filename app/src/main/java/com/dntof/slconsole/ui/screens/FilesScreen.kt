@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.Button
+import androidx.compose.material3.LinearProgressIndicator
 import com.dntof.slconsole.ui.components.AppSurface
 import com.dntof.slconsole.ui.components.GlassRole
 import androidx.compose.material3.HorizontalDivider
@@ -49,9 +50,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.model.FileEntry
 import com.dntof.slconsole.data.model.FileListData
-import com.dntof.slconsole.data.model.FileReadData
 import com.dntof.slconsole.data.remote.AppJson
+import com.dntof.slconsole.data.remote.BetaHints
+import com.dntof.slconsole.data.remote.FileChunks
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.data.repo.FileTransfer
 import com.dntof.slconsole.ui.LocalSnackbarHost
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
@@ -60,9 +63,10 @@ import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
-import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
+import com.dntof.slconsole.ui.rememberServerBeta
 import com.dntof.slconsole.util.Format
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -95,6 +99,10 @@ fun FilesScreen() {
     var readError by remember { mutableStateOf<String?>(null) }
     var saveConfirm by remember { mutableStateOf<Boolean>(false) }
     var saving by remember { mutableStateOf(false) }
+    var progressText by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf<Float?>(null) }
+    var transferJob by remember { mutableStateOf<Job?>(null) }
+    val beta = rememberServerBeta()
 
     fun load(targetPath: String) {
         val target = server
@@ -113,7 +121,7 @@ fun FilesScreen() {
                     }
                     listError = null
                 }
-                is ControlRepository.ControlOutcome.Failure -> listError = outcome.message
+                is ControlRepository.ControlOutcome.Failure -> listError = BetaHints.fileFailure(outcome)
             }
         }
     }
@@ -123,25 +131,20 @@ fun FilesScreen() {
         val filePath = joinPath(path, entry.name)
         editing = EditingFile(path = filePath, content = "", size = entry.size)
         readError = null
-        scope.launch {
-            val outcome = ControlRepository.call(
-                target,
-                "/control/files/read",
-                buildJsonObject { put("path", filePath) },
-            )
-            when (outcome) {
-                is ControlRepository.ControlOutcome.Success -> {
-                    val data = outcome.data?.let {
-                        runCatching { AppJson.json.decodeFromJsonElement(FileReadData.serializer(), it) }.getOrNull()
-                    }
-                    editing = if (data != null) {
-                        EditingFile(path = filePath, content = data.content, size = data.size)
-                    } else {
-                        null
-                    }
-                    if (data == null) readError = "文件内容解析失败"
-                }
-                is ControlRepository.ControlOutcome.Failure -> readError = outcome.message
+        progressText = null
+        progress = null
+        val chunked = beta.fileChunks && entry.size > FileChunks.singleShotLimit(target.controlTransport == "ws")
+        transferJob?.cancel()
+        transferJob = scope.launch {
+            val result = FileTransfer.readText(target, filePath, entry.size, chunked) { done, total ->
+                progressText = "正在读取 ${Format.bytes(done)} / ${Format.bytes(total)}"
+                progress = if (total > 0) (done.toFloat() / total.toFloat()).coerceIn(0f, 1f) else null
+            }
+            progressText = null
+            progress = null
+            when (result) {
+                is FileTransfer.ReadResult.Ok -> editing = EditingFile(filePath, result.text, result.size)
+                is FileTransfer.ReadResult.Failed -> readError = BetaHints.fileFailure(result.failure)
             }
         }
     }
@@ -149,19 +152,27 @@ fun FilesScreen() {
     fun doSave(file: EditingFile) {
         val target = server ?: return
         saving = true
-        scope.launch {
-            val outcome = ControlRepository.call(
-                target,
-                "/control/files/write",
-                buildJsonObject {
-                    put("path", file.path)
-                    put("content", file.content)
-                },
-            )
-            snackbar.showOutcome(outcome, "已保存")
+        progressText = null
+        progress = null
+        val chunked = beta.fileChunks &&
+            file.content.toByteArray(Charsets.UTF_8).size > FileChunks.singleShotLimit(target.controlTransport == "ws")
+        transferJob?.cancel()
+        transferJob = scope.launch {
+            val result = FileTransfer.writeText(target, file.path, file.content, chunked) { done, total ->
+                progressText = "正在保存 ${Format.bytes(done)} / ${Format.bytes(total)}"
+                progress = if (total > 0) (done.toFloat() / total.toFloat()).coerceIn(0f, 1f) else null
+            }
             saving = false
-            editing = null
-            load(path)
+            progressText = null
+            progress = null
+            when (result) {
+                FileTransfer.WriteResult.Ok -> {
+                    snackbar.showSnackbar("已保存")
+                    editing = null
+                    load(path)
+                }
+                is FileTransfer.WriteResult.Failed -> snackbar.showSnackbar(BetaHints.fileFailure(result.failure))
+            }
         }
     }
 
@@ -196,6 +207,19 @@ fun FilesScreen() {
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            progressText?.let { label ->
+                Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                progress?.let { fraction ->
+                    LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp))
+                }
+            }
+            if (beta.fileChunks) {
+                Text(
+                    "这台服务器打开了分块文件（2.6.1 内测）。比较大的文件会分段读写。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             OutlinedTextField(
                 value = file.content,
                 onValueChange = { editing = file.copy(content = it) },
@@ -206,7 +230,15 @@ fun FilesScreen() {
                 Modifier.fillMaxWidth().padding(top = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OutlinedButton(onClick = { editing = null }, modifier = Modifier.weight(1f)) { Text("取消") }
+                OutlinedButton(
+                    onClick = {
+                        transferJob?.cancel()
+                        saving = false
+                        progressText = null
+                        editing = null
+                    },
+                    modifier = Modifier.weight(1f),
+                ) { Text("取消") }
                 Button(onClick = { saveConfirm = true }, enabled = !saving, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Outlined.Save, null, Modifier.height(18.dp))
                     Spacer(Modifier.width(6.dp))

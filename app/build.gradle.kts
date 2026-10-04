@@ -73,8 +73,8 @@ android {
         applicationId = "com.dntof.slconsole"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.1.2"
+        versionCode = 6
+        versionName = "1.2.0"
     }
 
     signingConfigs {
@@ -141,5 +141,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kyant.backdrop)
     implementation(libs.clarity.compose)
+    implementation(libs.androidx.biometric)
+    // biometric 1.1.0 自带的 fragment 是 1.2.5，太旧；显式用新版，MainActivity 继承 FragmentActivity。
+    implementation(libs.androidx.fragment)
     debugImplementation(libs.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

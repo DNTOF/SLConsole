@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -105,10 +106,19 @@ fun AuthorCard(modifier: Modifier = Modifier) {
                 .background(card)
                 .border(1.dp, border, CardShape)
                 .drawBehind {
+                    val center = Offset(size.width * 0.92f, size.height * 0.02f)
+                    val radius = size.minDimension * 0.85f
                     drawCircle(
-                        color = AuthorOrange.copy(alpha = 0.08f),
-                        radius = size.minDimension * 0.72f,
-                        center = Offset(size.width * 0.92f, size.height * 0.02f),
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                AuthorOrange.copy(alpha = 0.12f),
+                                Color.Transparent,
+                            ),
+                            center = center,
+                            radius = radius,
+                        ),
+                        radius = radius,
+                        center = center,
                     )
                 }
                 .padding(24.dp),

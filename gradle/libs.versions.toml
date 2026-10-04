@@ -13,6 +13,9 @@ serializationJson = "1.8.1"
 okhttp = "4.12.0"
 coroutines = "1.10.2"
 clarity = "3.10.0"
+junit = "4.13.2"
+biometric = "1.1.0"
+fragment = "1.8.9"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +33,9 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kyant-backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "backdrop" }
 clarity-compose = { group = "com.microsoft.clarity", name = "clarity-compose", version.ref = "clarity" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
+androidx-fragment = { group = "androidx.fragment", name = "fragment", version.ref = "fragment" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

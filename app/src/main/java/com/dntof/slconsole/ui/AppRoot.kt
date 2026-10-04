@@ -77,6 +77,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -142,6 +143,9 @@ import com.dntof.slconsole.ui.screens.FilesScreen
 import com.dntof.slconsole.ui.screens.LogsScreen
 import com.dntof.slconsole.ui.screens.MapScreen
 import com.dntof.slconsole.ui.screens.MoreScreen
+import com.dntof.slconsole.ui.screens.OnboardingScreen
+import com.dntof.slconsole.ui.screens.AppLockGate
+import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.screens.PlayersScreen
 import com.dntof.slconsole.ui.screens.PluginsScreen
 import com.dntof.slconsole.ui.screens.RemoteScreen
@@ -155,6 +159,9 @@ import kotlinx.coroutines.launch
 val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
     error("SnackbarHostState not provided")
 }
+
+/** 设置页和关于页用来重新打开新手引导。 */
+val LocalReplayOnboarding = staticCompositionLocalOf<() -> Unit> { {} }
 
 /** 底栏/系统导航区高度。列表用它加 contentPadding,视口本身仍延伸到栏下。 */
 val LocalBottomChrome = staticCompositionLocalOf { 0.dp }
@@ -344,7 +351,7 @@ object Routes {
         FILES to "文件管理",
         REPORTS to "举报管理",
         SERVERS to "服务器管理",
-        SETTINGS to "外观",
+        SETTINGS to "设置",
         ABOUT to "关于",
         SERVER_EDIT to "编辑服务器",
     )
@@ -376,6 +383,14 @@ fun AppRoot(startupNotice: String? = null) {
 
     val serversLoaded by store.serversFlow.collectAsState(initial = null)
     val activeId by store.activeIdFlow.collectAsState(initial = null)
+    var onboardingCompleted by remember { mutableStateOf<Boolean?>(null) }
+    var replayOnboarding by rememberSaveable { mutableStateOf(false) }
+    // 生物识别解锁开关。读出来之前和转圈一起等，免得主界面先闪一下。
+    val lockPref by ServiceLocator.settingsStore.biometricLockFlow.collectAsState(initial = null)
+    val appUnlocked by AppLock.unlocked.collectAsState()
+    LaunchedEffect(Unit) {
+        ServiceLocator.settingsStore.onboardingCompletedFlow.collect { onboardingCompleted = it }
+    }
     // 玻璃开关先按关闭绘制,DataStore 回来后再切,避免整屏转圈等这一项。
     val glassPref by ServiceLocator.settingsStore.liquidGlassFlow.collectAsState(initial = false)
     val signContext = LocalContext.current
@@ -389,11 +404,24 @@ fun AppRoot(startupNotice: String? = null) {
             showUnofficial = false
         })
     }
+    // 第一次打开先不初始化 Clarity。引导完成或跳过之后标记才会变成 true，这里才开始听开关。
+    // 选「不开启」会先把偏好写成 false，所以走到初始化时 Clarity 不会被创建。跳过则保持默认开启。
+    LaunchedEffect(onboardingCompleted) {
+        if (onboardingCompleted != true) return@LaunchedEffect
+        ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
+            UsageAnalytics.setEnabled(signContext, enabled)
+        }
+    }
     val servers = serversLoaded
-    if (servers == null) {
+    if (servers == null || onboardingCompleted == null || lockPref == null) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
+        return
+    }
+    // 上锁时只画锁屏，主界面不组合，内容不会露出来。Clarity 的初始化在上面，不受影响。
+    if (lockPref == true && !appUnlocked) {
+        AppLockGate()
         return
     }
     val glassEnabled = glassPref
@@ -406,12 +434,6 @@ fun AppRoot(startupNotice: String? = null) {
     }
     val (orbBackdrop, chromeBackdrop) = rememberGlassBackdrops()
     val context = LocalContext.current
-    // 等 DataStore 读出真实开关再决定。不能用默认值先初始化，否则用户关掉之后，下次启动仍会先发出去。
-    LaunchedEffect(Unit) {
-        ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
-            UsageAnalytics.setEnabled(context, enabled)
-        }
-    }
     var glassFrames by remember { mutableIntStateOf(0) }
     // 必须在第一帧绘制前把「绘制未完成」写进磁盘。进程如果死在这一帧,下次启动会关掉玻璃。
     SideEffect {
@@ -458,6 +480,7 @@ fun AppRoot(startupNotice: String? = null) {
         LocalChromeBackdrop provides chromeBackdrop,
         LocalAppLayout provides layout,
         LocalImeLift provides imeLift,
+        LocalReplayOnboarding provides { replayOnboarding = true },
     ) {
         Box(Modifier.fillMaxSize()) {
             if (layout == AppLayout.Compact) {
@@ -484,6 +507,12 @@ fun AppRoot(startupNotice: String? = null) {
                     monitorState = monitorState,
                     snackbarHostState = snackbarHostState,
                     onSelectServer = { id -> scope.launch { store.setActive(id) } },
+                )
+            }
+            if (onboardingCompleted == false || replayOnboarding) {
+                OnboardingScreen(
+                    replay = onboardingCompleted == true,
+                    onFinished = { replayOnboarding = false },
                 )
             }
         }
