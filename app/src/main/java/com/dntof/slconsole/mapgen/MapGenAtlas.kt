@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 DNT_OF
+
 package com.dntof.slconsole.mapgen
 
 // 由 Web 端 src/lib/mapgen/data.ts 自动生成(map_export.json 游戏内数据,seed 重建方案)
