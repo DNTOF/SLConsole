@@ -81,9 +81,32 @@ SLConsole 是自由软件。你可以依据自由软件基金会发布的 GNU �
 
 官方版本使用作者自己的签名证书。别人自行编译或修改的版本签名不同，应用会在启动时和「关于」页提示「非官方版本」。请只从 [Releases](https://github.com/DNTOF/SLConsole/releases) 下载官方版本。
 
+### 官方签名证书指纹
+
+官方 APK 的签名证书 SHA-256 指纹是：
+
+```
+3D:20:0A:A5:36:9B:75:A0:73:56:A1:85:8C:07:C9:D8:D5:05:56:25:4A:5D:F0:7A:3E:C9:C8:E0:AA:A7:50:36
+```
+
+核对方法：
+
+- 在应用里打开「关于」，点版本旁边的徽标（或「非官方版本」标签），会列出当前安装包的证书指纹和上面的官方指纹；
+- 或者在电脑上运行 `apksigner verify --print-certs SLConsole-vX.Y.Z.apk`，看 `certificate SHA-256 digest` 是否为 `3d200aa5369b75a07356a1858c07c9d8d50556254a5df07a3ec9c8e0aaa75036`。
+
+指纹不一致的安装包不是官方版本。
+
 ### 名称与图标
 
-GPL 授权的是代码的版权，不包括以下标识：「SLConsole」这个名称、作者名「DNT_OF」以及应用图标。依据 GPLv3 第 7 条 (e) 款，本项目不授予这些名称和标识在商标法上的使用权。分发修改版时请换一个名称和图标，不要让人误以为它是官方版本或得到了作者认可。按要求保留版权声明和作者署名不受这条限制。
+GPL 授权的是代码的版权，不包括以下标识：「SLConsole」这个名称、作者名「DNT_OF」、应用图标，以及「关于」页的「正版授权」徽标（「使用 DNT_OF 系列程序 · 安全 稳定 声誉」）。依据 GPLv3 第 7 条 (e) 款，本项目不授予这些名称和标识在商标法上的使用权。
+
+修改版（包括只改了签名、重新打包的版本）必须遵守：
+
+- 不得自称官方版本，也不得暗示得到了作者认可；
+- 不得显示「正版授权」徽标，不得使用「SLConsole」名称和应用图标，请换成自己的名称和图标；
+- 不得为了让徽标出现而改动或绕过签名校验，例如把官方证书指纹写死成当前签名。
+
+按要求保留版权声明和作者署名不受这条限制。
 
 ### 第三方组件
 
@@ -99,7 +122,7 @@ SLConsole is free software: you can redistribute it and/or modify it under the t
 
 - If you distribute a modified version, including APK-only releases, you must make the complete corresponding source code available under GPLv3.
 - Keep the copyright notices and SPDX headers in the source files, as well as the notices in this README and in [NOTICE](NOTICE), and mark your changes (GPLv3 section 5).
-- Official builds are signed with the author's certificate. Builds signed with any other key are flagged by the app as unofficial (「非官方版本」).
-- **Names and icon:** the GPL does not grant any rights to the name "SLConsole", the author name "DNT_OF" or the app icon. Under GPLv3 section 7(e), trademark rights to them are not granted; forks must use a different name and icon and must not suggest they are official or endorsed.
+- Official builds are signed with the author's certificate. Builds signed with any other key are flagged by the app as unofficial (「非官方版本」). The official signing certificate SHA-256 fingerprint is `3D:20:0A:A5:36:9B:75:A0:73:56:A1:85:8C:07:C9:D8:D5:05:56:25:4A:5D:F0:7A:3E:C9:C8:E0:AA:A7:50:36`. Check it in the app (About → tap the badge) or with `apksigner verify --print-certs`.
+- **Names, icon and badge:** the GPL does not grant any rights to the name "SLConsole", the author name "DNT_OF", the app icon or the 「正版授权」 (genuine) badge shown on the About page. Under GPLv3 section 7(e), trademark rights to them are not granted. Modified versions, including re-signed or repackaged builds, must not claim to be official or endorsed, must not display the 「正版授权」 badge, and must not use the SLConsole name or icon; they must not alter or bypass the signature check to make the badge appear.
 
 Third-party licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
