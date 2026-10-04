@@ -20,6 +20,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,10 +36,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.model.AdaptedPlugin
+import com.dntof.slconsole.data.remote.AppJson
+import com.dntof.slconsole.data.remote.BetaHints
 import com.dntof.slconsole.data.model.OmegaWarheadSnapshot
 import com.dntof.slconsole.data.model.SlPlayerSong
 import com.dntof.slconsole.data.model.SlPlayerStatus
-import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
@@ -49,8 +51,10 @@ import com.dntof.slconsole.ui.components.GlassRole
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.KeyValueRow
 import com.dntof.slconsole.ui.components.SectionCard
+import com.dntof.slconsole.ui.components.ConfirmDialog
 import com.dntof.slconsole.ui.components.showOutcome
 import com.dntof.slconsole.ui.rememberActiveServer
+import com.dntof.slconsole.ui.rememberServerBeta
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
 import kotlinx.coroutines.launch
@@ -67,6 +71,7 @@ private val http = SlHttpClient()
 @Composable
 fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
     val monitor by MonitorEngine.state.collectAsState()
+    val beta = rememberServerBeta()
     val ready = monitor as? MonitorEngine.MonitorState.Ready
     val plugins = ready?.data?.adaptedPlugins.orEmpty()
     if (ready == null) {
@@ -110,7 +115,7 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (!plugin.version.isNullOrBlank()) InfoChip(plugin.version)
-                        InfoChip(pluginKind(plugin))
+                        InfoChip(pluginKind(plugin, beta))
                     }
                 }
             }
@@ -121,6 +126,7 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
 @Composable
 fun AdaptedPluginDetailScreen(pluginId: String) {
     val server = rememberActiveServer()
+    val beta = rememberServerBeta()
     val monitor by MonitorEngine.state.collectAsState()
     val ready = monitor as? MonitorEngine.MonitorState.Ready
     val plugin = ready?.data?.adaptedPlugins?.firstOrNull { it.id.equals(pluginId, ignoreCase = true) }
@@ -152,8 +158,11 @@ fun AdaptedPluginDetailScreen(pluginId: String) {
         if (pluginId.equals(OMEGA_ID, true) || plugin?.capabilities?.any { it.contains("omega") } == true) {
             item { OmegaPanel(dntof?.omegaWarhead) }
         }
+        if (plugin != null && beta.adaptedActions && plugin.actions.isNotEmpty()) {
+            item { AdaptedActionsCard(plugin) }
+        }
         if (plugin != null && plugin.routes.isNotEmpty()) {
-            item { AdaptedRoutesCard(plugin) }
+            item { AdaptedRoutesCard(plugin, beta.adaptedActions) }
         }
     }
 }
@@ -174,6 +183,7 @@ private fun PluginMetaCard(plugin: AdaptedPlugin) {
             Text("status", style = MaterialTheme.typography.labelLarge)
             Text(
                 it.toString(),
+                modifier = Modifier.clarityMask(),
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
             )
@@ -310,20 +320,28 @@ private fun SongRow(song: SlPlayerSong, onPlay: () -> Unit) {
 
 @Composable
 private fun OmegaPanel(snapshot: OmegaWarheadSnapshot?) {
-    SectionCard("OmegaWarhead", subtitle = "仅状态,SLDataAPI 2.6.0 没有控制端点") {
+    SectionCard("OmegaWarhead", subtitle = "仅状态。2.6.0 和 2.6.1 都没有给它单独的控制端点") {
         if (snapshot == null || !snapshot.present) {
             Text("插件未加载,或这一轮监控还没有 omega_warhead 字段。", style = MaterialTheme.typography.bodyMedium)
             return@SectionCard
         }
         KeyValueRow("阶段", omegaPhaseLabel(snapshot.phase))
-        KeyValueRow("控制器", snapshot.controllerHolder ?: "无人持有")
+        KeyValueRow(
+            "控制器",
+            snapshot.controllerHolder ?: "无人持有",
+            modifier = Modifier.clarityMask(),
+        )
         snapshot.countdown?.let { KeyValueRow("倒计时", "${it}s") }
         if (snapshot.coinHolders.isEmpty()) {
             Text("没有人持有放射性元素", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Spacer(Modifier.height(6.dp))
             snapshot.coinHolders.forEach { holder ->
-                KeyValueRow(holder.nickname, "${holder.count} · ${holder.position}")
+                KeyValueRow(
+                    holder.nickname,
+                    "${holder.count} · ${holder.position}",
+                    modifier = Modifier.clarityMask(),
+                )
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -336,13 +354,17 @@ private fun OmegaPanel(snapshot: OmegaWarheadSnapshot?) {
 }
 
 @Composable
-private fun AdaptedRoutesCard(plugin: AdaptedPlugin) {
+private fun AdaptedRoutesCard(plugin: AdaptedPlugin, actionsEnabled: Boolean) {
     val server = rememberActiveServer()
     val scope = rememberCoroutineScope()
     var output by remember { mutableStateOf<String?>(null) }
     SectionCard("只读路由", subtitle = "GET /plugins/${plugin.id}/<route>,使用 VerifyToken") {
         Text(
-            "这些路由由插件自己注册,只读。SLDataAPI 没有通用的写操作接口。",
+            if (actionsEnabled) {
+                "这些路由由插件自己注册，只读。写操作在上面的动作里，每次都会记入控制审计。"
+            } else {
+                "这些路由由插件自己注册，只读。服务器没在 hello 里声明 adapted_actions 时，这里不提供写操作。"
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -362,14 +384,111 @@ private fun AdaptedRoutesCard(plugin: AdaptedPlugin) {
             ) { Text("读取 $route") }
         }
         output?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+            Text(
+                it,
+                modifier = Modifier.clarityMask(),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+            )
         }
     }
 }
 
-private fun pluginKind(plugin: AdaptedPlugin): String = when {
+@Composable
+private fun AdaptedActionsCard(plugin: AdaptedPlugin) {
+    SectionCard(
+        "写操作",
+        subtitle = "POST /control/adapted/${plugin.id}/<action>，需要 API Key。2.6.1 内测，默认关闭。",
+    ) {
+        Text(
+            "这些动作会改服务器上的状态，并且写入控制审计。请求体可以留空。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        plugin.actions.forEach { action ->
+            AdaptedActionRow(plugin.id, action)
+        }
+    }
+}
+
+@Composable
+private fun AdaptedActionRow(pluginId: String, action: String) {
+    val server = rememberActiveServer()
+    val scope = rememberCoroutineScope()
+    var body by remember(pluginId, action) { mutableStateOf("") }
+    var confirm by remember(pluginId, action) { mutableStateOf(false) }
+    var running by remember(pluginId, action) { mutableStateOf(false) }
+    var result by remember(pluginId, action) { mutableStateOf<String?>(null) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+        Text(action, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        OutlinedTextField(
+            value = body,
+            onValueChange = { body = it },
+            label = { Text("请求体（可选，JSON）") },
+            modifier = Modifier.fillMaxWidth().keepAboveIme(),
+            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+        )
+        Spacer(Modifier.height(6.dp))
+        Button(
+            onClick = { confirm = true },
+            enabled = !running && server?.hasControl == true,
+        ) { Text(if (running) "执行中…" else "执行") }
+        if (server?.hasControl != true) {
+            Text(
+                "需要 API Key 才能执行。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        result?.let {
+            Text(
+                it,
+                modifier = Modifier.padding(top = 6.dp).clarityMask(),
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+            )
+        }
+    }
+    if (confirm) {
+        ConfirmDialog(
+            title = "执行 $action？",
+            text = "这是写操作，会记入控制审计。",
+            confirmLabel = "执行",
+            onConfirm = {
+                val target = server ?: return@ConfirmDialog
+                val parsed = body.trim()
+                val payload = if (parsed.isEmpty()) {
+                    buildJsonObject { }
+                } else {
+                    val element = runCatching { AppJson.json.parseToJsonElement(parsed) }.getOrNull()
+                    if (element !is JsonObject) {
+                        result = "请求体需要是 JSON 对象"
+                        return@ConfirmDialog
+                    }
+                    element
+                }
+                running = true
+                result = null
+                scope.launch {
+                    result = when (val outcome = ControlRepository.call(target, "/control/adapted/$pluginId/$action", payload)) {
+                        is ControlRepository.ControlOutcome.Success ->
+                            outcome.data?.toString() ?: outcome.message ?: "已执行"
+                        is ControlRepository.ControlOutcome.Failure -> BetaHints.actionFailure(outcome)
+                    }
+                    running = false
+                }
+            },
+            onDismiss = { confirm = false },
+        )
+    }
+}
+
+private fun pluginKind(plugin: AdaptedPlugin, beta: com.dntof.slconsole.data.model.ControlBeta): String = when {
     plugin.id.equals(SL_PLAYER_ID, true) -> "可控制"
     plugin.id.equals(OMEGA_ID, true) -> "仅状态"
+    beta.adaptedActions && plugin.actions.isNotEmpty() -> "可执行动作"
     plugin.routes.isNotEmpty() -> "只读路由"
     else -> "仅登记"
 }

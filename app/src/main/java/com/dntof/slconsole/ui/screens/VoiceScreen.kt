@@ -200,7 +200,7 @@ private fun VoicePanel(host: String, voicePort: Int, apiKey: String, players: Li
                 speakers.forEach { speaker ->
                     val liveRole = players.find { it.steamId == speaker.steamId }?.role
                     Row(
-                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp).clarityMask(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(

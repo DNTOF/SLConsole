@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -291,6 +292,7 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                     .fillMaxWidth()
                     .height(340.dp)
                     .clipToBounds()
+                    .clarityMask()
                     .onSizeChanged { canvasSize = it }
                     .pointerInput(filteredRooms, projection, canvasSize) {
                         val camera = projection ?: return@pointerInput
@@ -567,7 +569,12 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(player.nickname, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                        Text(
+                            player.nickname,
+                            Modifier.weight(1f).clarityMask(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                        )
                         Text(
                             room?.label ?: if ((player.y ?: 0.0) > 200) "地表" else "口袋维度",
                             style = MaterialTheme.typography.bodySmall,

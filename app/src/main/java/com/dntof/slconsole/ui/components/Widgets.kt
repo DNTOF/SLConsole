@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.microsoft.clarity.modifiers.clarityMask
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dntof.slconsole.ui.LocalImeLift
@@ -175,8 +176,8 @@ fun InfoChip(
 }
 
 @Composable
-fun KeyValueRow(key: String, value: String, mono: Boolean = false) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+fun KeyValueRow(key: String, value: String, mono: Boolean = false, modifier: Modifier = Modifier) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).then(modifier)) {
         Text(
             key,
             style = MaterialTheme.typography.bodyMedium,
@@ -203,8 +204,8 @@ fun ConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { text?.let { Text(it) } },
+        title = { Text(title, modifier = Modifier.clarityMask()) },
+        text = { text?.let { Text(it, modifier = Modifier.clarityMask()) } },
         confirmButton = {
             TextButton(onClick = { onConfirm(); onDismiss() }) {
                 Text(confirmLabel, color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
@@ -284,7 +285,7 @@ fun PromptDialog(
         mutableStateMapOf<String, String>().apply { fields.forEach { put(it.key, it.initial) } }
     }
     ImeDialogFrame(onDismiss = onDismiss) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(title, modifier = Modifier.clarityMask(), style = MaterialTheme.typography.headlineSmall)
         subtitle?.let {
             Spacer(Modifier.height(8.dp))
             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

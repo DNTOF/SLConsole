@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.analytics.ClarityDefaults
 import com.dntof.slconsole.analytics.UsageAnalytics
+import androidx.compose.material3.TextButton
+import com.dntof.slconsole.ui.LocalReplayOnboarding
 import com.dntof.slconsole.ui.components.LabeledSwitch
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.SectionCard
@@ -74,6 +76,17 @@ fun SettingsScreen() {
                         scope.launch { ServiceLocator.settingsStore.setUsageAnalytics(enabled) }
                     },
                 )
+            }
+        }
+        item {
+            SectionCard("新手引导") {
+                Text(
+                    "再看一遍欢迎、添加服务器和功能介绍。",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                TextButton(onClick = LocalReplayOnboarding.current) {
+                    Text("重新查看新手引导")
+                }
             }
         }
     }

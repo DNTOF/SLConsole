@@ -15,6 +15,7 @@ class SettingsStore(private val context: Context) {
 
     private val liquidGlassKey = booleanPreferencesKey("liquid_glass")
     private val usageAnalyticsKey = booleanPreferencesKey("usage_analytics")
+    private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
 
     val liquidGlassFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[liquidGlassKey] ?: false
@@ -22,6 +23,11 @@ class SettingsStore(private val context: Context) {
 
     val usageAnalyticsFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
         prefs[usageAnalyticsKey] ?: ClarityDefaults.ENABLED
+    }
+
+    /** 没有写过这个键就是第一次打开。引导走完或点「跳过」之后才是 true。 */
+    val onboardingCompletedFlow: Flow<Boolean> = context.settingsDataStore.data.map { prefs ->
+        prefs[onboardingCompletedKey] ?: false
     }
 
     suspend fun setLiquidGlass(enabled: Boolean) {
@@ -33,6 +39,12 @@ class SettingsStore(private val context: Context) {
     suspend fun setUsageAnalytics(enabled: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[usageAnalyticsKey] = enabled
+        }
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[onboardingCompletedKey] = completed
         }
     }
 }

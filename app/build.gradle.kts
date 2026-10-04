@@ -142,4 +142,5 @@ dependencies {
     implementation(libs.kyant.backdrop)
     implementation(libs.clarity.compose)
     debugImplementation(libs.compose.ui.tooling)
+    testImplementation(libs.junit)
 }

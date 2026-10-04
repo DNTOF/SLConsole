@@ -1,5 +1,6 @@
 package com.dntof.slconsole.data.remote
 
+import com.dntof.slconsole.data.model.ControlBeta
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.model.SlEvent
 import kotlinx.coroutines.CompletableDeferred
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong
  * 协议(2.6.0):hello → 就绪;应用层 ping/pong 心跳(25s);
  * call{reqId,path,body} → result{reqId,ok,status,data|message};
  * subscribe_events → event 帧。断线自动重连,重连后自动重新订阅事件。
+ * 2.6.1 起 hello 可以带 beta 数组(adapted_actions / file_chunks)。没有这个字段时按 2.6.0 处理。
  */
 class WsControlClient(private val config: ServerConfig) {
 
@@ -42,7 +44,12 @@ class WsControlClient(private val config: ServerConfig) {
 
     sealed interface CallResult {
         data class Success(val data: JsonObject?, val message: String?) : CallResult
-        data class Failure(val message: String, val handshakeCode: Int = 0) : CallResult
+        data class Failure(
+            val message: String,
+            val status: Int = 0,
+            /** 状态码来自 WS 握手,而不是某一次 call 的结果。 */
+            val fromHandshake: Boolean = false,
+        ) : CallResult
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -63,6 +70,9 @@ class WsControlClient(private val config: ServerConfig) {
     private val _handshakeStatus = MutableStateFlow(0)
     val handshakeStatus: StateFlow<Int> = _handshakeStatus.asStateFlow()
 
+    private val _beta = MutableStateFlow(ControlBeta.None)
+    val beta: StateFlow<ControlBeta> = _beta.asStateFlow()
+
     private val _events = MutableStateFlow<List<SlEvent>>(emptyList())
     val events: StateFlow<List<SlEvent>> = _events.asStateFlow()
 
@@ -79,6 +89,7 @@ class WsControlClient(private val config: ServerConfig) {
 
     private fun connect() {
         if (!started) return
+        _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
         _stateDetail.value = "正在连接 ${config.addressText}/control…"
         val request = Request.Builder()
@@ -98,6 +109,7 @@ class WsControlClient(private val config: ServerConfig) {
             when ((obj["type"] as? JsonPrimitive)?.content) {
                 "hello" -> {
                     readyOnce = true
+                    _beta.value = ControlBeta.fromHello(obj)
                     _state.value = ConnState.READY
                     _stateDetail.value = "已连接 SLDataAPI ${(obj["version"] as? JsonPrimitive)?.content ?: ""}"
                     if (wantEvents) sendSubscribe()
@@ -115,7 +127,7 @@ class WsControlClient(private val config: ServerConfig) {
                         } else {
                             CallResult.Failure(
                                 message = (obj["message"] as? JsonPrimitive)?.content ?: "调用失败",
-                                handshakeCode = (obj["status"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
+                                status = (obj["status"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
                             )
                         }
                     )
@@ -196,7 +208,11 @@ class WsControlClient(private val config: ServerConfig) {
 
     suspend fun call(path: String, body: JsonObject? = null, timeoutMs: Long = CALL_TIMEOUT_MS): CallResult {
         if (!awaitReady()) {
-            return CallResult.Failure("WS 控制通道未就绪:${_stateDetail.value}", _handshakeStatus.value)
+            return CallResult.Failure(
+                "WS 控制通道未就绪:${_stateDetail.value}",
+                status = _handshakeStatus.value,
+                fromHandshake = true,
+            )
         }
         val reqId = "m_${System.currentTimeMillis()}_${seq.incrementAndGet()}"
         val frame = buildJsonObject {
