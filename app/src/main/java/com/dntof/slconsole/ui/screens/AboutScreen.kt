@@ -3,8 +3,10 @@ package com.dntof.slconsole.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +39,7 @@ fun AboutScreen() {
         item {
             SectionCard("版本") {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -45,6 +48,7 @@ fun AboutScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     if (official) {
+                        Spacer(Modifier.weight(1f))
                         GenuineBadge()
                     } else {
                         InfoChip("非官方版本", color = MaterialTheme.colorScheme.error)
