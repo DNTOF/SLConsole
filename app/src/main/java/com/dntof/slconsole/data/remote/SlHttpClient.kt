@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 DNT_OF
+
 package com.dntof.slconsole.data.remote
 
 import com.dntof.slconsole.data.model.ServerConfig
