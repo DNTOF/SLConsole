@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.BuildConfig
 import com.dntof.slconsole.data.local.SignatureCheck
@@ -30,10 +31,14 @@ import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.withBottomChrome
 
+private const val SOURCE_URL = "https://github.com/DNTOF/SLConsole"
+private const val LICENSE_URL = "https://github.com/DNTOF/SLConsole/blob/main/LICENSE"
+
 @Composable
 fun AboutScreen() {
     val context = LocalContext.current
     val official = remember { SignatureCheck.isOfficial(context) }
+    val uriHandler = LocalUriHandler.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp).withBottomChrome(),
@@ -85,6 +90,29 @@ fun AboutScreen() {
         item {
             SectionCard("许可") {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        InfoChip("GPL-3.0-or-later", color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "Copyright (C) 2026 DNT_OF",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    Text(
+                        "SLConsole 是自由软件，依据 GNU 通用公共许可证第 3 版或更新版本发布，不附带任何担保。" +
+                            "分发修改版时需要以同样的许可公开源代码，并保留版权声明；修改版请换用其他名称和图标。",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        InfoChip("源代码", color = MaterialTheme.colorScheme.primary) {
+                            runCatching { uriHandler.openUri(SOURCE_URL) }
+                        }
+                        InfoChip("许可证全文", color = MaterialTheme.colorScheme.primary) {
+                            runCatching { uriHandler.openUri(LICENSE_URL) }
+                        }
+                    }
                     Text(
                         "液态玻璃绘制使用 Backdrop 1.0.6（Apache-2.0）。",
                         style = MaterialTheme.typography.bodyMedium,
