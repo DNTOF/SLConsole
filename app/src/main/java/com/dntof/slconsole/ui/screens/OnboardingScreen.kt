@@ -1,5 +1,6 @@
 package com.dntof.slconsole.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -40,6 +41,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,14 +78,14 @@ private val TOUR = listOf(
         Icons.Outlined.Groups,
     ),
     TourCard(
-        "地图",
-        "底栏里的地图。用这一局的种子在手机上画出设施，并标出玩家位置。",
-        Icons.Outlined.Map,
+        "控制台",
+        "底栏第三项。把命令直接发到服务器，回显会留在下面。",
+        Icons.Outlined.Terminal,
     ),
     TourCard(
-        "控制台",
-        "底栏里的控制台。把命令直接发到服务器，回显会留在下面。",
-        Icons.Outlined.Terminal,
+        "地图",
+        "底栏第四项。用这一局的种子在手机上画出设施，并标出玩家位置。",
+        Icons.Outlined.Map,
     ),
     TourCard(
         "中心",
@@ -102,19 +104,20 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     val store = ServiceLocator.serverStore
     val settings = ServiceLocator.settingsStore
     val storedAnalytics by settings.usageAnalyticsFlow.collectAsState(initial = ClarityDefaults.ENABLED)
-    var step by remember { mutableIntStateOf(0) }
+    // 切换深浅色或旋转会重建界面，步骤和填了一半的地址要留住。密钥不放进 saved state。
+    var step by rememberSaveable { mutableIntStateOf(0) }
     var finishing by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
-    var host by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf(ServerConfig.DEFAULT_PORT.toString()) }
+    var host by rememberSaveable { mutableStateOf("") }
+    var port by rememberSaveable { mutableStateOf(ServerConfig.DEFAULT_PORT.toString()) }
     var verifyToken by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
-    var draftId by remember { mutableStateOf<String?>(null) }
+    var draftId by rememberSaveable { mutableStateOf<String?>(null) }
     var formError by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
-    var analyticsChoice by remember { mutableStateOf<Boolean?>(null) }
+    var analyticsChoice by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val analyticsSelected = analyticsChoice ?: if (replay) storedAnalytics else null
 
     fun finish() {
@@ -149,98 +152,107 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
         }
     }
 
+    // 系统返回键回到上一步，第一步时交给外层处理。
+    BackHandler(enabled = step > 0 && !finishing) { step -= 1 }
+
     val ime = LocalImeLift.current.overlap
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
-            )
-            .windowInsetsPadding(WindowInsets.systemBars),
+    // 用 Surface 提供 onBackground 作为内容色，深色模式下正文才不会是黑字。
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
         Column(
             Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                "新手引导",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            when (step) {
-                0 -> WelcomeStep()
-                1 -> AddServerStep(
-                    host = host,
-                    port = port,
-                    verifyToken = verifyToken,
-                    apiKey = apiKey,
-                    testing = testing,
-                    testResult = testResult,
-                    formError = formError,
-                    onHost = { host = it },
-                    onPort = { port = it },
-                    onVerify = { verifyToken = it },
-                    onApiKey = { apiKey = it },
-                    onTest = {
-                        val h = host.trim()
-                        val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
-                        if (h.isEmpty() || verifyToken.isBlank()) {
-                            testResult = false to "请先填写主机地址和 VerifyToken"
-                            return@AddServerStep
-                        }
-                        testing = true
-                        testResult = null
-                        scope.launch {
-                            val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
-                            testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
-                                is SlHttpClient.HttpResult.Success -> {
-                                    val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
-                                    val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                                    true to "连接成功：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
-                                }
-                                is SlHttpClient.HttpResult.Failure -> false to result.message
-                            }
-                            testing = false
-                        }
-                    },
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
                 )
-                2 -> TourStep()
-                3 -> ConsentStep(
-                    selected = analyticsSelected,
-                    onPick = { enabled ->
-                        analyticsChoice = enabled
-                        scope.launch { settings.setUsageAnalytics(enabled) }
-                    },
-                )
-                else -> DoneStep()
-            }
-        }
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 12.dp + ime),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .windowInsetsPadding(WindowInsets.systemBars),
         ) {
-            StepDots(step)
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                TextButton(onClick = { finish() }, enabled = !finishing) { Text("跳过") }
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = { if (step > 0) step -= 1 }, enabled = step > 0 && !finishing) {
-                    Text("上一步")
+                Text(
+                    "新手引导",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                when (step) {
+                    0 -> WelcomeStep()
+                    1 -> AddServerStep(
+                        host = host,
+                        port = port,
+                        verifyToken = verifyToken,
+                        apiKey = apiKey,
+                        testing = testing,
+                        testResult = testResult,
+                        formError = formError,
+                        onHost = { host = it },
+                        onPort = { port = it },
+                        onVerify = { verifyToken = it },
+                        onApiKey = { apiKey = it },
+                        onTest = {
+                            val h = host.trim()
+                            val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
+                            if (h.isEmpty() || verifyToken.isBlank()) {
+                                testResult = false to "请先填写主机地址和 VerifyToken"
+                                return@AddServerStep
+                            }
+                            testing = true
+                            testResult = null
+                            scope.launch {
+                                val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
+                                testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
+                                    is SlHttpClient.HttpResult.Success -> {
+                                        val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
+                                        val count = (result.body["players_count"] as? JsonPrimitive)?.content
+                                        true to "连接成功：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
+                                    }
+                                    is SlHttpClient.HttpResult.Failure -> false to result.message
+                                }
+                                testing = false
+                            }
+                        },
+                    )
+                    2 -> TourStep()
+                    3 -> ConsentStep(
+                        selected = analyticsSelected,
+                        onPick = { enabled ->
+                            analyticsChoice = enabled
+                            scope.launch { settings.setUsageAnalytics(enabled) }
+                        },
+                    )
+                    else -> DoneStep()
                 }
-                Button(onClick = { goNext() }, enabled = !finishing && !testing && !saving) {
-                    Text(if (step >= STEP_COUNT - 1) "完成" else "下一步")
+            }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 12.dp + ime),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StepDots(step)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { finish() }, enabled = !finishing) { Text("跳过") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { if (step > 0) step -= 1 }, enabled = step > 0 && !finishing) {
+                        Text("上一步")
+                    }
+                    Button(onClick = { goNext() }, enabled = !finishing && !testing && !saving) {
+                        Text(if (step >= STEP_COUNT - 1) "完成" else "下一步")
+                    }
                 }
             }
         }

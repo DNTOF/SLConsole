@@ -3,6 +3,7 @@ package com.dntof.slconsole.data.model
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 
 /**
  * 控制 WS `hello.beta` 里列出的 2.6.1 内测能力。
@@ -20,12 +21,16 @@ data class ControlBeta(
         val None = ControlBeta()
 
         fun fromHello(message: JsonObject): ControlBeta {
-            val beta = message["beta"] as? JsonArray ?: return None
-            val names = beta.mapNotNull { element ->
-                val primitive = element as? JsonPrimitive ?: return@mapNotNull null
-                primitive.content.takeIf { primitive.isString && it.isNotBlank() }
+            val names = when (val beta = message["beta"]) {
+                is JsonArray -> beta.mapNotNull { element ->
+                    val primitive = element as? JsonPrimitive ?: return@mapNotNull null
+                    primitive.content.takeIf { primitive.isString && it.isNotBlank() }
+                }
+                // 也接受对象写法，例如 {"file_chunks": true}。值不是 true 的不算打开。
+                is JsonObject -> beta.filterValues { (it as? JsonPrimitive)?.booleanOrNull == true }.keys.toList()
+                else -> return None
             }
-            return ControlBeta(names.toSet())
+            return if (names.isEmpty()) None else ControlBeta(names.toSet())
         }
     }
 }

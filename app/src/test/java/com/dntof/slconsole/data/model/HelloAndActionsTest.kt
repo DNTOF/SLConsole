@@ -32,6 +32,16 @@ class HelloAndActionsTest {
     }
 
     @Test
+    fun helloBeta_acceptsObjectForm() {
+        val hello = AppJson.json.parseToJsonElement(
+            """{"type":"hello","beta":{"adapted_actions":true,"file_chunks":false}}""",
+        ) as kotlinx.serialization.json.JsonObject
+        val beta = ControlBeta.fromHello(hello)
+        assertTrue(beta.adaptedActions)
+        assertFalse(beta.fileChunks)
+    }
+
+    @Test
     fun helloBeta_ignoresUnknownNames() {
         val hello = AppJson.json.parseToJsonElement(
             """{"type":"hello","beta":["file_chunks","something_else"]}""",

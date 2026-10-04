@@ -43,7 +43,12 @@ object FileTransfer {
         onProgress: (done: Long, total: Long) -> Unit = { _, _ -> },
     ): ReadResult {
         if (!chunked) return readOnce(server, path)
-        return readChunked(server, path, knownSize, onProgress)
+        val result = readChunked(server, path, knownSize, onProgress)
+        // 服务器说有 file_chunks，但分块端点不在（被关掉或版本对不上）时，退回整文件读取。
+        if (result is ReadResult.Failed && result.failure.status in ENDPOINT_MISSING) {
+            return readOnce(server, path)
+        }
+        return result
     }
 
     suspend fun writeText(
@@ -60,8 +65,16 @@ object FileTransfer {
             )
         }
         if (!chunked) return writeOnce(server, path, content)
-        return writeChunked(server, path, bytes, onProgress)
+        val result = writeChunked(server, path, bytes, onProgress)
+        // 第一块就碰到端点不存在时什么都没写进去，退回整文件写入，由服务器自己判断大小。
+        if (result is WriteResult.Failed && result.failure.status in ENDPOINT_MISSING) {
+            return writeOnce(server, path, content)
+        }
+        return result
     }
+
+    /** 分块端点不存在时服务器可能回的状态码。 */
+    private val ENDPOINT_MISSING = setOf(404, 405, 501)
 
     private suspend fun readOnce(server: ServerConfig, path: String): ReadResult {
         return when (val outcome = ControlRepository.call(server, "/control/files/read", pathBody(path))) {
