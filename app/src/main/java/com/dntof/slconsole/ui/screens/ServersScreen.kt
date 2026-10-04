@@ -3,6 +3,9 @@
 
 package com.dntof.slconsole.ui.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -103,7 +106,7 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                     val server = servers[index]
                     val isActive = server.id == activeId
                     AppSurface(
-                        Modifier.fillMaxWidth(),
+                        Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(),
                         onClick = { scope.launch { store.setActive(server.id) } },
                         role = GlassRole.Panel,
                     ) {

@@ -92,6 +92,7 @@ import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -158,6 +159,8 @@ import com.dntof.slconsole.ui.screens.ServersScreen
 import com.dntof.slconsole.ui.screens.SettingsScreen
 import com.dntof.slconsole.ui.screens.VoiceScreen
 import kotlinx.coroutines.launch
+import com.dntof.slconsole.data.update.UpdateChecker
+import com.dntof.slconsole.ui.components.UpdateDialog
 
 val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
     error("SnackbarHostState not provided")
@@ -399,7 +402,12 @@ fun AppRoot(startupNotice: String? = null) {
     val signContext = LocalContext.current
     // 签名不一致时每次冷启动提示一次,关掉后本次进程内不再弹出
     var showUnofficial by remember {
-        mutableStateOf(!SignatureCheck.noticeDismissed && !SignatureCheck.isOfficial(signContext))
+        val report = SignatureCheck.report(signContext)
+        // 差异位数和徽标配色两项独立判断，任意一项不对都提示。
+        mutableStateOf(
+            !SignatureCheck.noticeDismissed &&
+                (report.mismatch != 0 || com.dntof.slconsole.ui.components.decodeBadgePalette(report.key) == null),
+        )
     }
     if (showUnofficial) {
         UnofficialBuildDialog(onDismiss = {
@@ -414,6 +422,11 @@ fun AppRoot(startupNotice: String? = null) {
         ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
             UsageAnalytics.setEnabled(signContext, enabled)
         }
+    }
+    // 冷启动自动检查更新（开关关闭或 6 小时内查过就跳过）。失败不提示。
+    LaunchedEffect(onboardingCompleted) {
+        if (onboardingCompleted != true) return@LaunchedEffect
+        runCatching { UpdateChecker.autoCheck(ServiceLocator.settingsStore) }
     }
     val servers = serversLoaded
     if (servers == null || onboardingCompleted == null || lockPref == null) {
@@ -476,6 +489,11 @@ fun AppRoot(startupNotice: String? = null) {
     }
 
     val imeLift = rememberImeLift()
+    // 转圈结束后主界面淡入，而不是一帧切换。透明度在 graphicsLayer 里读取，不触发重组。
+    val appear = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) {
+        appear.animateTo(1f, androidx.compose.animation.core.tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate))
+    }
     CompositionLocalProvider(
         LocalSnackbarHost provides snackbarHostState,
         LocalLiquidGlass provides glassEnabled,
@@ -485,7 +503,7 @@ fun AppRoot(startupNotice: String? = null) {
         LocalImeLift provides imeLift,
         LocalReplayOnboarding provides { replayOnboarding = true },
     ) {
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = appear.value }) {
             if (layout == AppLayout.Compact) {
                 CompactShell(
                     navController = navController,
@@ -517,6 +535,25 @@ fun AppRoot(startupNotice: String? = null) {
                     replay = onboardingCompleted == true,
                     onFinished = { replayOnboarding = false },
                 )
+            } else {
+                val pendingUpdate by UpdateChecker.pending.collectAsState()
+                pendingUpdate?.let { info ->
+                    UpdateDialog(
+                        info = info,
+                        onUpdate = {
+                            UpdateChecker.dismiss()
+                            val url = info.apkUrl ?: info.pageUrl
+                            runCatching {
+                                context.startActivity(
+                                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                )
+                            }
+                        },
+                        onLater = { UpdateChecker.dismiss() },
+                        onIgnore = { scope.launch { UpdateChecker.ignore(ServiceLocator.settingsStore, info) } },
+                    )
+                }
             }
         }
     }
@@ -597,26 +634,42 @@ private fun CompactShell(
         Box(Modifier.align(Alignment.TopCenter).onSizeChanged {
             topBarHeight = with(density) { it.height.toDp() }
         }) {
-            if (isSubRoute) {
-                BarSurface { SubRouteTopBar(currentRoute, activeServer) { navController.popBackStack() } }
-            } else {
-                BarSurface {
-                    ServerTopBar(
-                        active = activeServer,
-                        servers = servers,
-                        monitorState = monitorState,
-                        onSelect = onSelectServer,
-                        onManage = { navController.navigate(Routes.SERVERS) },
-                        onAdd = { navController.navigate(Routes.serverEdit(null)) },
-                        onRefresh = { MonitorEngine.refreshNow() },
-                    )
+            BarSurface {
+                // 顶栏外壳（玻璃）保持不动，只淡入淡出里面的标题栏，避免玻璃层重建。
+                androidx.compose.animation.Crossfade(
+                    targetState = isSubRoute,
+                    animationSpec = androidx.compose.animation.core.tween(220, easing = Motion.Standard),
+                    label = "topBar",
+                ) { sub ->
+                    if (sub) {
+                        SubRouteTopBar(currentRoute, activeServer) { navController.popBackStack() }
+                    } else {
+                        ServerTopBar(
+                            active = activeServer,
+                            servers = servers,
+                            monitorState = monitorState,
+                            onSelect = onSelectServer,
+                            onManage = { navController.navigate(Routes.SERVERS) },
+                            onAdd = { navController.navigate(Routes.serverEdit(null)) },
+                            onRefresh = { MonitorEngine.refreshNow() },
+                        )
+                    }
                 }
             }
         }
-        if (showTabs) {
+        // 进入二级页面时底栏向下滑出，返回时滑回。滑动只改位移，不改测量高度，列表留白不会跟着抖。
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showTabs,
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            enter = androidx.compose.animation.slideInVertically(
+                androidx.compose.animation.core.tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate),
+            ) { it } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(Motion.MEDIUM)),
+            exit = androidx.compose.animation.slideOutVertically(
+                androidx.compose.animation.core.tween(200, easing = Motion.EmphasizedAccelerate),
+            ) { it } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)),
+        ) {
             Box(
                 Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .onSizeChanged { bottomOverlay = with(density) { it.height.toDp() } },
             ) {
@@ -738,6 +791,10 @@ private fun AppNavHost(
             navController = navController,
             startDestination = Routes.DASHBOARD,
             modifier = Modifier.widthIn(max = 1100.dp).fillMaxHeight(),
+            enterTransition = Motion.enter,
+            exitTransition = Motion.exit,
+            popEnterTransition = Motion.popEnter,
+            popExitTransition = Motion.popExit,
         ) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
@@ -1020,13 +1077,14 @@ private fun NavTab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val pill by animateColorAsState(
+    val pill = animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        androidx.compose.animation.core.tween(250, easing = Motion.Standard),
         label = "tabPill",
     )
     val scale by animateFloatAsState(
         if (selected) 1f else 0.94f,
-        spring(dampingRatio = 0.75f),
+        spring(dampingRatio = 0.75f, stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
         label = "tabScale",
     )
     Column(
@@ -1044,7 +1102,10 @@ private fun NavTab(
             Modifier
                 .width(40.dp)
                 .height(28.dp)
-                .background(pill, RoundedCornerShape(50)),
+                // 颜色在绘制阶段读取，动画过程中只重绘，不重组整个底栏。
+                .drawBehind {
+                    drawRoundRect(pill.value, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2))
+                },
             contentAlignment = Alignment.Center,
         ) {
             Icon(

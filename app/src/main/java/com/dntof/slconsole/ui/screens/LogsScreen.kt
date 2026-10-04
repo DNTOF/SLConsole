@@ -3,6 +3,9 @@
 
 package com.dntof.slconsole.ui.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -160,7 +163,7 @@ fun LogsScreen() {
                 }
             } else {
                     items(list, key = { it.path }) { file ->
-                        AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
+                        AppSurface(Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(), role = GlassRole.Row) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(file.name ?: file.path, style = MaterialTheme.typography.titleSmall, maxLines = 1)

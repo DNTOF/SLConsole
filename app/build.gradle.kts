@@ -105,7 +105,9 @@ android {
             signingConfig = signing
         }
         release {
-            isMinifyEnabled = false
+            // R8 压缩混淆 + 资源压缩，规则见 proguard-rules.pro
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signing
         }

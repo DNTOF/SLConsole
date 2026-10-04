@@ -3,6 +3,9 @@
 
 package com.dntof.slconsole.ui.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -104,7 +107,7 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
         }
         items(plugins, key = { it.id.ifBlank { it.name ?: "" } }) { plugin ->
             AppSurface(
-                Modifier.fillMaxWidth(),
+                Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(),
                 onClick = { if (plugin.id.isNotBlank()) onOpen(plugin.id) },
                 role = GlassRole.Panel,
             ) {

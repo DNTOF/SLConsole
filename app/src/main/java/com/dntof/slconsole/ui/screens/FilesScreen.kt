@@ -3,6 +3,9 @@
 
 package com.dntof.slconsole.ui.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -308,7 +311,7 @@ fun FilesScreen() {
                 items(sorted.size, key = { sorted[it].name + sorted[it].type }) { index ->
                     val entry = sorted[index]
                     AppSurface(
-                        Modifier.fillMaxWidth(),
+                        Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(),
                         enabled = !entry.isProtected,
                         onClick = {
                             if (entry.type == "dir") path = joinPath(path, entry.name)

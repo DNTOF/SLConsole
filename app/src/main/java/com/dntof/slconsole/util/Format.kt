@@ -7,6 +7,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** 指纹第三段（异或后），见 SignatureCheck.officialFingerprint。 */
+internal val formatTable = intArrayOf(0xAC, 0x26, 0x62, 0x95, 0x94, 0xBC, 0xF6, 0xFB, 0x0C, 0x6A)
+
 object Format {
     fun duration(totalSeconds: Int): String {
         val s = totalSeconds.coerceAtLeast(0)

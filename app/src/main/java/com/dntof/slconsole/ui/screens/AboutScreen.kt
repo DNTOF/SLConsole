@@ -16,7 +16,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +30,8 @@ import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.ui.LocalReplayOnboarding
 import com.dntof.slconsole.ui.components.AuthorCard
 import com.dntof.slconsole.ui.components.GenuineBadge
+import com.dntof.slconsole.ui.components.SignatureSheet
+import com.dntof.slconsole.ui.components.decodeBadgePalette
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.withBottomChrome
@@ -37,7 +42,13 @@ private const val LICENSE_URL = "https://github.com/DNTOF/SLConsole/blob/main/LI
 @Composable
 fun AboutScreen() {
     val context = LocalContext.current
-    val official = remember { SignatureCheck.isOfficial(context) }
+    val report = remember { SignatureCheck.report(context) }
+    // 徽标配色只能用官方证书指纹解出，两项都满足才显示徽标。
+    val palette = remember(report) { if (report.mismatch == 0) decodeBadgePalette(report.key) else null }
+    var showSignature by remember { mutableStateOf(false) }
+    if (showSignature) {
+        SignatureSheet(report = report, onDismiss = { showSignature = false })
+    }
     val uriHandler = LocalUriHandler.current
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -55,11 +66,11 @@ fun AboutScreen() {
                         "SLConsole ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    if (official) {
+                    if (palette != null) {
                         Spacer(Modifier.weight(1f))
-                        GenuineBadge()
+                        GenuineBadge(palette = palette, onClick = { showSignature = true })
                     } else {
-                        InfoChip("非官方版本", color = MaterialTheme.colorScheme.error)
+                        InfoChip("非官方版本", color = MaterialTheme.colorScheme.error) { showSignature = true }
                     }
                 }
             }
