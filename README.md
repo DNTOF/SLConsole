@@ -61,8 +61,14 @@ SLDataAPI 2.6.0 及以上。2.6.1 是预发布，里面的内测功能默认关�
 
 - 凭据经 AndroidKeyStore AES-256-GCM 加密后存储,密钥不可导出,卸载即失效;
 - SLDataAPI 本身为明文 HTTP/WS,请在可信内网或 TLS 反向代理后使用;
-- 封禁、引爆核弹、重启回合等破坏性操作均有二次确认;
-- 本应用不收集、不上传任何数据。
+- 封禁、引爆核弹、重启回合等破坏性操作均有二次确认。
+
+## 数据与隐私
+
+- **服务器数据**：服务器地址、凭据、监控数据和控制命令只在这台手机和你自己的服务器之间传输，不经过作者或其他第三方的服务器。
+- **匿名使用统计**：应用集成了 Microsoft Clarity，用来了解哪些界面不好用。默认开启，可以在新手引导里选「不开启」，或者以后在「设置 → 隐私」里关闭；没开启时 Clarity 不会初始化，关闭后立即停止。录制界面时，服务器地址、密钥、输入框、控制台内容和玩家昵称等敏感内容会被遮住。统计数据发送给 Microsoft，按 Microsoft Clarity 的条款处理。
+- **检查更新**：启动时（最多每 6 小时一次，可在设置里关闭）和手动点「立即检查」时，应用会请求 GitHub API（`api.github.com`）读取最新发布信息。这个请求不带服务器信息或个人数据，GitHub 能看到的只有普通网络请求都会带的 IP 地址等信息。
+- 除上面两项之外，应用不向任何地方上传数据。
 
 ## 特别鸣谢
 感谢由 FXDYJ 开发的地图绘制JS,源自 [SCPSLMaps](https://scpslmaps.fxdyj.com/)
@@ -108,6 +114,12 @@ GPL 授权的是代码的版权，不包括以下标识：「SLConsole」这个�
 
 按要求保留版权声明和作者署名不受这条限制。
 
+### 附加许可（链接例外）
+
+作为唯一的版权人，DNT_OF 依据 GPLv3 第 7 条给出一项附加许可：允许把 SLConsole 与 Microsoft Clarity SDK、Google Play Install Referrer 库及它们不属于 GPL 的传递依赖组合在一起分发，这些组件本身不需要按 GPL 提供源代码；SLConsole 自己的完整源代码仍须按 GPLv3 提供。条款全文见 [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)。
+
+源文件头里的 SPDX 标识仍写 `GPL-3.0-or-later`，因为 SPDX 许可列表里没有这条自定义例外的标识；这项附加许可适用于本仓库里 DNT_OF 撰写的全部文件。
+
 ### 第三方组件
 
 依赖库及其许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
@@ -124,5 +136,8 @@ SLConsole is free software: you can redistribute it and/or modify it under the t
 - Keep the copyright notices and SPDX headers in the source files, as well as the notices in this README and in [NOTICE](NOTICE), and mark your changes (GPLv3 section 5).
 - Official builds are signed with the author's certificate. Builds signed with any other key are flagged by the app as unofficial (「非官方版本」). The official signing certificate SHA-256 fingerprint is `3D:20:0A:A5:36:9B:75:A0:73:56:A1:85:8C:07:C9:D8:D5:05:56:25:4A:5D:F0:7A:3E:C9:C8:E0:AA:A7:50:36`. Check it in the app (About → tap the badge) or with `apksigner verify --print-certs`.
 - **Names, icon and badge:** the GPL does not grant any rights to the name "SLConsole", the author name "DNT_OF", the app icon or the 「正版授权」 (genuine) badge shown on the About page. Under GPLv3 section 7(e), trademark rights to them are not granted. Modified versions, including re-signed or repackaged builds, must not claim to be official or endorsed, must not display the 「正版授权」 badge, and must not use the SLConsole name or icon; they must not alter or bypass the signature check to make the badge appear.
+
+- **Additional permission (linking exception):** as the sole copyright holder, DNT_OF grants an additional permission under GPLv3 section 7 to combine and convey SLConsole with the Microsoft Clarity SDK, the Google Play Install Referrer library and their transitive non-GPL dependencies, without those components having to be provided in source form. See [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md). The SPDX headers stay `GPL-3.0-or-later` because the SPDX list has no identifier for this custom exception; the permission applies to all files in this repository written by DNT_OF.
+- **Data and privacy:** server data goes only between the phone and your own server. Microsoft Clarity anonymous usage analytics is on by default and can be turned off in onboarding or in Settings → Privacy; sensitive fields are masked. The update check contacts the GitHub API. Nothing else is uploaded.
 
 Third-party licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

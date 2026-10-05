@@ -97,7 +97,7 @@ fun SettingsScreen() {
             SectionCard("检查更新", subtitle = "当前版本 ${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）") {
                 LabeledSwitch(
                     title = "自动检查更新",
-                    subtitle = "启动时到 GitHub Releases 查看有没有新版本，最多每 6 小时一次。只读取公开的发布信息，不上传任何数据。",
+                    subtitle = "启动时请求 GitHub API（api.github.com）查看有没有新版本，最多每 6 小时一次。只读取公开的发布信息，不发送服务器信息或个人数据。",
                     checked = autoUpdate,
                     onCheckedChange = { enabled ->
                         scope.launch { ServiceLocator.settingsStore.setAutoUpdateCheck(enabled) }
@@ -161,7 +161,7 @@ fun SettingsScreen() {
             SectionCard("使用统计", subtitle = "默认开启") {
                 LabeledSwitch(
                     title = "帮助改进（匿名使用统计）",
-                    subtitle = "匿名记录界面怎么被使用，用来改进应用。不记录服务器地址、密钥和控制台内容。关闭后立即停止，下次打开也不再收集。",
+                    subtitle = "用 Microsoft Clarity 匿名记录界面怎么被使用，用来改进应用。服务器地址、密钥、输入框、控制台内容和玩家昵称会被遮住。关闭后立即停止，下次打开也不再收集。",
                     checked = analytics,
                     onCheckedChange = { enabled ->
                         UsageAnalytics.setEnabled(context, enabled)

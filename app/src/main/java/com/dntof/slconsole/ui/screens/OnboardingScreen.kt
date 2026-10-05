@@ -530,7 +530,8 @@ private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(
-        "跳过的话保持现在的默认：开启。你可以以后在设置里关掉。",
+        "跳过的话保持现在的默认：开启。你可以以后在设置里关掉。" +
+            "除此之外，应用只在检查更新时访问 GitHub；服务器数据只在手机和你自己的服务器之间传输。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

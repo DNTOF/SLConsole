@@ -113,7 +113,8 @@ fun AboutScreen() {
                     }
                     Text(
                         "SLConsole 是自由软件，依据 GNU 通用公共许可证第 3 版或更新版本发布，不附带任何担保。" +
-                            "分发修改版时需要以同样的许可公开源代码，并保留版权声明；修改版请换用其他名称和图标。",
+                            "分发修改版时需要以同样的许可公开源代码，并保留版权声明；修改版请换用其他名称和图标。" +
+                            "另有一项附加许可（链接例外），允许与 Microsoft Clarity SDK、Google Play Install Referrer 库一起分发，见 LICENSE-EXCEPTION.md。",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,7 +130,8 @@ fun AboutScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        "匿名使用统计使用 Microsoft Clarity SDK。",
+                        "匿名使用统计使用 Microsoft Clarity SDK，默认开启，可在设置里关闭，敏感内容会被遮住。" +
+                            "检查更新会访问 GitHub API。除此之外不上传数据，服务器数据只发给你自己的服务器。",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
