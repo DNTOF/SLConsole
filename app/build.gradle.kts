@@ -76,8 +76,8 @@ android {
         applicationId = "com.dntof.slconsole"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "1.2.0"
+        versionCode = 7
+        versionName = "1.3.0"
     }
 
     signingConfigs {
@@ -105,7 +105,9 @@ android {
             signingConfig = signing
         }
         release {
-            isMinifyEnabled = false
+            // R8 压缩混淆 + 资源压缩，规则见 proguard-rules.pro
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signing
         }

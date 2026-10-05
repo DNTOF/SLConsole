@@ -3,6 +3,9 @@
 
 package com.dntof.slconsole.ui.screens
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -135,7 +138,7 @@ fun ReportsScreen() {
         } else {
                 items(list.size, key = { list[it].id }) { index ->
                     val report = list[index]
-                    AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
+                    AppSurface(Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(), role = GlassRole.Row) {
                         Column(Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {

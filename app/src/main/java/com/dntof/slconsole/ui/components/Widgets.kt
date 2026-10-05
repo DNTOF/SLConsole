@@ -3,7 +3,15 @@
 
 package com.dntof.slconsole.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -75,7 +83,12 @@ fun SectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     AppSurface(modifier.fillMaxWidth(), role = GlassRole.Panel) {
-        Column(Modifier.padding(16.dp)) {
+        // 内容增减（加载完成、展开收起、提示出现）时高度用弹簧过渡，不再跳变。
+        Column(
+            Modifier
+                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold))
+                .padding(16.dp),
+        ) {
             if (title != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -163,18 +176,20 @@ fun InfoChip(
     color: Color = MaterialTheme.colorScheme.secondary,
     onClick: (() -> Unit)? = null,
 ) {
+    // 状态变化（在线/离线等）时颜色渐变过去。
+    val tint by animateColorAsState(color, tween(220), label = "chipTint")
     val label: @Composable () -> Unit = {
         Text(
             text,
             Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
-            color = color,
+            color = tint,
         )
     }
     if (onClick != null) {
-        Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.15f), onClick = onClick, content = label)
+        Surface(shape = RoundedCornerShape(50), color = tint.copy(alpha = 0.15f), onClick = onClick, content = label)
     } else {
-        Surface(shape = RoundedCornerShape(50), color = color.copy(alpha = 0.15f), content = label)
+        Surface(shape = RoundedCornerShape(50), color = tint.copy(alpha = 0.15f), content = label)
     }
 }
 

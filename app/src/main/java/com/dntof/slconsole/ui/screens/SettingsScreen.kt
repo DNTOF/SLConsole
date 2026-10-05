@@ -25,6 +25,23 @@ import com.dntof.slconsole.analytics.ClarityDefaults
 import com.dntof.slconsole.analytics.UsageAnalytics
 import com.dntof.slconsole.security.AppLock
 import androidx.compose.material3.TextButton
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.Alignment
+import com.dntof.slconsole.BuildConfig
+import com.dntof.slconsole.data.update.UpdateChecker
+import com.dntof.slconsole.ui.LocalSnackbarHost
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.dntof.slconsole.ui.LocalReplayOnboarding
 import com.dntof.slconsole.ui.components.LabeledSwitch
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
@@ -38,6 +55,11 @@ fun SettingsScreen() {
     val analytics by ServiceLocator.settingsStore.usageAnalyticsFlow.collectAsState(initial = ClarityDefaults.ENABLED)
     val biometricLock by ServiceLocator.settingsStore.biometricLockFlow.collectAsState(initial = false)
     var lockHint by remember { mutableStateOf<String?>(null) }
+    val autoUpdate by ServiceLocator.settingsStore.autoUpdateCheckFlow.collectAsState(initial = true)
+    val lastCheck by ServiceLocator.settingsStore.lastUpdateCheckFlow.collectAsState(initial = 0L)
+    val ignoredVersion by ServiceLocator.settingsStore.ignoredUpdateVersionFlow.collectAsState(initial = null)
+    val checking by UpdateChecker.checking.collectAsState()
+    val snackbar = LocalSnackbarHost.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     LazyColumn(
@@ -72,13 +94,74 @@ fun SettingsScreen() {
             }
         }
         item {
+            SectionCard("检查更新", subtitle = "当前版本 ${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）") {
+                LabeledSwitch(
+                    title = "自动检查更新",
+                    subtitle = "启动时请求 GitHub API（api.github.com）查看有没有新版本，最多每 6 小时一次。只读取公开的发布信息，不发送服务器信息或个人数据。",
+                    checked = autoUpdate,
+                    onCheckedChange = { enabled ->
+                        scope.launch { ServiceLocator.settingsStore.setAutoUpdateCheck(enabled) }
+                    },
+                )
+                Row(
+                    Modifier.padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        if (lastCheck > 0) "上次检查：${formatCheckTime(lastCheck)}" else "还没有检查过",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    FilledTonalButton(
+                        enabled = !checking,
+                        onClick = {
+                            scope.launch {
+                                val outcome = UpdateChecker.check(ServiceLocator.settingsStore, manual = true)
+                                UpdateChecker.describe(outcome)?.let { snackbar.showSnackbar(it, withDismissAction = true) }
+                            }
+                        },
+                    ) {
+                        AnimatedContent(
+                            targetState = checking,
+                            transitionSpec = { fadeIn() togetherWith fadeOut() },
+                            label = "checkButton",
+                        ) { busy ->
+                            if (busy) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("检查中")
+                                }
+                            } else {
+                                Text("立即检查")
+                            }
+                        }
+                    }
+                }
+                ignoredVersion?.let { version ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "已忽略 $version",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = {
+                            scope.launch { ServiceLocator.settingsStore.setIgnoredUpdateVersion(null) }
+                        }) { Text("取消忽略") }
+                    }
+                }
+            }
+        }
+        item {
             Text("隐私", style = MaterialTheme.typography.headlineSmall)
         }
         item {
             SectionCard("使用统计", subtitle = "默认开启") {
                 LabeledSwitch(
                     title = "帮助改进（匿名使用统计）",
-                    subtitle = "匿名记录界面怎么被使用，用来改进应用。不记录服务器地址、密钥和控制台内容。关闭后立即停止，下次打开也不再收集。",
+                    subtitle = "用 Microsoft Clarity 匿名记录界面怎么被使用，用来改进应用。服务器地址、密钥、输入框、控制台内容和玩家昵称会被遮住。关闭后立即停止，下次打开也不再收集。",
                     checked = analytics,
                     onCheckedChange = { enabled ->
                         UsageAnalytics.setEnabled(context, enabled)
@@ -142,3 +225,6 @@ fun SettingsScreen() {
         }
     }
 }
+
+private fun formatCheckTime(time: Long): String =
+    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(Date(time))

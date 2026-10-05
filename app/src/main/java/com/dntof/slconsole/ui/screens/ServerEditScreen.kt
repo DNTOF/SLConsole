@@ -281,7 +281,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         }
         item {
             Text(
-                "凭据仅保存在本机(AndroidKeyStore 加密),不经过任何第三方服务器。" +
+                "凭据仅保存在本机(AndroidKeyStore 加密),只发送给你自己的服务器,不经过任何第三方。" +
                     "SLDataAPI 使用明文 HTTP/WS,建议仅在可信网络或反向代理 TLS 后使用。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
