@@ -20,15 +20,21 @@ Source code: https://github.com/DNTOF/SLConsole
 Additional terms under GPLv3 section 7(e)
 -----------------------------------------
 This license does not grant any rights under trademark law to the name
-"SLConsole", the author name "DNT_OF" or the SLConsole application icon.
-Modified versions must be distributed under a different name and icon,
-and must not be presented as official builds or as endorsed by the
-author.  Preserving the copyright notices and author attributions
-required by the GPL is not restricted by this term.
+"SLConsole", the author name "DNT_OF", the SLConsole application icon
+or the 「正版授权」 (genuine) badge shown on the About page.
+Modified versions, including re-signed or repackaged builds, must be
+distributed under a different name and icon, must not be presented as
+official builds or as endorsed by the author, must not display the
+「正版授权」 badge, and must not alter or bypass the signature check to
+make it appear.  Preserving the copyright notices and author
+attributions required by the GPL is not restricted by this term.
 
 Official builds are signed with the author's release certificate.
 Builds signed with a different key are reported by the app as
-unofficial (「非官方版本」).
+unofficial (「非官方版本」).  Official certificate SHA-256 fingerprint:
+
+  3D:20:0A:A5:36:9B:75:A0:73:56:A1:85:8C:07:C9:D8:
+  D5:05:56:25:4A:5D:F0:7A:3E:C9:C8:E0:AA:A7:50:36
 
 本程序的中文说明见 README.md 的「许可与版权」一节。
 第三方组件及其许可见 THIRD_PARTY_NOTICES.md。
