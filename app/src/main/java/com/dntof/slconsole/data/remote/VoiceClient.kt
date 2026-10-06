@@ -6,6 +6,7 @@ package com.dntof.slconsole.data.remote
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +92,7 @@ class VoiceClient(
 
     /** 开始监听前先探测 /status,把"端口上不是语音服务/端口不可达/未授权"变成明确指引,而不是裸 404。 */
     private suspend fun probeStatus(): ProbeResult = withContext(Dispatchers.IO) {
+        HostAddress.problem(host)?.let { return@withContext ProbeResult.Fail(it) }
         try {
             val resp = OkHttpClient.Builder()
                 .connectTimeout(6, TimeUnit.SECONDS)

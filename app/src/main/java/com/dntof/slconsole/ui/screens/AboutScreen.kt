@@ -130,7 +130,7 @@ fun AboutScreen() {
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        "匿名使用统计使用 Microsoft Clarity SDK，默认开启，可在设置里关闭，敏感内容会被遮住。" +
+                        "匿名使用统计使用 Microsoft Clarity。默认开启；如果第一次打开时在引导里还没走到使用统计这一步就跳过，则会关闭，也可以在设置里改。开启后 Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。敏感内容会尽量遮住，但不是每一项都保证被遮住。" +
                             "检查更新会访问 GitHub API。除此之外不上传数据，服务器数据只发给你自己的服务器。",
                         style = MaterialTheme.typography.bodyMedium,
                     )

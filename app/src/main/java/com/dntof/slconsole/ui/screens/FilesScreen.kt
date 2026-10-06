@@ -62,6 +62,7 @@ import com.dntof.slconsole.data.remote.FileChunks
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.FileTransfer
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.ui.belowTopBar
 import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.keepAboveIme
@@ -186,7 +187,14 @@ fun FilesScreen() {
 
     val file = editing
     if (file != null) {
-        Column(Modifier.fillMaxSize().belowTopBar().padding(start = 16.dp, end = 16.dp, top = 8.dp).bottomChromePadding()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .clarityMask()
+                .belowTopBar()
+                .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+                .bottomChromePadding(),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { editing = null }) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
@@ -194,6 +202,7 @@ fun FilesScreen() {
                 Column(Modifier.weight(1f)) {
                     Text(
                         file.path,
+                        modifier = Modifier.clarityMask(),
                         style = MaterialTheme.typography.titleSmall,
                         fontFamily = FontFamily.Monospace,
                         maxLines = 2,
@@ -254,7 +263,7 @@ fun FilesScreen() {
         }
     } else {
         LazyColumn(
-            Modifier.fillMaxSize(),
+            Modifier.fillMaxSize().clarityMask(),
             contentPadding = PaddingValues(horizontal = 16.dp).withBottomChrome(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -285,7 +294,7 @@ fun FilesScreen() {
             item {
                 SectionCard(
                     "文件浏览",
-                    subtitle = listing?.let { "${it.count} 项 · ${if (it.path.isEmpty()) "FileRoot 根目录" else it.path}" } ?: "加载中…",
+                    subtitle = listing?.let { "${it.count} 项" } ?: "加载中…",
                 ) {
                     listError?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -345,6 +354,7 @@ fun FilesScreen() {
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     if (entry.type == "dir") "${entry.name}/" else entry.name,
+                                    modifier = Modifier.clarityMask(),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontFamily = FontFamily.Monospace,
                                     maxLines = 1,
@@ -387,6 +397,7 @@ private fun PathChip(label: String, active: Boolean, onClick: () -> Unit) {
     Text(
         label,
         Modifier
+            .clarityMask()
             .background(
                 if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
                 CircleShape,

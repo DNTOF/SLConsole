@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote
 
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,6 +56,7 @@ class SlHttpClient(
      * 数据面 GET,保留原始 JSON。适配插件路由 `GET /plugins/<id>/<route>` 不一定包在 success 信封里。
      */
     suspend fun getRaw(config: ServerConfig, path: String): RawHttpResult = withContext(Dispatchers.IO) {
+        HostAddress.problem(config.host)?.let { return@withContext RawHttpResult.Failure(it) }
         val safeCredential = config.verifyToken.filter { it.code in 32..126 }
         val request = Request.Builder()
             .url("${config.baseUrl}$path")
@@ -96,6 +98,7 @@ class SlHttpClient(
         body: String?,
         credential: String,
     ): HttpResult = withContext(Dispatchers.IO) {
+        HostAddress.problem(config.host)?.let { return@withContext HttpResult.Failure(it) }
         // 头值只允许可打印 ASCII,控制字符会让 OkHttp 直接抛异常
         val safeCredential = credential.filter { it.code in 32..126 }
         val builder = Request.Builder()
@@ -106,7 +109,8 @@ class SlHttpClient(
 
         try {
             client.newCall(builder.build()).execute().use { response ->
-                val text = response.body?.string().orEmpty()
+                val text = readCapped(response, path)
+                    ?: return@withContext HttpResult.Failure(BodyLimits.tooLargeMessage(path))
                 val obj = runCatching { AppJson.json.parseToJsonElement(text) }.getOrNull() as? JsonObject
                 val success = (obj?.get("success").textOrNull()) != "false"
                 if (response.isSuccessful && success) {
@@ -134,5 +138,14 @@ class SlHttpClient(
         } catch (e: Exception) {
             HttpResult.Failure("请求失败:${e.message ?: "未知错误"}")
         }
+    }
+
+    /** 监控数据和单次文件读取超过上限时返回 null。其它响应仍整段读取。 */
+    private fun readCapped(response: okhttp3.Response, path: String): String? {
+        val body = response.body ?: return ""
+        val limit = BodyLimits.limitFor(path) ?: return body.string()
+        val declared = body.contentLength()
+        if (declared > limit) return null
+        return BodyLimits.readUtf8Capped(body.byteStream(), limit)
     }
 }

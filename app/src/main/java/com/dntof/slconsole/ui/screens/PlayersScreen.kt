@@ -223,6 +223,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        modifier = Modifier.clarityMask(),
         sheetState = sheetState,
         contentWindowInsets = {
             BottomSheetDefaults.windowInsets
@@ -274,16 +275,18 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                 Spacer(Modifier.height(16.dp))
                 SectionCard("玩家详情") {
                     if (detail != null) {
-                        KeyValueRow("UserID", detail?.userid ?: "-", mono = true)
-                        KeyValueRow("PlayerId", detail?.playerId?.toString() ?: "-")
-                        KeyValueRow("血量", detail?.health?.let { "%.0f".format(it) } ?: "-")
-                        KeyValueRow("房间", detail?.room ?: "-")
-                        detail?.position?.let { pos ->
-                            KeyValueRow(
-                                "坐标",
-                                listOfNotNull(pos.x, pos.y, pos.z).joinToString(", ") { "%.0f".format(it) },
-                                mono = true,
-                            )
+                        Column(Modifier.clarityMask()) {
+                            KeyValueRow("UserID", detail?.userid ?: "-", mono = true)
+                            KeyValueRow("PlayerId", detail?.playerId?.toString() ?: "-")
+                            KeyValueRow("血量", detail?.health?.let { "%.0f".format(it) } ?: "-")
+                            KeyValueRow("房间", detail?.room ?: "-")
+                            detail?.position?.let { pos ->
+                                KeyValueRow(
+                                    "坐标",
+                                    listOfNotNull(pos.x, pos.y, pos.z).joinToString(", ") { "%.0f".format(it) },
+                                    mono = true,
+                                )
+                            }
                         }
                     } else {
                         Text(

@@ -59,9 +59,14 @@ fun UpdateDialog(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
+                HorizontalDivider()
+                Text(
+                    "本应用不会自行校验安装包哈希。如果下面有 SHA-256，请下载后自己对比。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 info.sha256?.let { sha ->
-                    HorizontalDivider()
-                    Text("安装包 SHA-256（下载后可自行核对）", style = MaterialTheme.typography.labelMedium)
+                    Text("安装包 SHA-256", style = MaterialTheme.typography.labelMedium)
                     SelectionContainer {
                         Text(
                             sha,
@@ -70,7 +75,11 @@ fun UpdateDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
+                } ?: Text(
+                    "这次没有提供 SHA-256 摘要。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         },
         confirmButton = {

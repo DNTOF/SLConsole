@@ -159,6 +159,7 @@ private fun VoicePanel(host: String, voicePort: Int, apiKey: String, players: Li
                         )
                         Text(
                             detail,
+                            modifier = Modifier.clarityMask(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

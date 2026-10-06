@@ -4,6 +4,7 @@
 package com.dntof.slconsole.data.remote
 
 import com.dntof.slconsole.data.model.ControlBeta
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.model.SlEvent
 import kotlinx.coroutines.CompletableDeferred
@@ -92,6 +93,11 @@ class WsControlClient(private val config: ServerConfig) {
 
     private fun connect() {
         if (!started) return
+        HostAddress.problem(config.host)?.let { problem ->
+            _state.value = ConnState.FAILED
+            _stateDetail.value = problem
+            return
+        }
         _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
         _stateDetail.value = "正在连接 ${config.addressText}/control…"

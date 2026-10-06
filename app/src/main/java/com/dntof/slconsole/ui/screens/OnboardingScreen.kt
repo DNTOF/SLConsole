@@ -67,18 +67,23 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.analytics.ClarityDefaults
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalImeLift
 import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.components.AppIconBadge
+import com.dntof.slconsole.ui.components.SecretOutlinedField
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
 private const val STEP_COUNT = 6
+
+/** 使用统计是第 4 步（从 0 数是 3）。在这之前跳过，统计保持关闭。 */
+private const val ANALYTICS_STEP = 3
 
 private data class TourCard(val title: String, val body: String, val icon: ImageVector)
 
@@ -112,7 +117,7 @@ private val TOUR = listOf(
 
 /**
  * 第一次打开时盖在主界面上。用普通纯色表面，不跟液态玻璃开关走。
- * 「跳过」只结束引导，不改使用统计的当前值。
+ * 在走到使用统计那一步之前点「跳过」，会把使用统计写成关闭。走到那一步之后再跳过，不改已经保存的选择。
  */
 @Composable
 fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
@@ -156,7 +161,9 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     fun finish() {
         if (finishing) return
         finishing = true
+        val turnAnalyticsOff = !replay && analyticsChoice == null && step < ANALYTICS_STEP
         scope.launch {
+            if (turnAnalyticsOff) settings.setUsageAnalytics(false)
             settings.setOnboardingCompleted(true)
             onFinished()
         }
@@ -237,8 +244,9 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                             onTest = {
                                 val h = host.trim()
                                 val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
-                                if (h.isEmpty() || verifyToken.isBlank()) {
-                                    testResult = false to "请先填写主机地址和 VerifyToken"
+                                val hostError = HostAddress.problem(h)
+                                if (hostError != null || verifyToken.isBlank()) {
+                                    testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
                                     return@AddServerStep
                                 }
                                 testing = true
@@ -443,10 +451,13 @@ private fun AddServerStep(
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    val hostError = if (host.isBlank()) null else HostAddress.problem(host.trim())
     OutlinedTextField(
         value = host,
         onValueChange = onHost,
         label = { Text("主机（IP 或域名）") },
+        isError = hostError != null,
+        supportingText = hostError?.let { message -> { Text(message) } },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
@@ -458,18 +469,16 @@ private fun AddServerStep(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
-    OutlinedTextField(
+    SecretOutlinedField(
         value = verifyToken,
         onValueChange = onVerify,
         label = { Text("VerifyToken") },
-        singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
-    OutlinedTextField(
+    SecretOutlinedField(
         value = apiKey,
         onValueChange = onApiKey,
         label = { Text("API Key（可选）") },
-        singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
     OutlinedButton(onClick = onTest, enabled = !testing) {
@@ -526,11 +535,11 @@ private fun TourStep() {
 private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
     Text("使用统计", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。服务器地址、密钥、控制台内容和玩家昵称会被遮住，不会原样上传。",
+        "匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。开启之后，Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。",
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(
-        "跳过的话保持现在的默认：开启。你可以以后在设置里关掉。" +
+        "如果在走到这一步之前点「跳过」，使用统计会关闭。走到这一步之后如果没有选择就跳过或继续，会按默认开启。以后可以在设置里改。" +
             "除此之外，应用只在检查更新时访问 GitHub；服务器数据只在手机和你自己的服务器之间传输。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -600,6 +609,9 @@ private suspend fun saveQuickServer(
     val tokenBlank = verifyToken.isBlank()
     val keyBlank = apiKey.isBlank()
     if (hostText.isEmpty() && tokenBlank && keyBlank) return null
+    if (hostText.isNotEmpty()) {
+        HostAddress.problem(hostText)?.let { return it }
+    }
     val p = port.toIntOrNull()
     return when {
         hostText.isEmpty() || tokenBlank -> "主机和 VerifyToken 要一起填，或者这一步留空"

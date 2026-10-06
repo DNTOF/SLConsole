@@ -122,6 +122,7 @@ import com.dntof.slconsole.data.local.SignatureCheck
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.data.repo.MonitorEngine
+import com.dntof.slconsole.data.update.UpdateLinks
 import com.dntof.slconsole.ui.components.AppBackdrop
 import com.dntof.slconsole.ui.components.AppLayout
 import com.dntof.slconsole.ui.components.AppSurface
@@ -416,7 +417,7 @@ fun AppRoot(startupNotice: String? = null) {
         })
     }
     // 第一次打开先不初始化 Clarity。引导完成或跳过之后标记才会变成 true，这里才开始听开关。
-    // 选「不开启」会先把偏好写成 false，所以走到初始化时 Clarity 不会被创建。跳过则保持默认开启。
+    // 选「不开启」，或在走到使用统计那一步之前跳过，偏好会写成 false，Clarity 不会被创建。
     LaunchedEffect(onboardingCompleted) {
         if (onboardingCompleted != true) return@LaunchedEffect
         ServiceLocator.settingsStore.usageAnalyticsFlow.collect { enabled ->
@@ -435,8 +436,9 @@ fun AppRoot(startupNotice: String? = null) {
         }
         return
     }
-    // 上锁时只画锁屏，主界面不组合，内容不会露出来。Clarity 的初始化在上面，不受影响。
+    // 上锁时只画锁屏，主界面不组合，内容不会露出来。同时停掉监控轮询，解锁后再按当前服务器恢复。
     if (lockPref == true && !appUnlocked) {
+        SideEffect { MonitorEngine.setActive(null) }
         AppLockGate()
         return
     }
@@ -503,7 +505,7 @@ fun AppRoot(startupNotice: String? = null) {
         LocalImeLift provides imeLift,
         LocalReplayOnboarding provides { replayOnboarding = true },
     ) {
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = appear.value }) {
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = appear.value }.clarityMask()) {
             if (layout == AppLayout.Compact) {
                 CompactShell(
                     navController = navController,
@@ -542,12 +544,15 @@ fun AppRoot(startupNotice: String? = null) {
                         info = info,
                         onUpdate = {
                             UpdateChecker.dismiss()
-                            val url = info.apkUrl ?: info.pageUrl
-                            runCatching {
-                                context.startActivity(
-                                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
+                            val url = UpdateLinks.pageToOpen(info.apkUrl, info.pageUrl)
+                            val parsed = android.net.Uri.parse(url)
+                            if (parsed.scheme.equals("https", ignoreCase = true)) {
+                                runCatching {
+                                    context.startActivity(
+                                        android.content.Intent(android.content.Intent.ACTION_VIEW, parsed)
+                                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                                    )
+                                }
                             }
                         },
                         onLater = { UpdateChecker.dismiss() },
@@ -881,6 +886,7 @@ private fun SubRouteTopBar(currentRoute: String?, active: ServerConfig?, onBack:
                 Text(Routes.SUB_TITLES[currentRoute] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     active?.displayName ?: "未添加服务器",
+                    modifier = Modifier.clarityMask(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -961,10 +967,14 @@ private fun ServerTopBar(
                 }
                 Icon(Icons.Filled.ArrowDropDown, "切换服务器")
             }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                modifier = Modifier.clarityMask(),
+            ) {
                 servers.forEach { server ->
                     DropdownMenuItem(
-                        text = { Text(server.displayName) },
+                        text = { Text(server.displayName, modifier = Modifier.clarityMask()) },
                         leadingIcon = {
                             if (server.id == active?.id) {
                                 Icon(Icons.Filled.Check, null, Modifier.width(20.dp))

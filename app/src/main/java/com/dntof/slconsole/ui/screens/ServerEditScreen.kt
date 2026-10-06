@@ -37,10 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.components.SecretOutlinedField
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -64,8 +66,9 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     var label by rememberSaveable { mutableStateOf("") }
     var host by rememberSaveable { mutableStateOf("") }
     var port by rememberSaveable { mutableStateOf(ServerConfig.DEFAULT_PORT.toString()) }
-    var verifyToken by rememberSaveable { mutableStateOf("") }
-    var apiKey by rememberSaveable { mutableStateOf("") }
+    // 令牌不进 saved state，避免旋转或进程重建时写进系统保存的界面状态。
+    var verifyToken by remember { mutableStateOf("") }
+    var apiKey by remember { mutableStateOf("") }
     var transport by rememberSaveable { mutableStateOf("http") }
     var voicePortText by rememberSaveable { mutableStateOf("") }
     var intervalSec by remember { mutableFloatStateOf((ServerConfig.DEFAULT_INTERVAL_MS / 1000).toFloat()) }
@@ -92,8 +95,9 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     fun testConnection() {
         val h = host.trim()
         val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
-        if (h.isEmpty() || verifyToken.isBlank()) {
-            testResult = false to "请先填写主机地址和 VerifyToken"
+        val hostError = HostAddress.problem(h)
+        if (hostError != null || verifyToken.isBlank()) {
+            testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
             return
         }
         testing = true
@@ -115,8 +119,9 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     fun save() {
         val h = host.trim()
         val p = port.toIntOrNull()
+        val hostError = HostAddress.problem(h)
         when {
-            h.isEmpty() -> saveError = "主机地址不能为空"
+            hostError != null -> saveError = hostError
             p == null || p < 1 || p > 65535 -> saveError = "端口必须是 1-65535 的数字"
             verifyToken.isBlank() -> saveError = "VerifyToken 是监控数据接口的必填凭据"
             else -> {
@@ -174,10 +179,13 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             )
         }
         item {
+            val hostError = if (host.isBlank()) null else HostAddress.problem(host.trim())
             OutlinedTextField(
                 value = host,
                 onValueChange = { host = it },
                 label = { Text("主机(IP 或域名)") },
+                isError = hostError != null,
+                supportingText = hostError?.let { message -> { Text(message) } },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
@@ -193,22 +201,20 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             )
         }
         item {
-            OutlinedTextField(
+            SecretOutlinedField(
                 value = verifyToken,
                 onValueChange = { verifyToken = it },
                 label = { Text("VerifyToken(数据面凭据,必填)") },
                 supportingText = { Text("插件 config.yml 中的 verify_token,用于拉取监控数据") },
-                singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
         item {
-            OutlinedTextField(
+            SecretOutlinedField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
                 label = { Text("API Key(控制面凭据,可选)") },
                 supportingText = { Text("sld_live_ / sld_duty_ 开头,权限在创建时就定了。要 admin 权限请在游戏里新建 admin Key 再换上;不填则只能看监控") },
-                singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
@@ -281,8 +287,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         }
         item {
             Text(
-                "凭据仅保存在本机(AndroidKeyStore 加密),只发送给你自己的服务器,不经过任何第三方。" +
-                    "SLDataAPI 使用明文 HTTP/WS,建议仅在可信网络或反向代理 TLS 后使用。",
+                "凭据只保存在这台手机上（AndroidKeyStore 加密），只发给你自己的服务器，不经过任何第三方。" +
+                    "当前连接还没有加密，应用只使用明文 HTTP 和 WS。请先在局域网或 VPN 里使用。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
