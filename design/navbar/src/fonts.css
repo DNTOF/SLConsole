@@ -1,0 +1,56 @@
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../fonts/NotoSansSC-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('../fonts/NotoSansSC-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'LXGW WenKai';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../fonts/LXGWWenKai-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../fonts/jetbrains-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../fonts/lora-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('../fonts/lora-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('../fonts/poppins-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url('../fonts/poppins-latin-500-normal.woff2') format('woff2');
+}
