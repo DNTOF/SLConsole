@@ -7,6 +7,7 @@ import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.model.ServerData
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.remote.SlHttpClient
+import com.dntof.slconsole.data.remote.tls.TransportSession
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,7 @@ object MonitorEngine {
 
     fun setActive(server: ServerConfig?) {
         job?.cancel()
+        currentServer?.id?.let { TransportSession.invalidate(it) }
         currentServer = server
         if (server == null) {
             _state.value = MonitorState.Idle

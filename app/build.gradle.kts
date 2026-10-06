@@ -151,4 +151,6 @@ dependencies {
     implementation(libs.androidx.fragment)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.tls)
+    testImplementation(libs.okhttp.mockwebserver)
 }

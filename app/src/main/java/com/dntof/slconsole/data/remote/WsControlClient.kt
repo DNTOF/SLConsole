@@ -7,6 +7,14 @@ import com.dntof.slconsole.data.model.ControlBeta
 import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.model.SlEvent
+import com.dntof.slconsole.data.remote.tls.HelloTlsCheck
+import com.dntof.slconsole.data.remote.tls.TlsClients
+import com.dntof.slconsole.data.remote.tls.TlsEvents
+import com.dntof.slconsole.data.remote.tls.TlsHandshakePolicy
+import com.dntof.slconsole.data.remote.tls.TlsMessages
+import com.dntof.slconsole.data.remote.tls.TransportFailure
+import com.dntof.slconsole.data.remote.tls.TransportStatus
+import com.dntof.slconsole.data.remote.tls.shortMessage
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,14 +32,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -41,6 +48,8 @@ import java.util.concurrent.atomic.AtomicLong
  * call{reqId,path,body} → result{reqId,ok,status,data|message};
  * subscribe_events → event 帧。断线自动重连,重连后自动重新订阅事件。
  * 2.6.1 起 hello 可以带 beta 数组(adapted_actions / file_chunks)。没有这个字段时按 2.6.0 处理。
+ * 连接先试 wss。证书不对就停;只有对端不讲 TLS 才退回 ws,并在界面上标明不加密。
+ * hello 里的 tls / cert_fingerprint 只用来核对,不能据此降级。
  */
 class WsControlClient(private val config: ServerConfig) {
 
@@ -56,12 +65,12 @@ class WsControlClient(private val config: ServerConfig) {
         ) : CallResult
     }
 
+    private enum class Phase { TRY_TLS, PLAIN, FORCE_TLS, DEAD }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
     private var webSocket: WebSocket? = null
+    private val attemptGen = AtomicInteger(0)
+    private var phase = Phase.TRY_TLS
     private val pending = ConcurrentHashMap<String, CompletableDeferred<CallResult>>()
     private val seq = AtomicLong(0)
 
@@ -84,6 +93,15 @@ class WsControlClient(private val config: ServerConfig) {
     @Volatile private var wantEvents = false
     @Volatile private var readyOnce = false
 
+    fun sameEndpoint(other: ServerConfig): Boolean {
+        return config.host == other.host &&
+            config.port == other.port &&
+            config.apiKey == other.apiKey &&
+            config.certFingerprint == other.certFingerprint &&
+            config.tlsSeen == other.tlsSeen &&
+            config.controlTransport == other.controlTransport
+    }
+
     fun start() {
         if (started) return
         started = true
@@ -92,35 +110,59 @@ class WsControlClient(private val config: ServerConfig) {
     }
 
     private fun connect() {
-        if (!started) return
+        if (!started || phase == Phase.DEAD) return
         HostAddress.problem(config.host)?.let { problem ->
-            _state.value = ConnState.FAILED
-            _stateDetail.value = problem
+            failTerminal(problem)
             return
         }
+        val secure = phase != Phase.PLAIN
+        val generation = attemptGen.incrementAndGet()
         _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
-        _stateDetail.value = "正在连接 ${config.addressText}/control…"
+        _stateDetail.value = if (secure) {
+            "正在加密连接 ${config.addressText}/control…"
+        } else {
+            "正在以明文连接 ${config.addressText}/control…"
+        }
         val request = Request.Builder()
-            .url(config.wsUrl)
+            .url(config.controlWebSocket(secure))
             .header("Authorization", "Bearer " + config.apiKey.filter { it.code in 32..126 })
             .build()
-        webSocket = client.newWebSocket(request, listener)
+        val previous = webSocket
+        webSocket = TlsClients.ws(config.certFingerprint, secure)
+            .newWebSocket(request, socketListener(generation, secure))
+        previous?.cancel()
     }
 
-    private val listener = object : WebSocketListener() {
+    private fun socketListener(generation: Int, secure: Boolean) = object : WebSocketListener() {
+        private fun current(): Boolean = generation == attemptGen.get() && started
+
         override fun onOpen(webSocket: WebSocket, response: Response) {
+            if (!current()) return
             _handshakeStatus.value = response.code
+            if (secure) {
+                TlsEvents.mark(config.id)
+                TransportStatus.onEncrypted(config.id)
+            } else {
+                TransportStatus.onPlaintext(config.id)
+            }
         }
 
         override fun onMessage(webSocket: WebSocket, text: String) {
+            if (!current()) return
             val obj = runCatching { AppJson.json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return
             when ((obj["type"] as? JsonPrimitive)?.content) {
                 "hello" -> {
+                    val verdict = HelloTlsCheck.check(secure, obj, config.certFingerprint)
+                    if (!verdict.ok) {
+                        failTerminal(verdict.message ?: TlsMessages.helloTlsMismatch())
+                        return
+                    }
                     readyOnce = true
                     _beta.value = ControlBeta.fromHello(obj)
                     _state.value = ConnState.READY
-                    _stateDetail.value = "已连接 SLDataAPI ${(obj["version"] as? JsonPrimitive)?.content ?: ""}"
+                    val lock = if (secure) "加密" else "明文"
+                    _stateDetail.value = "已连接 SLDataAPI ${(obj["version"] as? JsonPrimitive)?.content ?: ""}（$lock）"
                     if (wantEvents) sendSubscribe()
                 }
                 "pong" -> Unit
@@ -157,14 +199,54 @@ class WsControlClient(private val config: ServerConfig) {
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            if (!current() || phase == Phase.DEAD) return
             _handshakeStatus.value = response?.code ?: 0
+            if (!secure && response?.code == 426) {
+                if (phase == Phase.FORCE_TLS) {
+                    failTerminal(TlsMessages.tlsRequired())
+                    return
+                }
+                phase = Phase.FORCE_TLS
+                failAllPending("WS 通道改为加密重试")
+                connect()
+                return
+            }
+            if (secure) {
+                val seen = config.tlsSeen || TlsEvents.seen(config.id)
+                val allow = phase == Phase.TRY_TLS && !seen
+                when (val decision = TlsHandshakePolicy.onTlsFailure(t, seen, allow)) {
+                    TlsHandshakePolicy.Decision.UsePlaintext -> {
+                        phase = Phase.PLAIN
+                        TransportStatus.onPlaintext(config.id)
+                        failAllPending("WS 通道改为明文")
+                        connect()
+                    }
+                    TlsHandshakePolicy.Decision.RetryLater -> {
+                        _state.value = ConnState.FAILED
+                        _stateDetail.value = TlsMessages.other(t.shortMessage())
+                        failAllPending("WS 通道已断开")
+                        scheduleReconnect()
+                    }
+                    TlsHandshakePolicy.Decision.RetryTls -> {
+                        phase = Phase.FORCE_TLS
+                        connect()
+                    }
+                    is TlsHandshakePolicy.Decision.Stop -> {
+                        publish(decision.failure)
+                        failTerminal(decision.failure.message)
+                    }
+                }
+                return
+            }
             _state.value = ConnState.FAILED
-            _stateDetail.value = "连接失败:${t.message ?: "未知错误"}" + (response?.code?.let { "(HTTP $it)" } ?: "")
+            _stateDetail.value = "连接失败:${t.shortMessage()}" + (response?.code?.let { "(HTTP $it)" } ?: "")
             failAllPending("WS 通道已断开")
             scheduleReconnect()
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            if (!current()) return
+            if (phase == Phase.DEAD) return
             _state.value = ConnState.CLOSED
             _stateDetail.value = "连接已关闭($code)"
             failAllPending("WS 通道已关闭")
@@ -172,8 +254,25 @@ class WsControlClient(private val config: ServerConfig) {
         }
     }
 
+    private fun publish(failure: TransportFailure) {
+        when (failure) {
+            is TransportFailure.Tofu -> TransportStatus.onTofu(config.id, failure.fingerprint)
+            is TransportFailure.Mismatch -> TransportStatus.onMismatch(config.id, failure.pinned, failure.presented)
+            else -> Unit
+        }
+    }
+
+    private fun failTerminal(message: String) {
+        phase = Phase.DEAD
+        attemptGen.incrementAndGet()
+        _state.value = ConnState.FAILED
+        _stateDetail.value = message
+        failAllPending(message)
+        runCatching { webSocket?.cancel() }
+    }
+
     private fun scheduleReconnect() {
-        if (!started) return
+        if (!started || phase == Phase.DEAD) return
         scope.launch {
             delay(if (readyOnce) 3000 else 5000)
             connect()
@@ -245,6 +344,7 @@ class WsControlClient(private val config: ServerConfig) {
 
     fun stop() {
         started = false
+        phase = Phase.DEAD
         failAllPending("客户端已停止")
         runCatching { webSocket?.cancel() }
         scope.cancel()

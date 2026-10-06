@@ -40,9 +40,16 @@ import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
+import com.dntof.slconsole.data.remote.tls.CertFingerprint
+import com.dntof.slconsole.data.remote.tls.TransportFailure
+import com.dntof.slconsole.data.remote.tls.TransportStatus
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalSnackbarHost
+import com.dntof.slconsole.ui.components.ConfirmDialog
+import com.dntof.slconsole.ui.components.FingerprintText
+import com.dntof.slconsole.ui.components.MismatchDialog
 import com.dntof.slconsole.ui.components.SecretOutlinedField
+import com.dntof.slconsole.ui.components.TofuDialog
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -71,8 +78,14 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     var apiKey by remember { mutableStateOf("") }
     var transport by rememberSaveable { mutableStateOf("http") }
     var voicePortText by rememberSaveable { mutableStateOf("") }
+    var fingerprint by rememberSaveable { mutableStateOf("") }
+    var tlsSeen by rememberSaveable { mutableStateOf(false) }
     var intervalSec by remember { mutableFloatStateOf((ServerConfig.DEFAULT_INTERVAL_MS / 1000).toFloat()) }
     var prefilled by remember { mutableStateOf(serverId == null) }
+    var fingerprintDirty by remember { mutableStateOf(false) }
+    var tlsSeenDirty by remember { mutableStateOf(false) }
+    var trustPrompt by remember { mutableStateOf<TransportStatus.Prompt?>(null) }
+    var confirmReset by remember { mutableStateOf(false) }
 
     LaunchedEffect(existing) {
         val cfg = existing ?: return@LaunchedEffect
@@ -85,6 +98,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         apiKey = cfg.apiKey
         transport = cfg.controlTransport
         voicePortText = if (cfg.voicePort > 0) cfg.voicePort.toString() else ""
+        fingerprint = cfg.certFingerprint
+        tlsSeen = cfg.tlsSeen
         intervalSec = (cfg.refetchIntervalMs / 1000).toFloat()
     }
 
@@ -100,45 +115,76 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
             return
         }
+        val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
+        if (fingerprint.isNotBlank() && pin == null) {
+            testResult = false to "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
+            return
+        }
         testing = true
         testResult = null
         scope.launch {
-            val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
-            when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
+            val temp = ServerConfig(
+                id = "test",
+                host = h,
+                port = p,
+                verifyToken = verifyToken,
+                certFingerprint = pin.orEmpty(),
+                tlsSeen = tlsSeen,
+            )
+            when (val result = SlHttpClient().getData(temp, "/get_sl_data", useCache = false)) {
                 is SlHttpClient.HttpResult.Success -> {
                     val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
                     val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                    testResult = true to "连接成功:${name ?: "(未命名服务器)"}(在线 $count 人)"
+                    val lock = if (result.encrypted) "加密" else "明文"
+                    testResult = true to "连接成功（$lock）:${name ?: "(未命名服务器)"}(在线 $count 人)"
                 }
-                is SlHttpClient.HttpResult.Failure -> testResult = false to result.message
+                is SlHttpClient.HttpResult.Failure -> {
+                    testResult = false to result.message
+                    trustPrompt = when (val tls = result.tls) {
+                        is TransportFailure.Tofu -> TransportStatus.Prompt.Tofu(tls.fingerprint)
+                        is TransportFailure.Mismatch -> TransportStatus.Prompt.Mismatch(tls.pinned, tls.presented)
+                        else -> null
+                    }
+                }
             }
             testing = false
         }
     }
 
     fun save() {
+        if (serverId != null && !prefilled) {
+            saveError = "正在读取原配置，请稍候再保存"
+            return
+        }
         val h = host.trim()
         val p = port.toIntOrNull()
         val hostError = HostAddress.problem(h)
+        val typedPin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
         when {
             hostError != null -> saveError = hostError
             p == null || p < 1 || p > 65535 -> saveError = "端口必须是 1-65535 的数字"
             verifyToken.isBlank() -> saveError = "VerifyToken 是监控数据接口的必填凭据"
+            fingerprint.isNotBlank() && typedPin == null -> saveError = "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
             else -> {
                 saveError = null
-                val config = ServerConfig(
-                    id = serverId ?: ServerConfig.newId(),
-                    label = label.trim(),
-                    host = h,
-                    port = p,
-                    verifyToken = verifyToken.filter { it.code in 32..126 }.trim(),
-                    apiKey = apiKey.filter { it.code in 32..126 }.trim(),
-                    controlTransport = transport,
-                    voicePort = voicePortText.trim().toIntOrNull() ?: 0,
-                    refetchIntervalMs = intervalSec.toLong() * 1000,
-                    createdAt = existing?.createdAt ?: System.currentTimeMillis(),
-                )
                 scope.launch {
+                    val stored = serverId?.let { id -> store.serversFlow.first().find { it.id == id } }
+                    val pin = if (fingerprintDirty || stored == null) typedPin.orEmpty() else stored.certFingerprint
+                    val seen = if (tlsSeenDirty || stored == null) tlsSeen else stored.tlsSeen
+                    val config = ServerConfig(
+                        id = serverId ?: ServerConfig.newId(),
+                        label = label.trim(),
+                        host = h,
+                        port = p,
+                        verifyToken = verifyToken.filter { it.code in 32..126 }.trim(),
+                        apiKey = apiKey.filter { it.code in 32..126 }.trim(),
+                        controlTransport = transport,
+                        voicePort = voicePortText.trim().toIntOrNull() ?: 0,
+                        refetchIntervalMs = intervalSec.toLong() * 1000,
+                        createdAt = existing?.createdAt ?: stored?.createdAt ?: System.currentTimeMillis(),
+                        certFingerprint = pin,
+                        tlsSeen = seen,
+                    )
                     try {
                         store.upsert(config)
                     } catch (e: Exception) {
@@ -253,6 +299,33 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             }
         }
         item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("证书指纹", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    if (tlsSeen) "已锁定：这台服务器用加密连通过，不会自动改回明文。"
+                    else "还没锁定。插件支持 TLS 时会加密；旧版或关闭 TLS 时走明文。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val shown = CertFingerprint.normalize(fingerprint)
+                if (shown != null) FingerprintText(shown)
+                OutlinedTextField(
+                    value = fingerprint,
+                    onValueChange = {
+                        fingerprint = it
+                        fingerprintDirty = true
+                    },
+                    label = { Text("预先粘贴指纹（可选）") },
+                    supportingText = { Text("SHA-256，可以带冒号或空格。留空则第一次加密连接时再确认。") },
+                    modifier = Modifier.fillMaxWidth().keepAboveIme(),
+                    minLines = 2,
+                )
+                if (tlsSeen && serverId != null) {
+                    OutlinedButton(onClick = { confirmReset = true }) { Text("重置加密记录") }
+                }
+            }
+        }
+        item {
             Column {
                 Text(
                     "监控轮询间隔:${intervalSec.toInt()} 秒",
@@ -288,10 +361,52 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         item {
             Text(
                 "凭据只保存在这台手机上（AndroidKeyStore 加密），只发给你自己的服务器，不经过任何第三方。" +
-                    "当前连接还没有加密，应用只使用明文 HTTP 和 WS。请先在局域网或 VPN 里使用。",
+                    "插件支持 TLS 时走 HTTPS/WSS，并固定服务器自签证书。第一次连接请对照控制台指纹（sldataapi cert show，或启动时的 TLS 横幅）再信任。" +
+                    "需要带 TLS 的 SLDataAPI；旧版或 tls_mode 为 off 时会显示「此连接不加密」。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+    when (val prompt = trustPrompt) {
+        is TransportStatus.Prompt.Tofu -> TofuDialog(
+            fingerprint = prompt.fingerprint,
+            onTrust = {
+                CertFingerprint.normalize(prompt.fingerprint)?.let {
+                    fingerprint = it
+                    fingerprintDirty = true
+                }
+                trustPrompt = null
+            },
+            onDismiss = { trustPrompt = null },
+        )
+        is TransportStatus.Prompt.Mismatch -> MismatchDialog(
+            pinned = prompt.pinned,
+            presented = prompt.presented,
+            onTrust = {
+                CertFingerprint.normalize(prompt.presented)?.let {
+                    fingerprint = it
+                    fingerprintDirty = true
+                }
+                trustPrompt = null
+            },
+            onDismiss = { trustPrompt = null },
+        )
+        null -> Unit
+    }
+    if (confirmReset && serverId != null) {
+        ConfirmDialog(
+            title = "重置加密记录？",
+            text = "重置后，如果加密握手失败，应用会再次允许明文。只有确认这台服务器已经关掉 TLS 时才这么做。明文连接会一直显示「此连接不加密」。",
+            confirmLabel = "仍然重置",
+            danger = true,
+            onConfirm = {
+                tlsSeen = false
+                tlsSeenDirty = true
+                val id = serverId
+                scope.launch { com.dntof.slconsole.data.remote.tls.ServerSecurity.resetLatch(id) }
+            },
+            onDismiss = { confirmReset = false },
+        )
     }
 }

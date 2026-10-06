@@ -23,10 +23,12 @@ fun rememberServerBeta(): ControlBeta {
         server?.host,
         server?.port,
         server?.apiKey,
+        server?.certFingerprint,
+        server?.tlsSeen,
         canListen,
     ) {
         val current = server
-        if (!canListen || current == null) {
+        if (current == null || current.controlTransport != "ws" || !current.hasControl) {
             value = ControlBeta.None
             return@produceState
         }

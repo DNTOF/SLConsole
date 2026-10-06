@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.AppJson
+import com.dntof.slconsole.data.remote.tls.CertFingerprint
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
@@ -59,6 +60,28 @@ class ServerStore(private val context: Context) {
         }
     }
 
+    /** 加密握手成功后写上闩。已经是 true 时什么都不改。 */
+    suspend fun markTlsSeen(id: String) {
+        context.serverDataStore.edit { prefs ->
+            val list = prefs[Keys.SERVERS]?.let { decodeServers(it) } ?: return@edit
+            if (list.none { it.id == id && !it.tlsSeen }) return@edit
+            val updated = list.map { if (it.id == id) it.copy(tlsSeen = true) else it }
+            prefs[Keys.SERVERS] = encodeServers(updated)
+        }
+    }
+
+    /** 改指纹或加密锁。指纹请先规范化;空字符串表示还没固定。 */
+    suspend fun updateSecurity(id: String, fingerprint: String, tlsSeen: Boolean) {
+        context.serverDataStore.edit { prefs ->
+            val list = prefs[Keys.SERVERS]?.let { decodeServers(it) } ?: return@edit
+            if (list.none { it.id == id }) return@edit
+            val updated = list.map {
+                if (it.id == id) it.copy(certFingerprint = fingerprint, tlsSeen = tlsSeen) else it
+            }
+            prefs[Keys.SERVERS] = encodeServers(updated)
+        }
+    }
+
     private fun encodeServers(list: List<ServerConfig>): String {
         val stored = list.map {
             it.copy(
@@ -82,6 +105,7 @@ class ServerStore(private val context: Context) {
             decrypted.copy(
                 verifyToken = decrypted.verifyToken.filter { c -> c.code in 32..126 }.trim(),
                 apiKey = decrypted.apiKey.filter { c -> c.code in 32..126 }.trim(),
+                certFingerprint = CertFingerprint.normalize(decrypted.certFingerprint).orEmpty(),
             )
         }
     }

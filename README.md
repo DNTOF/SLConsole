@@ -24,12 +24,12 @@
 
 ```text
 SLConsole (Android, Kotlin + Jetpack Compose)
-  │  HTTP   GET  /get_sl_data         Bearer <VerifyToken>   监控轮询
-  │  HTTP   POST /control/*           Bearer <API Key>       控制操作
-  │  WS     ws://host:8081/control    Bearer <API Key>       控制调用 + 实时事件
-  │  WS     ws://host:<voice_port>/ws Bearer <API Key>       语音流(float32 PCM)
+  │  HTTP   https://host:8081/...          Bearer <VerifyToken>   监控轮询（明文回退 http）
+  │  HTTP   POST /control/*                Bearer <API Key>       控制操作
+  │  WS     wss://host:8081/control        Bearer <API Key>       控制调用 + 实时事件（明文回退 ws）
+  │  WS     wss://host:<voice_port>/ws     Bearer <API Key>       语音流（明文回退 ws，同一张证书）
   ▼
-SLDataAPI 2.6.0 及以上。2.6.1 是预发布，里面的内测功能默认关闭，不打开时和 2.6.0 一样。
+SLDataAPI 2.6.0 及以上。加密需要带 TLS 的版本。2.6.1 是预发布，里面的内测功能默认关闭，不打开时和 2.6.0 一样。
 ```
 
 - 数据面与控制面为两套独立凭据(与 Web 端 upstream.js 注入规则一致);
@@ -51,16 +51,17 @@ SLDataAPI 2.6.0 及以上。2.6.1 是预发布，里面的内测功能默认关�
 
 ## 服务器端前置条件
 
-1. 游戏服务器安装 SLDataAPI 2.6.0 或更新版本,`verify_token` 为强口令(弱口令会触发 fail-closed 503)。2.6.1 预发布的适配插件动作和大文件分块默认关闭,需要时再在测试服打开;
-2. `control_enabled: true`,按需选择 `control_transport: http | ws`(与 app 内设置一致);
-3. 通过服务器控制台创建 API Key:`sldataapi apikey create <id> <duty|admin>`。Key 的角色在创建时就定了,事后改 `apikey.config` 里的角色不会生效,还会导致认证失败;要 admin 权限就新建一把 admin Key 并在 app 里换上。按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点;
-4. 启用语音需 `voice_enabled: true`,并确认语音端口可被手机直连(不走网页反向代理);
-5. 防火墙放行 8081(及语音端口)。
+1. 游戏服务器安装带 TLS 的 SLDataAPI（2.6.0 或更新版本的功能仍可用；加密需要新版插件）。`verify_token` 为强口令（弱口令会触发 fail-closed 503）。2.6.1 预发布的适配插件动作和大文件分块默认关闭，需要时再在测试服打开；
+2. `control_enabled: true`，按需选择 `control_transport: http | ws`（与 app 内设置一致）。`tls_mode` 为 `off | optional | required`，默认 `optional`；
+3. 通过服务器控制台创建 API Key：`sldataapi apikey create <id> <duty|admin>`。Key 的角色在创建时就定了，事后改 `apikey.config` 里的角色不会生效，还会导致认证失败；要 admin 权限就新建一把 admin Key 并在 app 里换上。按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点；
+4. 启用语音需 `voice_enabled: true`，并确认语音端口可被手机直连（不走网页反向代理）。语音端口用同一张证书；
+5. 防火墙放行 8081（及语音端口）。证书指纹用 `sldataapi cert show` 查看，或看启动时的 `TLS: … SHA-256` 横幅。更换证书用 `sldataapi cert regen`（只影响新连接）。
 
 ## 安全说明
 
-- 凭据经 AndroidKeyStore AES-256-GCM 加密后存储,密钥不可导出,卸载即失效;
-- 应用目前只使用明文 HTTP/WS，连接还没有加密。请先在局域网或 VPN 里使用。
+- 凭据经 AndroidKeyStore AES-256-GCM 加密后存储，密钥不可导出，卸载即失效；
+- 插件支持 TLS 时，连接使用 HTTPS/WSS，并固定该服务器自签证书的 SHA-256 指纹。第一次连接会请你对照服务器控制台（`sldataapi cert show` 或启动横幅）再信任。需要带 TLS 的 SLDataAPI。旧插件或 `tls_mode: off` 会退回明文，界面一直显示「此连接不加密」；一旦加密成功过，就不会再自动改回明文。
+- 检查更新仍然用系统信任访问 GitHub，不受这台服务器的证书固定影响。
 - 封禁、引爆核弹、重启回合等破坏性操作均有二次确认。
 
 ## 数据与隐私
@@ -138,6 +139,6 @@ SLConsole is free software: you can redistribute it and/or modify it under the t
 - **Names, icon and badge:** the GPL does not grant any rights to the name "SLConsole", the author name "DNT_OF", the app icon or the 「正版授权」 (genuine) badge shown on the About page. Under GPLv3 section 7(e), trademark rights to them are not granted. Modified versions, including re-signed or repackaged builds, must not claim to be official or endorsed, must not display the 「正版授权」 badge, and must not use the SLConsole name or icon; they must not alter or bypass the signature check to make the badge appear.
 
 - **Additional permission (linking exception):** as the sole copyright holder, DNT_OF grants an additional permission under GPLv3 section 7 to combine and convey SLConsole with the Microsoft Clarity SDK, the Google Play Install Referrer library and their transitive non-GPL dependencies, without those components having to be provided in source form. See [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md). The SPDX headers stay `GPL-3.0-or-later` because the SPDX list has no identifier for this custom exception; the permission applies to all files in this repository written by DNT_OF.
-- **Data and privacy:** server data goes only between the phone and your own server. Microsoft Clarity anonymous usage analytics is on by default and can be turned off in onboarding or in Settings → Privacy. Skipping onboarding before the analytics step leaves it off. When it is on, Clarity can still receive device model, OS version, IP address and tap coordinates; sensitive fields are masked where the app can, but not every value is guaranteed to be hidden. The update check contacts the GitHub API. Nothing else is uploaded. The app speaks plain HTTP/WS only; use a LAN or VPN for now.
+- **Data and privacy:** server data goes only between the phone and your own server. Microsoft Clarity anonymous usage analytics is on by default and can be turned off in onboarding or in Settings → Privacy. Skipping onboarding before the analytics step leaves it off. When it is on, Clarity can still receive device model, OS version, IP address and tap coordinates; sensitive fields are masked where the app can, but not every value is guaranteed to be hidden. The update check contacts the GitHub API with normal system TLS. Nothing else is uploaded. Game-server traffic uses HTTPS/WSS with a pinned self-signed certificate when SLDataAPI supports TLS, and falls back to plaintext only for plugins that do not speak TLS.
 
 Third-party licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

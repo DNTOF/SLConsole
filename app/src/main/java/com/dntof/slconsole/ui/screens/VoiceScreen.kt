@@ -114,14 +114,16 @@ fun VoiceScreen() {
         }
 
         if (enabled) {
-            VoicePanel(server.host, voicePort, server.apiKey, readyData?.players ?: emptyList())
+            VoicePanel(server, voicePort, readyData?.players ?: emptyList())
         }
     }
 }
 
 @Composable
-private fun VoicePanel(host: String, voicePort: Int, apiKey: String, players: List<PlayerInfo>) {
-    val client = remember(host, voicePort, apiKey) { VoiceClient(host, voicePort, apiKey) }
+private fun VoicePanel(server: com.dntof.slconsole.data.model.ServerConfig, voicePort: Int, players: List<PlayerInfo>) {
+    val client = remember(server.id, server.host, voicePort, server.apiKey, server.certFingerprint, server.tlsSeen) {
+        VoiceClient(server, voicePort)
+    }
     DisposableEffect(client) {
         onDispose { client.stop() }
     }

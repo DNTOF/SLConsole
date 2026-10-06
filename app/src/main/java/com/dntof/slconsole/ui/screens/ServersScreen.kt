@@ -77,6 +77,12 @@ private fun ServerChips(server: ServerConfig) {
             if (server.hasControl) "控制✓" else "控制✗",
             if (server.hasControl) UiColors.Online else UiColors.Offline,
         )
+        if (server.certFingerprint.isNotBlank()) {
+            InfoChip("指纹已固定", MaterialTheme.colorScheme.tertiary)
+        }
+        if (server.tlsSeen) {
+            InfoChip("禁止降级", MaterialTheme.colorScheme.primary)
+        }
     }
 }
 

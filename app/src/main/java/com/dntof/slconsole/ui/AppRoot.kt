@@ -132,6 +132,8 @@ import com.dntof.slconsole.ui.components.LocalChromeBackdrop
 import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.LocalOrbBackdrop
 import com.dntof.slconsole.ui.components.StatusDot
+import com.dntof.slconsole.ui.components.TlsPromptHost
+import com.dntof.slconsole.ui.components.TlsStatusBanner
 import com.dntof.slconsole.ui.components.UiColors
 import com.dntof.slconsole.ui.components.liquidGlass
 import com.dntof.slconsole.ui.components.rememberGlassBackdrops
@@ -560,6 +562,7 @@ fun AppRoot(startupNotice: String? = null) {
                     )
                 }
             }
+            TlsPromptHost(activeServer?.id)
         }
     }
 }
@@ -782,6 +785,7 @@ private fun BarSurface(content: @Composable () -> Unit) {
         HorizontalDivider(
             color = if (glass) Color.White.copy(alpha = 0.28f) else MaterialTheme.colorScheme.outlineVariant,
         )
+        TlsStatusBanner()
     }
 }
 

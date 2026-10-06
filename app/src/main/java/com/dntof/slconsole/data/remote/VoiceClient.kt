@@ -8,6 +8,17 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
+import com.dntof.slconsole.data.remote.tls.HelloTlsCheck
+import com.dntof.slconsole.data.remote.tls.TlsClients
+import com.dntof.slconsole.data.remote.tls.TlsEvents
+import com.dntof.slconsole.data.remote.tls.TlsHandshakePolicy
+import com.dntof.slconsole.data.remote.tls.TlsHttp
+import com.dntof.slconsole.data.remote.tls.TlsMessages
+import com.dntof.slconsole.data.remote.tls.TlsRequiredResponse
+import com.dntof.slconsole.data.remote.tls.TransportFailure
+import com.dntof.slconsole.data.remote.tls.TransportSession
+import com.dntof.slconsole.data.remote.tls.TransportStatus
+import com.dntof.slconsole.data.remote.tls.shortMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -18,35 +29,35 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonObject
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okio.ByteString
-import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
 
 /**
  * SLDataAPI 语音转发客户端(直连游戏服)。
  *
- * 协议(v2.6.0):ws://host:voicePort/ws,Bearer API Key 鉴权;
+ * 协议(v2.6.0):先试 wss://host:voicePort/ws,Bearer API Key 鉴权,证书和数据端口同一张。
  * 文本帧:hello{sampleRate} / speaker{nickname,userid,channel,playerid} / error;
  * 二进制帧:[0]=0x01 [1]=channel [2-3]=playerId(LE) [4-7]=seq [8..]=float32 LE PCM(默认 48kHz 单声道)。
  *
  * 播放:采样直接阻塞写入 AudioTrack 流式缓冲自然节流;静音 = 丢弃二进制帧(与 Web 端一致)。
  */
 class VoiceClient(
-    private val host: String,
+    private val server: ServerConfig,
     private val voicePort: Int,
-    private val apiKey: String,
 ) {
+    private val host: String get() = server.host
+    private val apiKey: String get() = server.apiKey
+
+    private enum class Phase { TRY_TLS, PLAIN, FORCE_TLS, DEAD }
     enum class State { IDLE, CONNECTING, CONNECTED, FAILED, CLOSED }
 
     data class SpeakerInfo(
@@ -57,11 +68,9 @@ class VoiceClient(
     )
 
     private var scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
-        .build()
     private var webSocket: WebSocket? = null
+    private val attemptGen = AtomicInteger(0)
+    private var phase = Phase.TRY_TLS
     private var audioTrack: AudioTrack? = null
     private var sampleRate = 48000
     private val speakerMap = LinkedHashMap<String, SpeakerInfo>()
@@ -86,28 +95,36 @@ class VoiceClient(
     @Volatile private var droppedFrames = 0L
 
     sealed interface ProbeResult {
-        object Ok : ProbeResult
+        data class Ok(val encrypted: Boolean) : ProbeResult
         data class Fail(val message: String) : ProbeResult
     }
 
-    /** 开始监听前先探测 /status,把"端口上不是语音服务/端口不可达/未授权"变成明确指引,而不是裸 404。 */
-    private suspend fun probeStatus(): ProbeResult = withContext(Dispatchers.IO) {
-        HostAddress.problem(host)?.let { return@withContext ProbeResult.Fail(it) }
-        try {
-            val resp = OkHttpClient.Builder()
-                .connectTimeout(6, TimeUnit.SECONDS)
-                .readTimeout(6, TimeUnit.SECONDS)
+    /** 开始监听前先探测 /status。先试 HTTPS,规则和数据端口相同。 */
+    private suspend fun probeStatus(): ProbeResult {
+        HostAddress.problem(host)?.let { return ProbeResult.Fail(it) }
+        val result = TlsHttp.call(
+            server,
+            voicePort,
+            TransportSession.Channel.VOICE,
+            useCache = false,
+        ) { client, secure ->
+            val response = client.newBuilder()
+                .readTimeout(6, java.util.concurrent.TimeUnit.SECONDS)
+                .callTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
                 .newCall(
                     Request.Builder()
-                        .url("http://$host:$voicePort/status")
+                        .url(server.voiceStatusUrl(voicePort, secure))
                         .header("Authorization", "Bearer " + apiKey.filter { it.code in 32..126 })
-                        .build()
+                        .build(),
                 ).execute()
-            resp.use {
+            response.use {
                 val body = it.body?.string().orEmpty().take(200)
-                when {
-                    it.isSuccessful -> ProbeResult.Ok
+                if (TlsRequiredResponse.matches(it.code, body)) {
+                    return@use TlsHttp.Outcome.UpgradeRequired
+                }
+                val parsed = when {
+                    it.isSuccessful -> ProbeResult.Ok(secure)
                     it.code == 404 -> ProbeResult.Fail(
                         "语音端口 $voicePort 可达,但没有 /status 端点 —— 该端口上不是 SLDataAPI 语音服务。" +
                             "请检查:SLDataAPI 配置 voice_enabled: true 且 voice_port 正确(端口被占用时语音服务会启动失败," +
@@ -123,18 +140,19 @@ class VoiceClient(
                     )
                     else -> ProbeResult.Fail("语音端口探测返回 HTTP ${it.code}:$body")
                 }
+                TlsHttp.Outcome.Done(parsed)
             }
-        } catch (e: IOException) {
-            ProbeResult.Fail(
-                "语音端口 $voicePort 无法连接:${e.message ?: "网络错误"}。" +
-                    "请检查防火墙/安全组是否放行该 TCP 端口(语音端口不走网页反向代理,手机必须直连)。"
-            )
+        }
+        return when (result) {
+            is TlsHttp.Result.Ready -> result.value
+            is TlsHttp.Result.Blocked -> ProbeResult.Fail(result.failure.message)
         }
     }
 
     fun start() {
         if (started) return
         started = true
+        phase = Phase.TRY_TLS
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         speakerMap.clear()
         _error.value = null
@@ -158,26 +176,54 @@ class VoiceClient(
     }
 
     private fun connect() {
-        if (!started) return
+        if (!started || phase == Phase.DEAD) return
+        val secure = phase != Phase.PLAIN
+        val generation = attemptGen.incrementAndGet()
         _state.value = State.CONNECTING
-        _stateDetail.value = "正在连接 $host:$voicePort/ws…"
+        _stateDetail.value = if (secure) {
+            "正在加密连接 $host:$voicePort/ws…"
+        } else {
+            "正在以明文连接 $host:$voicePort/ws…"
+        }
         val request = Request.Builder()
-            .url("ws://$host:$voicePort/ws")
+            .url(server.voiceWebSocket(voicePort, secure))
             .header("Authorization", "Bearer " + apiKey.filter { it.code in 32..126 })
             .build()
-        webSocket = client.newWebSocket(request, listener)
+        val previous = webSocket
+        webSocket = TlsClients.ws(server.certFingerprint, secure)
+            .newWebSocket(request, socketListener(generation, secure))
+        previous?.cancel()
     }
 
-    private val listener = object : WebSocketListener() {
+    private fun socketListener(generation: Int, secure: Boolean) = object : WebSocketListener() {
+        private fun current(): Boolean = generation == attemptGen.get() && started
+
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            if (!current()) return
+            if (secure) {
+                TlsEvents.mark(server.id)
+                TransportStatus.onEncrypted(server.id)
+            } else {
+                TransportStatus.onPlaintext(server.id)
+            }
+        }
+
         override fun onMessage(webSocket: WebSocket, text: String) {
+            if (!current()) return
             val obj = runCatching { AppJson.json.parseToJsonElement(text) }.getOrNull() as? JsonObject ?: return
             when ((obj["type"] as? JsonPrimitive)?.content) {
                 "hello" -> {
+                    val verdict = HelloTlsCheck.check(secure, obj, server.certFingerprint)
+                    if (!verdict.ok) {
+                        failTerminal(verdict.message ?: TlsMessages.helloTlsMismatch())
+                        return
+                    }
                     readyOnce = true
                     sampleRate = (obj["sampleRate"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 48000
                     initAudioTrack()
                     _state.value = State.CONNECTED
-                    _stateDetail.value = "已连接语音流($sampleRate Hz)"
+                    val lock = if (secure) "加密" else "明文"
+                    _stateDetail.value = "已连接语音流($sampleRate Hz,$lock)"
                 }
                 "speaker" -> {
                     val playerId = (obj["playerid"] as? JsonPrimitive)?.content ?: return
@@ -203,7 +249,7 @@ class VoiceClient(
         }
 
         override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-            if (_muted.value) return
+            if (!current() || _muted.value) return
             val data = bytes.toByteArray()
             if (data.size <= 8 || data[0] != 0x01.toByte()) return
             val playerId = ((data[2].toInt() and 0xFF) or ((data[3].toInt() and 0xFF) shl 8)).toString()
@@ -222,11 +268,46 @@ class VoiceClient(
         }
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-            _state.value = State.FAILED
+            if (!current() || phase == Phase.DEAD) return
             val bodyText = runCatching { response?.peekBody(200)?.string() }.getOrNull()
+            if (!secure && (response?.code == 426 || TlsRequiredResponse.matches(response?.code ?: 0, bodyText))) {
+                if (phase == Phase.FORCE_TLS) {
+                    failTerminal(TlsMessages.tlsRequired())
+                    return
+                }
+                phase = Phase.FORCE_TLS
+                connect()
+                return
+            }
+            if (secure) {
+                val seen = server.tlsSeen || TlsEvents.seen(server.id)
+                val allow = phase == Phase.TRY_TLS && !seen
+                when (val decision = TlsHandshakePolicy.onTlsFailure(t, seen, allow)) {
+                    TlsHandshakePolicy.Decision.UsePlaintext -> {
+                        phase = Phase.PLAIN
+                        TransportStatus.onPlaintext(server.id)
+                        connect()
+                    }
+                    TlsHandshakePolicy.Decision.RetryLater -> {
+                        _state.value = State.FAILED
+                        _stateDetail.value = TlsMessages.other(t.shortMessage())
+                        scheduleReconnect()
+                    }
+                    TlsHandshakePolicy.Decision.RetryTls -> {
+                        phase = Phase.FORCE_TLS
+                        connect()
+                    }
+                    is TlsHandshakePolicy.Decision.Stop -> {
+                        publish(decision.failure)
+                        failTerminal(decision.failure.message)
+                    }
+                }
+                return
+            }
+            _state.value = State.FAILED
             _stateDetail.value = buildString {
                 append("连接失败:")
-                append(t.message ?: "未知错误")
+                append(t.shortMessage())
                 if (response?.code == 404) {
                     append(" —— 语音端口上没有 /ws 端点,该端口可能不是 SLDataAPI 语音服务")
                     if (!bodyText.isNullOrBlank()) append("(响应:$bodyText)")
@@ -236,14 +317,31 @@ class VoiceClient(
         }
 
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            if (!current() || phase == Phase.DEAD) return
             _state.value = State.CLOSED
             _stateDetail.value = "连接已关闭($code)"
             scheduleReconnect()
         }
     }
 
+    private fun publish(failure: TransportFailure) {
+        when (failure) {
+            is TransportFailure.Tofu -> TransportStatus.onTofu(server.id, failure.fingerprint)
+            is TransportFailure.Mismatch -> TransportStatus.onMismatch(server.id, failure.pinned, failure.presented)
+            else -> Unit
+        }
+    }
+
+    private fun failTerminal(message: String) {
+        phase = Phase.DEAD
+        attemptGen.incrementAndGet()
+        _state.value = State.FAILED
+        _stateDetail.value = message
+        runCatching { webSocket?.cancel() }
+    }
+
     private fun scheduleReconnect() {
-        if (!started) return
+        if (!started || phase == Phase.DEAD) return
         scope.launch {
             delay(if (readyOnce) 3000 else 5000)
             connect()
@@ -288,6 +386,7 @@ class VoiceClient(
 
     fun stop() {
         started = false
+        phase = Phase.DEAD
         runCatching { webSocket?.cancel() }
         runCatching { audioTrack?.pause() }
         runCatching { audioTrack?.release() }

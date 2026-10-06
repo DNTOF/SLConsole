@@ -93,7 +93,9 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
         return
     }
 
-    val client = remember(server.id) { ControlRepository.eventsClient(server) }
+    val client = remember(server.id, server.host, server.port, server.apiKey, server.certFingerprint, server.tlsSeen) {
+        ControlRepository.eventsClient(server)
+    }
     DisposableEffect(server.id) {
         client.subscribeEvents()
         onDispose { client.unsubscribeEvents() }
