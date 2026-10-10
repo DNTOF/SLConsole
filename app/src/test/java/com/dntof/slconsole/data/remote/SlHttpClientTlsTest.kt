@@ -188,6 +188,115 @@ class SlHttpClientTlsTest {
     }
 
     @Test(timeout = 20_000)
+    fun plaintextUnexpectedEof_retriesOnceAndStaysPlain() = runBlocking {
+        val server = SilentClosePlainServer()
+        server.dropHttpResponses.set(1)
+        server.nextBody = """{"success":true,"server_name":"Plain"}"""
+        val cfg = config(server.port, pin = "")
+        try {
+            val result = client.getData(cfg, "/get_sl_data", useCache = false)
+            assertTrue(result.toString(), result is SlHttpClient.HttpResult.Success)
+            val success = result as SlHttpClient.HttpResult.Success
+            assertTrue(!success.encrypted)
+            assertEquals(2, server.plainAttempts.get())
+            assertEquals(1, server.httpHits.get())
+            assertEquals("", cfg.certFingerprint)
+            assertFalse(cfg.tlsSeen)
+            assertFalse(TlsEvents.seen(cfg.id))
+            assertEquals(true, TransportStatus.servers.value[cfg.id]?.plaintext)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun cachedPlaintextUnexpectedEof_retriesOnce() = runBlocking {
+        val server = SilentClosePlainServer()
+        server.nextBody = """{"success":true,"server_name":"Plain"}"""
+        val cfg = config(server.port, pin = "")
+        try {
+            val first = client.getData(cfg, "/get_sl_data", useCache = true)
+            assertTrue(first.toString(), first is SlHttpClient.HttpResult.Success)
+            val attempts = server.plainAttempts.get()
+            val hits = server.httpHits.get()
+            server.dropHttpResponses.set(1)
+            val second = client.getData(cfg, "/get_sl_data", useCache = true)
+            assertTrue(second.toString(), second is SlHttpClient.HttpResult.Success)
+            assertTrue(!(second as SlHttpClient.HttpResult.Success).encrypted)
+            assertEquals(attempts + 2, server.plainAttempts.get())
+            assertEquals(hits + 1, server.httpHits.get())
+            assertEquals("", cfg.certFingerprint)
+            assertFalse(cfg.tlsSeen)
+            assertFalse(TlsEvents.seen(cfg.id))
+            assertEquals(true, TransportStatus.servers.value[cfg.id]?.plaintext)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun plaintextUnexpectedEof_stopsAfterOneRetry() = runBlocking {
+        val server = SilentClosePlainServer()
+        server.dropHttpResponses.set(8)
+        try {
+            val result = client.getData(config(server.port, pin = ""), "/get_sl_data", useCache = false)
+            val failure = result as SlHttpClient.HttpResult.Failure
+            assertTrue(failure.message, failure.message.contains("无法连接"))
+            assertFalse(failure.message, failure.message.contains("加密连接失败"))
+            assertEquals(2, server.plainAttempts.get())
+            assertEquals(0, server.httpHits.get())
+            assertTrue(TransportStatus.servers.value["lab"]?.plaintext != true)
+            assertFalse(TlsEvents.seen("lab"))
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test(timeout = 30_000)
+    fun plaintextPolling_survivesConnectionClose() = runBlocking {
+        val server = ImmediatePlainServer()
+        server.nextBody = """{"success":true,"server_name":"Old"}"""
+        val cfg = config(server.port, pin = "")
+        try {
+            repeat(8) {
+                val result = client.getData(cfg, "/get_sl_data", useCache = true)
+                assertTrue(result.toString(), result is SlHttpClient.HttpResult.Success)
+                assertTrue(!(result as SlHttpClient.HttpResult.Success).encrypted)
+            }
+            assertEquals(8, server.httpHits.get())
+            assertEquals("", cfg.certFingerprint)
+            assertFalse(cfg.tlsSeen)
+            assertFalse(TlsEvents.seen(cfg.id))
+            assertEquals(true, TransportStatus.servers.value[cfg.id]?.plaintext)
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun plaintext401And500_areNotRetried() = runBlocking {
+        val server = ImmediatePlainServer()
+        try {
+            server.nextStatus = 401
+            server.nextBody = """{"success":false}"""
+            val denied = client.getData(config(server.port, pin = ""), "/get_sl_data", useCache = false)
+            val deniedFailure = denied as SlHttpClient.HttpResult.Failure
+            assertTrue(deniedFailure.message, deniedFailure.message.contains("鉴权"))
+            assertEquals(1, server.httpHits.get())
+
+            server.nextStatus = 500
+            server.nextBody = """{"success":false,"message":"busy"}"""
+            val busy = client.getData(config(server.port, pin = ""), "/get_sl_data", useCache = false)
+            val busyFailure = busy as SlHttpClient.HttpResult.Failure
+            assertEquals("busy", busyFailure.message)
+            assertEquals(500, busyFailure.status)
+            assertEquals(2, server.httpHits.get())
+        } finally {
+            server.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
     fun http426_doesNotLoop() = runBlocking {
         val server = ImmediatePlainServer()
         server.nextStatus = 426
@@ -290,6 +399,8 @@ private class SilentClosePlainServer : AutoCloseable {
     val httpHits = AtomicInteger()
     var answerHttp: Boolean = true
     var nextBody: String = """{"success":true}"""
+    /** 读完请求后直接关掉,不写响应。用来制造 unexpected end of stream。 */
+    val dropHttpResponses = AtomicInteger()
 
     init {
         Thread({
@@ -322,6 +433,10 @@ private class SilentClosePlainServer : AutoCloseable {
                 val n = input.read(one)
                 if (n < 0) break
                 pending.append(one[0].toInt().toChar())
+            }
+            if (dropHttpResponses.get() > 0) {
+                dropHttpResponses.decrementAndGet()
+                return
             }
             httpHits.incrementAndGet()
             val body = nextBody.toByteArray()

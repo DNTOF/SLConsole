@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
+import okhttp3.ConnectionPool
 import okhttp3.ConnectionSpec
 import okhttp3.OkHttpClient
 
@@ -24,8 +25,8 @@ object TlsClients {
     private val httpPinned = ConcurrentHashMap<String, OkHttpClient>()
     private val wsPinned = ConcurrentHashMap<String, OkHttpClient>()
 
-    private val plainHttp: OkHttpClient by lazy { plain(readMs = 30_000) }
-    private val plainWs: OkHttpClient by lazy { plain(readMs = 0) }
+    private val plainHttp: OkHttpClient by lazy { plain(readMs = 30_000, keepIdleConnections = false) }
+    private val plainWs: OkHttpClient by lazy { plain(readMs = 0, keepIdleConnections = true) }
 
     fun http(pin: String?, secure: Boolean): OkHttpClient {
         if (!secure) return plainHttp
@@ -39,15 +40,21 @@ object TlsClients {
         return wsPinned.getOrPut(key) { pinned(key.ifEmpty { null }, readMs = 0) }
     }
 
-    private fun plain(readMs: Long): OkHttpClient {
-        return OkHttpClient.Builder()
+    private fun plain(readMs: Long, keepIdleConnections: Boolean): OkHttpClient {
+        val builder = OkHttpClient.Builder()
             .connectionSpecs(specs)
             .connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(readMs, TimeUnit.MILLISECONDS)
             .writeTimeout(15, TimeUnit.SECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
-            .build()
+        if (!keepIdleConnections) {
+            // 明文 HTTP 常在每次响应后关掉连接。空闲连接留在池里时,下一次 GET
+            // 不会做彻底的健康检查,读到 unexpected end of stream 后 OkHttp 也不会
+            // 在只有一条路由时重试。明文 HTTP 不保留空闲连接。
+            builder.connectionPool(ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
+        }
+        return builder.build()
     }
 
     private fun pinned(pin: String?, readMs: Long): OkHttpClient {

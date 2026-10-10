@@ -16,6 +16,7 @@ import com.dntof.slconsole.data.remote.AppJson
  * HTTP 通道:每次新会话先试 HTTPS。只有握手表明对端不讲 TLS,才退回 HTTP。
  * 握手在没有 TLS 记录时结束,而且这台服务器没见过加密:再发一次明文请求。
  * 这次请求拿到 HTTP 响应才记住明文;失败则只报告连不上,不把它说成加密失败。
+ * 明文这条路上,连接被对端中途关掉会把同一次请求再发一遍。鉴权、HTTP 状态、证书和握手失败不重试。
  * 明文收到 426 / tls_required 时再试一次 TLS,然后停住,不会来回循环。
  */
 object TlsHttp {
@@ -55,7 +56,12 @@ object TlsHttp {
         block: (OkHttpClient, Boolean) -> Outcome<T>,
     ): Result<T> {
         try {
-            return when (val outcome = block(cached.client, cached.secure)) {
+            val outcome = if (cached.secure) {
+                block(cached.client, true)
+            } else {
+                callPlaintext(cached.client, block)
+            }
+            return when (outcome) {
                 is Outcome.Done -> Result.Ready(outcome.value, cached.secure)
                 Outcome.UpgradeRequired -> {
                     if (cached.secure) {
@@ -122,7 +128,7 @@ object TlsHttp {
     ): Result<T> {
         val client = TlsClients.http(config.certFingerprint, secure = false)
         try {
-            return when (val outcome = block(client, false)) {
+            return when (val outcome = callPlaintext(client, block)) {
                 is Outcome.Done -> {
                     // 明文请求已经拿到 HTTP 响应才记住这条传输。连不上就停在下面的失败里。
                     if (useCache) TransportSession.put(key, TransportSession.Choice(false, client))
@@ -136,6 +142,23 @@ object TlsHttp {
             return Result.Blocked(TransportFailure.Other("无法连接：${e.shortMessage()}"))
         } catch (e: Exception) {
             return Result.Blocked(TransportFailure.Other(TlsMessages.other(e.shortMessage())))
+        }
+    }
+
+    /**
+     * 明文调用。连接被对端关掉时,丢掉空闲连接后再发一次。第二次仍失败就抛出去。
+     * 只有 [PlaintextRetry] 认定的瞬时 IO 会重试;HTTP 状态码从 [block] 正常返回,不会进这里。
+     */
+    private fun <T> callPlaintext(
+        client: OkHttpClient,
+        block: (OkHttpClient, Boolean) -> Outcome<T>,
+    ): Outcome<T> {
+        try {
+            return block(client, false)
+        } catch (e: IOException) {
+            if (!PlaintextRetry.isTransient(e)) throw e
+            client.connectionPool.evictAll()
+            return block(client, false)
         }
     }
 
