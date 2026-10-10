@@ -57,7 +57,7 @@ class VoiceClient(
     private val host: String get() = server.host
     private val apiKey: String get() = server.apiKey
 
-    private enum class Phase { TRY_TLS, PLAIN, FORCE_TLS, DEAD }
+    private enum class Phase { TRY_TLS, PLAIN, PROBE, FORCE_TLS, DEAD }
     enum class State { IDLE, CONNECTING, CONNECTED, FAILED, CLOSED }
 
     data class SpeakerInfo(
@@ -177,7 +177,7 @@ class VoiceClient(
 
     private fun connect() {
         if (!started || phase == Phase.DEAD) return
-        val secure = phase != Phase.PLAIN
+        val secure = phase != Phase.PLAIN && phase != Phase.PROBE
         val generation = attemptGen.incrementAndGet()
         _state.value = State.CONNECTING
         _stateDetail.value = if (secure) {
@@ -204,6 +204,7 @@ class VoiceClient(
                 TlsEvents.mark(server.id)
                 TransportStatus.onEncrypted(server.id)
             } else {
+                if (phase == Phase.PROBE) phase = Phase.PLAIN
                 TransportStatus.onPlaintext(server.id)
             }
         }
@@ -288,6 +289,10 @@ class VoiceClient(
                         TransportStatus.onPlaintext(server.id)
                         connect()
                     }
+                    TlsHandshakePolicy.Decision.ProbePlaintext -> {
+                        phase = Phase.PROBE
+                        connect()
+                    }
                     TlsHandshakePolicy.Decision.RetryLater -> {
                         _state.value = State.FAILED
                         _stateDetail.value = TlsMessages.other(t.shortMessage())
@@ -302,6 +307,13 @@ class VoiceClient(
                         failTerminal(decision.failure.message)
                     }
                 }
+                return
+            }
+            if (phase == Phase.PROBE) {
+                phase = Phase.TRY_TLS
+                _state.value = State.FAILED
+                _stateDetail.value = "无法连接：${t.shortMessage()}"
+                scheduleReconnect()
                 return
             }
             _state.value = State.FAILED

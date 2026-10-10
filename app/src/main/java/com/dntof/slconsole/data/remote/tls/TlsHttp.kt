@@ -14,6 +14,8 @@ import com.dntof.slconsole.data.remote.AppJson
 
 /**
  * HTTP 通道:每次新会话先试 HTTPS。只有握手表明对端不讲 TLS,才退回 HTTP。
+ * 握手在没有 TLS 记录时结束,而且这台服务器没见过加密:再发一次明文请求。
+ * 这次请求拿到 HTTP 响应才记住明文;失败则只报告连不上,不把它说成加密失败。
  * 明文收到 426 / tls_required 时再试一次 TLS,然后停住,不会来回循环。
  */
 object TlsHttp {
@@ -95,7 +97,9 @@ object TlsHttp {
             }
         } catch (e: IOException) {
             return when (val decision = TlsHandshakePolicy.onTlsFailure(e, seen, allowFallback && !seen)) {
-                TlsHandshakePolicy.Decision.UsePlaintext -> attemptPlain(config, key, useCache, block)
+                TlsHandshakePolicy.Decision.UsePlaintext,
+                TlsHandshakePolicy.Decision.ProbePlaintext,
+                -> attemptPlain(config, key, useCache, block)
                 TlsHandshakePolicy.Decision.RetryLater ->
                     Result.Blocked(TransportFailure.Other(TlsMessages.other(e.shortMessage())))
                 TlsHandshakePolicy.Decision.RetryTls ->
@@ -120,6 +124,7 @@ object TlsHttp {
         try {
             return when (val outcome = block(client, false)) {
                 is Outcome.Done -> {
+                    // 明文请求已经拿到 HTTP 响应才记住这条传输。连不上就停在下面的失败里。
                     if (useCache) TransportSession.put(key, TransportSession.Choice(false, client))
                     TransportStatus.onPlaintext(config.id)
                     Result.Ready(outcome.value, false)

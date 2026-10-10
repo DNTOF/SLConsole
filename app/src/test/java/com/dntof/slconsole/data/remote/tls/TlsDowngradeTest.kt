@@ -6,6 +6,10 @@ package com.dntof.slconsole.data.remote.tls
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.update.UpdateHttp
+import java.io.EOFException
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketException
 import java.net.SocketTimeoutException
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLProtocolException
@@ -78,8 +82,95 @@ class TlsDowngradeTest {
             initCause(SSLProtocolException("WRONG_VERSION_NUMBER"))
         }
         assertEquals(TlsDowngrade.Attempt.SERVER_PLAINTEXT, TlsFailureClassifier.classify(wrongVersion))
-        assertEquals(TlsDowngrade.Attempt.OTHER, TlsFailureClassifier.classify(SocketTimeoutException("timeout")))
+        assertEquals(
+            TlsHandshakePolicy.Decision.UsePlaintext,
+            TlsHandshakePolicy.onTlsFailure(plaintext, tlsSeen = false, allowPlaintextFallback = true),
+        )
+        val bodyTimeout = SocketTimeoutException("timeout")
+        assertEquals(TlsDowngrade.Attempt.OTHER, TlsFailureClassifier.classify(bodyTimeout))
+        assertFalse(TlsFailureClassifier.isSilentClose(bodyTimeout))
     }
+
+    @Test
+    fun eofOrConnectionClosed_probesOnceWhenTlsWasNotSeen() {
+        val samples = listOf(
+            SSLHandshakeException("connection closed"),
+            SSLHandshakeException("Remote host terminated the handshake").apply {
+                initCause(EOFException("SSL peer shut down incorrectly"))
+            },
+            SSLHandshakeException("Read timed out"),
+            SocketException("connection closed"),
+            readTimedOutDuringHandshake(),
+        )
+        samples.forEach { error ->
+            assertFalse(error.toString(), TlsFailureClassifier.isPlaintextServer(error))
+            assertTrue(error.toString(), TlsFailureClassifier.isSilentClose(error))
+            assertEquals(error.toString(), TlsDowngrade.Attempt.HANDSHAKE_EOF, TlsFailureClassifier.classify(error))
+            assertEquals(
+                error.toString(),
+                TlsDowngrade.Step.Probe,
+                TlsDowngrade.afterTls(
+                    TlsDowngrade.Attempt.HANDSHAKE_EOF,
+                    tlsSeen = false,
+                    allowPlaintextFallback = true,
+                ),
+            )
+            assertEquals(
+                error.toString(),
+                TlsHandshakePolicy.Decision.ProbePlaintext,
+                TlsHandshakePolicy.onTlsFailure(error, tlsSeen = false, allowPlaintextFallback = true),
+            )
+        }
+        assertEquals(
+            TlsDowngrade.Stop.TLS_REQUIRED,
+            (TlsDowngrade.afterTls(
+                TlsDowngrade.Attempt.HANDSHAKE_EOF,
+                tlsSeen = false,
+                allowPlaintextFallback = false,
+            ) as TlsDowngrade.Step.Halt).stop,
+        )
+    }
+
+    @Test
+    fun eofWhenTlsSeen_refusesTheProbe() {
+        val closed = SSLHandshakeException("connection closed")
+        val step = TlsDowngrade.afterTls(
+            TlsDowngrade.Attempt.HANDSHAKE_EOF,
+            tlsSeen = true,
+            allowPlaintextFallback = true,
+        )
+        assertEquals(TlsDowngrade.Stop.DOWNGRADE_LATCH, (step as TlsDowngrade.Step.Halt).stop)
+        val decision = TlsHandshakePolicy.onTlsFailure(closed, tlsSeen = true, allowPlaintextFallback = true)
+        val stop = decision as TlsHandshakePolicy.Decision.Stop
+        assertTrue(stop.failure is TransportFailure.Downgrade)
+    }
+
+    @Test
+    fun arbitraryIo_isNotPlaintextAndDoesNotProbe() {
+        val samples = listOf(
+            IOException("boom"),
+            ConnectException("Connection refused"),
+            ConnectException("Failed to connect to /127.0.0.1:8081"),
+            SocketException("Connection reset"),
+            SocketTimeoutException("Read timed out"),
+            SSLHandshakeException("Received fatal alert: handshake_failure"),
+        )
+        samples.forEach { error ->
+            assertFalse(error.toString(), TlsFailureClassifier.isPlaintextServer(error))
+            assertFalse(error.toString(), TlsFailureClassifier.isSilentClose(error))
+            assertEquals(error.toString(), TlsDowngrade.Attempt.OTHER, TlsFailureClassifier.classify(error))
+            assertEquals(
+                error.toString(),
+                TlsHandshakePolicy.Decision.RetryLater,
+                TlsHandshakePolicy.onTlsFailure(error, tlsSeen = false, allowPlaintextFallback = true),
+            )
+        }
+    }
+
+    /** 栈上留下 startHandshake，和 SSLSocket 握手读超时同一形状。 */
+    private fun readTimedOutDuringHandshake(): SocketTimeoutException = startHandshake()
+
+    private fun startHandshake(): SocketTimeoutException = SocketTimeoutException("Read timed out")
 
     @Test
     fun classifier_pinAndTrustAnchorDoNotLookLikePlaintext() {
@@ -89,6 +180,13 @@ class TlsDowngradeTest {
         }
         assertEquals(TlsDowngrade.Attempt.PIN_MISMATCH, TlsFailureClassifier.classify(mismatch))
         assertFalse(TlsFailureClassifier.isPlaintextServer(mismatch))
+        assertFalse(TlsFailureClassifier.isSilentClose(mismatch))
+        val closedPin = SSLHandshakeException("connection closed").apply {
+            initCause(PinMismatchException(pin, "CC:DD"))
+        }
+        assertEquals(TlsDowngrade.Attempt.PIN_MISMATCH, TlsFailureClassifier.classify(closedPin))
+        val pinStop = TlsHandshakePolicy.onTlsFailure(closedPin, tlsSeen = false, allowPlaintextFallback = true)
+        assertTrue((pinStop as TlsHandshakePolicy.Decision.Stop).failure is TransportFailure.Mismatch)
 
         val anchor = SSLHandshakeException("handshake").apply {
             initCause(java.security.cert.CertificateException("Trust anchor for certification path not found"))

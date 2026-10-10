@@ -65,7 +65,7 @@ class WsControlClient(private val config: ServerConfig) {
         ) : CallResult
     }
 
-    private enum class Phase { TRY_TLS, PLAIN, FORCE_TLS, DEAD }
+    private enum class Phase { TRY_TLS, PLAIN, PROBE, FORCE_TLS, DEAD }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var webSocket: WebSocket? = null
@@ -115,7 +115,7 @@ class WsControlClient(private val config: ServerConfig) {
             failTerminal(problem)
             return
         }
-        val secure = phase != Phase.PLAIN
+        val secure = phase != Phase.PLAIN && phase != Phase.PROBE
         val generation = attemptGen.incrementAndGet()
         _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
@@ -144,6 +144,7 @@ class WsControlClient(private val config: ServerConfig) {
                 TlsEvents.mark(config.id)
                 TransportStatus.onEncrypted(config.id)
             } else {
+                if (phase == Phase.PROBE) phase = Phase.PLAIN
                 TransportStatus.onPlaintext(config.id)
             }
         }
@@ -221,6 +222,11 @@ class WsControlClient(private val config: ServerConfig) {
                         failAllPending("WS 通道改为明文")
                         connect()
                     }
+                    TlsHandshakePolicy.Decision.ProbePlaintext -> {
+                        phase = Phase.PROBE
+                        failAllPending("WS 通道探测明文")
+                        connect()
+                    }
                     TlsHandshakePolicy.Decision.RetryLater -> {
                         _state.value = ConnState.FAILED
                         _stateDetail.value = TlsMessages.other(t.shortMessage())
@@ -236,6 +242,14 @@ class WsControlClient(private val config: ServerConfig) {
                         failTerminal(decision.failure.message)
                     }
                 }
+                return
+            }
+            if (phase == Phase.PROBE) {
+                phase = Phase.TRY_TLS
+                _state.value = ConnState.FAILED
+                _stateDetail.value = "无法连接：${t.shortMessage()}"
+                failAllPending("WS 通道探测失败")
+                scheduleReconnect()
                 return
             }
             _state.value = ConnState.FAILED

@@ -3,10 +3,13 @@
 
 package com.dntof.slconsole.data.remote.tls
 
-/** 把握手异常翻译成「改走明文 / 停下来 / 过会儿再试加密」。 */
+/** 把握手异常翻译成「改走明文 / 先探一次明文 / 停下来 / 过会儿再试加密」。 */
 object TlsHandshakePolicy {
     sealed class Decision {
         data object UsePlaintext : Decision()
+
+        /** 握手没有拿到 TLS 记录。可以发一次明文,只有明文请求真正返回才改传输。 */
+        data object ProbePlaintext : Decision()
         data object RetryLater : Decision()
         data object RetryTls : Decision()
         data class Stop(val failure: TransportFailure) : Decision()
@@ -16,6 +19,7 @@ object TlsHandshakePolicy {
         val attempt = TlsFailureClassifier.classify(error)
         return when (val step = TlsDowngrade.afterTls(attempt, tlsSeen, allowPlaintextFallback)) {
             TlsDowngrade.Step.Plaintext -> Decision.UsePlaintext
+            TlsDowngrade.Step.Probe -> Decision.ProbePlaintext
             TlsDowngrade.Step.Encrypted -> Decision.RetryLater
             TlsDowngrade.Step.RetryTls -> Decision.RetryTls
             is TlsDowngrade.Step.Halt -> when (step.stop) {
