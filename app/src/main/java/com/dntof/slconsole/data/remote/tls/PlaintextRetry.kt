@@ -12,8 +12,8 @@ import javax.net.ssl.SSLPeerUnverifiedException
 import javax.net.ssl.SSLProtocolException
 
 /**
- * 明文传输上可以再试一次的连接失败。
- * 对端把连接关掉、重置,或响应还没读完就结束,都算。超时、拒绝连接、证书和 TLS 握手不算。
+ * 可以再试一次的连接失败。明文 HTTP,以及 TLS 握手已经过去之后的 HTTP,都用这一条。
+ * 对端把连接关掉、重置,或响应还没读完就结束,都算。超时、拒绝连接、证书、指纹和 TLS 握手不算。
  */
 internal object PlaintextRetry {
     fun isTransient(error: IOException): Boolean {

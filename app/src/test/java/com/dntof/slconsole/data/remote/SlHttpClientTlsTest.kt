@@ -5,6 +5,7 @@ package com.dntof.slconsole.data.remote
 
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.tls.CertFingerprint
+import com.dntof.slconsole.data.remote.tls.TlsClients
 import com.dntof.slconsole.data.remote.tls.TlsEvents
 import com.dntof.slconsole.data.remote.tls.TransportFailure
 import com.dntof.slconsole.data.remote.tls.TransportSession
@@ -15,8 +16,11 @@ import java.net.Socket
 import java.security.interfaces.RSAPublicKey
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
+import okhttp3.Protocol
+import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import okhttp3.tls.HandshakeCertificates
 import okhttp3.tls.HeldCertificate
 import org.junit.After
@@ -126,7 +130,7 @@ class SlHttpClientTlsTest {
             assertTrue(!success.encrypted)
             assertEquals("Plain", (success.body["server_name"] as kotlinx.serialization.json.JsonPrimitive).content)
             assertEquals(1, server.httpHits.get())
-            assertTrue(server.tlsCloses.get() >= 1)
+            assertEquals(1, server.tlsCloses.get())
             assertEquals("", cfg.certFingerprint)
             assertFalse(cfg.tlsSeen)
             assertFalse(TlsEvents.seen(cfg.id))
@@ -163,6 +167,7 @@ class SlHttpClientTlsTest {
             )
             val failure = result as SlHttpClient.HttpResult.Failure
             assertTrue(failure.message, failure.tls is TransportFailure.Downgrade)
+            assertEquals(1, server.tlsCloses.get())
             assertEquals(0, server.plainAttempts.get())
             assertEquals(0, server.httpHits.get())
         } finally {
@@ -293,6 +298,141 @@ class SlHttpClientTlsTest {
             assertEquals(2, server.httpHits.get())
         } finally {
             server.close()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun tlsUnexpectedEof_retriesOnceAndStaysEncrypted() = runBlocking {
+        val held = HeldCertificate.Builder().commonName("sldataapi.local").build()
+        val pin = CertFingerprint.sha256Der(held.certificate.encoded)
+        val server = MockWebServer()
+        server.protocols = listOf(Protocol.HTTP_1_1)
+        server.useHttps(socketFactory(held), false)
+        server.start()
+        try {
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+            server.enqueue(MockResponse().setBody("""{"success":true,"server_name":"Lab"}"""))
+            val cfg = config(server, pin).copy(tlsSeen = true)
+            val result = client.getData(cfg, "/get_sl_data", useCache = false)
+            assertTrue(result.toString(), result is SlHttpClient.HttpResult.Success)
+            val success = result as SlHttpClient.HttpResult.Success
+            assertTrue(success.encrypted)
+            assertEquals(2, server.requestCount)
+            assertEquals(pin, cfg.certFingerprint)
+            assertTrue(cfg.tlsSeen)
+            assertTrue(TlsEvents.seen(cfg.id))
+            assertTrue(TransportStatus.servers.value[cfg.id]?.plaintext != true)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun tlsUnexpectedEof_stopsAfterOneRetry() = runBlocking {
+        val held = HeldCertificate.Builder().commonName("sldataapi.local").build()
+        val pin = CertFingerprint.sha256Der(held.certificate.encoded)
+        val server = MockWebServer()
+        server.protocols = listOf(Protocol.HTTP_1_1)
+        server.useHttps(socketFactory(held), false)
+        server.start()
+        try {
+            repeat(2) {
+                server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+            }
+            val cfg = config(server, pin).copy(tlsSeen = true)
+            val result = client.getData(cfg, "/get_sl_data", useCache = true)
+            val failure = result as SlHttpClient.HttpResult.Failure
+            assertTrue(failure.message, failure.message.contains("连接中断"))
+            assertFalse(failure.message, failure.message.contains("加密连接失败"))
+            assertEquals(2, server.requestCount)
+            assertTrue(failure.tls !is TransportFailure.Downgrade)
+            assertTrue(failure.tls !is TransportFailure.Mismatch)
+            assertTrue(failure.tls !is TransportFailure.Tofu)
+            assertEquals(pin, cfg.certFingerprint)
+            assertTrue(cfg.tlsSeen)
+            assertFalse(TlsEvents.seen(cfg.id))
+            assertTrue(TransportStatus.servers.value[cfg.id]?.plaintext != true)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun tls401And500And426_areNotRetried() = runBlocking {
+        val held = HeldCertificate.Builder().commonName("sldataapi.local").build()
+        val pin = CertFingerprint.sha256Der(held.certificate.encoded)
+        val server = MockWebServer()
+        server.useHttps(socketFactory(held), false)
+        server.start()
+        try {
+            val cfg = config(server, pin).copy(tlsSeen = true)
+            server.enqueue(MockResponse().setResponseCode(401).setBody("""{"success":false}"""))
+            val denied = client.getData(cfg, "/get_sl_data", useCache = false)
+            val deniedFailure = denied as SlHttpClient.HttpResult.Failure
+            assertTrue(deniedFailure.message, deniedFailure.message.contains("鉴权"))
+            assertEquals(1, server.requestCount)
+
+            server.enqueue(MockResponse().setResponseCode(500).setBody("""{"success":false,"message":"busy"}"""))
+            val busy = client.getData(cfg, "/get_sl_data", useCache = false)
+            val busyFailure = busy as SlHttpClient.HttpResult.Failure
+            assertEquals("busy", busyFailure.message)
+            assertEquals(500, busyFailure.status)
+            assertEquals(2, server.requestCount)
+
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(426)
+                    .setBody("""{"success":false,"data":{"code":"tls_required"}}"""),
+            )
+            val upgrade = client.getData(cfg, "/get_sl_data", useCache = false)
+            val upgradeFailure = upgrade as SlHttpClient.HttpResult.Failure
+            assertTrue(upgradeFailure.message, upgradeFailure.tls is TransportFailure.TlsRequired)
+            assertEquals(3, server.requestCount)
+            assertEquals(pin, cfg.certFingerprint)
+            assertTrue(cfg.tlsSeen)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun tlsHttpClient_dropsIdleConnections() = runBlocking {
+        val held = HeldCertificate.Builder().commonName("sldataapi.local").build()
+        val pin = CertFingerprint.sha256Der(held.certificate.encoded)
+        val server = MockWebServer()
+        server.useHttps(socketFactory(held), false)
+        server.start()
+        try {
+            server.enqueue(MockResponse().setBody("""{"success":true}"""))
+            val result = client.getData(config(server, pin).copy(tlsSeen = true), "/get_sl_data", useCache = false)
+            assertTrue(result.toString(), result is SlHttpClient.HttpResult.Success)
+            val http = TlsClients.http(pin, secure = true)
+            assertEquals(0, http.connectionPool.idleConnectionCount())
+            assertEquals(0, http.connectionPool.connectionCount())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test(timeout = 20_000)
+    fun tlsWebSocketClient_keepsAnIdleConnection() = runBlocking {
+        val held = HeldCertificate.Builder().commonName("sldataapi.local").build()
+        val pin = CertFingerprint.sha256Der(held.certificate.encoded)
+        val server = MockWebServer()
+        server.useHttps(socketFactory(held), false)
+        server.start()
+        try {
+            server.enqueue(MockResponse().setBody("""{"success":true}"""))
+            val ws = TlsClients.ws(pin, secure = true)
+            val response = ws.newCall(
+                Request.Builder().url("https://127.0.0.1:${server.port}/get_sl_data").build(),
+            ).execute()
+            response.use {
+                assertEquals(200, it.code)
+            }
+            assertTrue(ws.connectionPool.idleConnectionCount() >= 1)
+        } finally {
+            server.shutdown()
         }
     }
 

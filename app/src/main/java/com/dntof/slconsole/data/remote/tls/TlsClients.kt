@@ -31,13 +31,13 @@ object TlsClients {
     fun http(pin: String?, secure: Boolean): OkHttpClient {
         if (!secure) return plainHttp
         val key = CertFingerprint.normalize(pin).orEmpty()
-        return httpPinned.getOrPut(key) { pinned(key.ifEmpty { null }, readMs = 30_000) }
+        return httpPinned.getOrPut(key) { pinned(key.ifEmpty { null }, readMs = 30_000, keepIdleConnections = false) }
     }
 
     fun ws(pin: String?, secure: Boolean): OkHttpClient {
         if (!secure) return plainWs
         val key = CertFingerprint.normalize(pin).orEmpty()
-        return wsPinned.getOrPut(key) { pinned(key.ifEmpty { null }, readMs = 0) }
+        return wsPinned.getOrPut(key) { pinned(key.ifEmpty { null }, readMs = 0, keepIdleConnections = true) }
     }
 
     private fun plain(readMs: Long, keepIdleConnections: Boolean): OkHttpClient {
@@ -57,11 +57,11 @@ object TlsClients {
         return builder.build()
     }
 
-    private fun pinned(pin: String?, readMs: Long): OkHttpClient {
+    private fun pinned(pin: String?, readMs: Long, keepIdleConnections: Boolean): OkHttpClient {
         val trust = PinTrustManager(pin)
         val ssl = SSLContext.getInstance("TLS")
         ssl.init(null, arrayOf<TrustManager>(trust), SecureRandom())
-        return OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
             .sslSocketFactory(ssl.socketFactory, trust)
             .hostnameVerifier { _, _ -> true }
             .connectionSpecs(specs)
@@ -70,6 +70,12 @@ object TlsClients {
             .writeTimeout(15, TimeUnit.SECONDS)
             .followRedirects(false)
             .followSslRedirects(false)
-            .build()
+        if (!keepIdleConnections) {
+            // 加密 HTTP 轮询也会踩上已被对端关掉的空闲连接。池里留着它时,下一次 GET
+            // 不做彻底的健康检查,读到 unexpected end of stream 后单条路由也不会重试。
+            // WebSocket 仍保留连接池。
+            builder.connectionPool(ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
+        }
+        return builder.build()
     }
 }

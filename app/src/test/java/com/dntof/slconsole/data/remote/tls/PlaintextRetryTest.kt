@@ -151,7 +151,7 @@ class PlaintextRetryTest {
     }
 
     @Test
-    fun tlsUnexpectedEof_doesNotProbeOrRetryPlaintext() = runBlocking {
+    fun tlsUnexpectedEof_retriesTlsOnceAndDoesNotProbePlaintext() = runBlocking {
         val cfg = config()
         var secureCalls = 0
         var plainCalls = 0
@@ -163,10 +163,12 @@ class PlaintextRetryTest {
             plainCalls++
             TlsHttp.Outcome.Done("plain")
         }
-        assertEquals(1, secureCalls)
+        assertEquals(2, secureCalls)
         assertEquals(0, plainCalls)
         val blocked = result as TlsHttp.Result.Blocked
-        assertTrue(blocked.failure.message, blocked.failure.message.contains("加密连接失败"))
+        assertTrue(blocked.failure.message, blocked.failure.message.contains("连接中断"))
+        assertTrue(blocked.failure.message, blocked.failure.message.contains("unexpected end of stream"))
+        assertFalse(blocked.failure.message.contains("加密连接失败"))
         assertFalse(TlsEvents.seen(cfg.id))
         assertTrue(TransportStatus.servers.value[cfg.id]?.plaintext != true)
         assertEquals("", cfg.certFingerprint)

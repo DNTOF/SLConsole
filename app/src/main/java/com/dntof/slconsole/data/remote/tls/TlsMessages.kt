@@ -24,6 +24,9 @@ object TlsMessages {
 
     fun other(detail: String) = "加密连接失败：$detail"
 
+    /** 握手已经完成,之后响应流被掐断。不要把它说成加密失败。 */
+    fun interrupted(detail: String) = "连接中断：$detail"
+
     fun helloTlsMismatch() =
         "服务器 hello 里的加密标记和实际连接不一致，已断开。应用不会按 hello 改走明文。"
 

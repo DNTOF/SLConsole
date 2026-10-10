@@ -16,7 +16,8 @@ import com.dntof.slconsole.data.remote.AppJson
  * HTTP 通道:每次新会话先试 HTTPS。只有握手表明对端不讲 TLS,才退回 HTTP。
  * 握手在没有 TLS 记录时结束,而且这台服务器没见过加密:再发一次明文请求。
  * 这次请求拿到 HTTP 响应才记住明文;失败则只报告连不上,不把它说成加密失败。
- * 明文这条路上,连接被对端中途关掉会把同一次请求再发一遍。鉴权、HTTP 状态、证书和握手失败不重试。
+ * 明文和加密 HTTP 一样:连接被对端中途关掉会把同一次请求再发一遍。
+ * 鉴权、HTTP 状态、证书、指纹、握手,以及见过加密后的拒绝,都不重试。
  * 明文收到 426 / tls_required 时再试一次 TLS,然后停住,不会来回循环。
  */
 object TlsHttp {
@@ -57,7 +58,7 @@ object TlsHttp {
     ): Result<T> {
         try {
             val outcome = if (cached.secure) {
-                block(cached.client, true)
+                callSecure(cached.client, block)
             } else {
                 callPlaintext(cached.client, block)
             }
@@ -92,7 +93,7 @@ object TlsHttp {
         val seen = config.tlsSeen || TlsEvents.seen(config.id)
         val client = TlsClients.http(config.certFingerprint, secure = true)
         try {
-            return when (val outcome = block(client, true)) {
+            return when (val outcome = callSecure(client, block)) {
                 is Outcome.Done -> {
                     if (useCache) TransportSession.put(key, TransportSession.Choice(true, client))
                     TlsEvents.mark(config.id)
@@ -107,7 +108,7 @@ object TlsHttp {
                 TlsHandshakePolicy.Decision.ProbePlaintext,
                 -> attemptPlain(config, key, useCache, block)
                 TlsHandshakePolicy.Decision.RetryLater ->
-                    Result.Blocked(TransportFailure.Other(TlsMessages.other(e.shortMessage())))
+                    Result.Blocked(TransportFailure.Other(failureText(e)))
                 TlsHandshakePolicy.Decision.RetryTls ->
                     Result.Blocked(TransportFailure.TlsRequired())
                 is TlsHandshakePolicy.Decision.Stop -> {
@@ -152,14 +153,35 @@ object TlsHttp {
     private fun <T> callPlaintext(
         client: OkHttpClient,
         block: (OkHttpClient, Boolean) -> Outcome<T>,
+    ): Outcome<T> = callWithOneTransientRetry(client, secure = false, block)
+
+    /**
+     * 加密 HTTP。握手、指纹、第一次确认都不是瞬时 IO,原样抛回去,由握手策略决定停还是探明文。
+     * 响应还没读完就被掐断时,丢掉空闲连接再发一次。401 / 426 / 5xx 从 [block] 正常返回,不重试。
+     */
+    private fun <T> callSecure(
+        client: OkHttpClient,
+        block: (OkHttpClient, Boolean) -> Outcome<T>,
+    ): Outcome<T> = callWithOneTransientRetry(client, secure = true, block)
+
+    private fun <T> callWithOneTransientRetry(
+        client: OkHttpClient,
+        secure: Boolean,
+        block: (OkHttpClient, Boolean) -> Outcome<T>,
     ): Outcome<T> {
         try {
-            return block(client, false)
+            return block(client, secure)
         } catch (e: IOException) {
             if (!PlaintextRetry.isTransient(e)) throw e
             client.connectionPool.evictAll()
-            return block(client, false)
+            return block(client, secure)
         }
+    }
+
+    /** 瞬时断流不要写成加密失败。握手和证书问题走 [TlsMessages.other] 或更具体的句子。 */
+    private fun failureText(error: IOException): String {
+        val detail = error.shortMessage()
+        return if (PlaintextRetry.isTransient(error)) TlsMessages.interrupted(detail) else TlsMessages.other(detail)
     }
 
     private fun stopOrError(serverId: String, decision: TlsHandshakePolicy.Decision, error: IOException): Result<Nothing> {
@@ -168,7 +190,7 @@ object TlsHttp {
                 publish(serverId, decision.failure)
                 Result.Blocked(decision.failure)
             }
-            else -> Result.Blocked(TransportFailure.Other(TlsMessages.other(error.shortMessage())))
+            else -> Result.Blocked(TransportFailure.Other(failureText(error)))
         }
     }
 
