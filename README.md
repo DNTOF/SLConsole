@@ -29,7 +29,7 @@ SLConsole (Android, Kotlin + Jetpack Compose)
   │  WS     wss://host:8081/control        Bearer <API Key>       控制调用 + 实时事件（明文回退 ws）
   │  WS     wss://host:<voice_port>/ws     Bearer <API Key>       语音流（明文回退 ws，同一张证书）
   ▼
-SLDataAPI 2.6.0 及以上。加密需要带 TLS 的版本。2.6.1 是预发布，里面的内测功能默认关闭，不打开时和 2.6.0 一样。
+SLDataAPI 2.6.0 及以上。TLS 需要 SLDataAPI 2.6.1 Mores。2.6.1 是预发布，里面的内测功能默认关闭，不打开时和 2.6.0 一样。
 ```
 
 - 数据面与控制面为两套独立凭据(与 Web 端 upstream.js 注入规则一致);
@@ -51,7 +51,7 @@ SLDataAPI 2.6.0 及以上。加密需要带 TLS 的版本。2.6.1 是预发布�
 
 ## 服务器端前置条件
 
-1. 游戏服务器安装带 TLS 的 SLDataAPI（2.6.0 或更新版本的功能仍可用；加密需要新版插件）。`verify_token` 为强口令（弱口令会触发 fail-closed 503）。2.6.1 预发布的适配插件动作和大文件分块默认关闭，需要时再在测试服打开；
+1. 游戏服务器安装 SLDataAPI（2.6.0 或更新版本的功能仍可用；TLS 需要 SLDataAPI 2.6.1 Mores）。`verify_token` 为强口令（弱口令会触发 fail-closed 503）。2.6.1 预发布的适配插件动作和大文件分块默认关闭，需要时再在测试服打开；
 2. `control_enabled: true`，按需选择 `control_transport: http | ws`（与 app 内设置一致）。`tls_mode` 为 `off | optional | required`，默认 `optional`；
 3. 通过服务器控制台创建 API Key：`sldataapi apikey create <id> <duty|admin>`。Key 的角色在创建时就定了，事后改 `apikey.config` 里的角色不会生效，还会导致认证失败；要 admin 权限就新建一把 admin Key 并在 app 里换上。按需在 `apikey.config` 的 `endpoints_override` 中放开 plugins / files 等端点；
 4. 启用语音需 `voice_enabled: true`，并确认语音端口可被手机直连（不走网页反向代理）。语音端口用同一张证书；
