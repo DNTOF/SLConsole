@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +66,14 @@ private const val TERMINAL_TEXT = 0xFFD8DEE9
 private const val TERMINAL_PROMPT = 0xFFFF9EC6
 private const val MAX_TRANSCRIPT = 12000
 
+/** 旋转时只把最近这一小段放进 saved state，避免整段控制台输出被系统保存。 */
+private const val SAVED_TRANSCRIPT_CHARS = 480
+
+private val transcriptSaver = Saver<String, String>(
+    save = { value -> value.takeLast(SAVED_TRANSCRIPT_CHARS) },
+    restore = { saved -> saved.takeLast(SAVED_TRANSCRIPT_CHARS) },
+)
+
 @Composable
 fun ConsoleScreen() {
     val server = rememberActiveServer()
@@ -88,7 +97,7 @@ fun ConsoleScreen() {
 
     val scope = rememberCoroutineScope()
     var command by rememberSaveable { mutableStateOf("") }
-    var transcript by rememberSaveable { mutableStateOf("") }
+    var transcript by rememberSaveable(stateSaver = transcriptSaver) { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     val scroll = rememberScrollState()
 

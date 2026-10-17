@@ -115,7 +115,7 @@ fun GenuineBadge(palette: List<Color>, modifier: Modifier = Modifier, onClick: (
             )
             .border(1.dp, colors.border, shape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .clearAndSetSemantics { contentDescription = "官方签名：使用 DNT_OF 系列程序，安全 稳定 声誉" },
+            .clearAndSetSemantics { contentDescription = "官方签名：使用 DNT_OF 系列程序" },
     ) {
         Canvas(
             Modifier
@@ -158,7 +158,7 @@ fun GenuineBadge(palette: List<Color>, modifier: Modifier = Modifier, onClick: (
                 ),
             )
             Text(
-                "安全 稳定 声誉",
+                "官方签名",
                 maxLines = 1,
                 softWrap = false,
                 style = TextStyle(

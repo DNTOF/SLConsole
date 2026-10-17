@@ -6,6 +6,7 @@ package com.dntof.slconsole.data.repo
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.remote.WsControlClient
+import com.dntof.slconsole.data.remote.tls.TransportSession
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -93,10 +94,12 @@ object ControlRepository {
         }
     }
 
-    /** 获取(或创建并启动)某服务器的 WS 客户端。 */
+    /** 获取(或创建并启动)某服务器的 WS 客户端。指纹或加密锁变了就换一条连接。 */
     @Synchronized
     fun eventsClient(server: ServerConfig): WsControlClient {
-        wsClients[server.id]?.let { return it }
+        val existing = wsClients[server.id]
+        if (existing != null && existing.sameEndpoint(server)) return existing
+        existing?.stop()
         val client = WsControlClient(server)
         wsClients[server.id] = client
         client.start()
@@ -107,6 +110,7 @@ object ControlRepository {
     @Synchronized
     fun closeServer(serverId: String) {
         wsClients.remove(serverId)?.stop()
+        TransportSession.invalidate(serverId)
     }
 
     /** 只保留列表内的服务器客户端,其余停止并移除。 */

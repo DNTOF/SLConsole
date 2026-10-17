@@ -166,7 +166,12 @@ fun LogsScreen() {
                         AppSurface(Modifier.animateItem(fadeInSpec = tween(220), placementSpec = spring(stiffness = Spring.StiffnessMediumLow), fadeOutSpec = tween(160)).fillMaxWidth(), role = GlassRole.Row) {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(file.name ?: file.path, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                                    Text(
+                                        file.name ?: file.path,
+                                        modifier = Modifier.clarityMask(),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        maxLines = 1,
+                                    )
                                     Text(
                                         file.modified ?: "",
                                         style = MaterialTheme.typography.bodySmall,
@@ -193,7 +198,12 @@ fun LogsScreen() {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
                 }
                 Column(Modifier.weight(1f)) {
-                    Text(selected?.name ?: selected?.path ?: "", style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                    Text(
+                        selected?.name ?: selected?.path ?: "",
+                        modifier = Modifier.clarityMask(),
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                    )
                     tail?.let {
                         Text(
                             "共 ${it.total} 行 · 显示最近 ${it.lines.size} 行",

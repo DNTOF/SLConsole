@@ -51,6 +51,7 @@ import com.dntof.slconsole.data.model.SlEvent
 import com.dntof.slconsole.data.remote.WsControlClient
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.belowTopBar
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dntof.slconsole.ui.bottomChromePadding
 import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.withBottomChrome
@@ -92,7 +93,9 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
         return
     }
 
-    val client = remember(server.id) { ControlRepository.eventsClient(server) }
+    val client = remember(server.id, server.host, server.port, server.apiKey, server.certFingerprint, server.tlsSeen) {
+        ControlRepository.eventsClient(server)
+    }
     DisposableEffect(server.id) {
         client.subscribeEvents()
         onDispose { client.unsubscribeEvents() }
@@ -104,7 +107,7 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
     val events by client.events.collectAsState()
 
     LazyColumn(
-        Modifier.fillMaxSize(),
+        Modifier.fillMaxSize().clarityMask(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp).withBottomChrome(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -135,6 +138,7 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
                         )
                         Text(
                             detail,
+                            modifier = Modifier.clarityMask(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -230,6 +234,7 @@ private fun EventRow(event: SlEvent) {
                 if (meta.subtitle.isNotBlank()) {
                     Text(
                         meta.subtitle,
+                        modifier = Modifier.clarityMask(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,

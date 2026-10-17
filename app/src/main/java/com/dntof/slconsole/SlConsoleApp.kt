@@ -6,6 +6,7 @@ package com.dntof.slconsole
 import android.app.Application
 import com.dntof.slconsole.data.local.ServerStore
 import com.dntof.slconsole.data.local.SettingsStore
+import com.dntof.slconsole.data.remote.tls.TlsEvents
 
 class SlConsoleApp : Application() {
     override fun onCreate() {
@@ -23,5 +24,6 @@ object ServiceLocator {
     fun init(app: Application) {
         serverStore = ServerStore(app)
         settingsStore = SettingsStore(app)
+        TlsEvents.sink = { id -> serverStore.markTlsSeen(id) }
     }
 }

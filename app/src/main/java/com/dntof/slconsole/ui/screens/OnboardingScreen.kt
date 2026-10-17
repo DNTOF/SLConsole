@@ -67,18 +67,28 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.ServiceLocator
 import com.dntof.slconsole.analytics.ClarityDefaults
+import com.dntof.slconsole.data.model.HostAddress
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.SlHttpClient
+import com.dntof.slconsole.data.remote.tls.CertFingerprint
+import com.dntof.slconsole.data.remote.tls.TransportFailure
+import com.dntof.slconsole.data.remote.tls.TransportStatus
+import com.dntof.slconsole.ui.components.MismatchDialog
+import com.dntof.slconsole.ui.components.TofuDialog
 import com.dntof.slconsole.data.repo.ControlRepository
 import com.dntof.slconsole.ui.LocalImeLift
 import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.components.AppIconBadge
+import com.dntof.slconsole.ui.components.SecretOutlinedField
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 
 private const val STEP_COUNT = 6
+
+/** 使用统计是第 4 步（从 0 数是 3）。在这之前跳过，统计保持关闭。 */
+private const val ANALYTICS_STEP = 3
 
 private data class TourCard(val title: String, val body: String, val icon: ImageVector)
 
@@ -112,7 +122,7 @@ private val TOUR = listOf(
 
 /**
  * 第一次打开时盖在主界面上。用普通纯色表面，不跟液态玻璃开关走。
- * 「跳过」只结束引导，不改使用统计的当前值。
+ * 在走到使用统计那一步之前点「跳过」，会把使用统计写成关闭。走到那一步之后再跳过，不改已经保存的选择。
  */
 @Composable
 fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
@@ -129,6 +139,8 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     var port by rememberSaveable { mutableStateOf(ServerConfig.DEFAULT_PORT.toString()) }
     var verifyToken by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
+    var fingerprint by rememberSaveable { mutableStateOf("") }
+    var trustPrompt by remember { mutableStateOf<TransportStatus.Prompt?>(null) }
     var draftId by rememberSaveable { mutableStateOf<String?>(null) }
     var formError by remember { mutableStateOf<String?>(null) }
     var testing by remember { mutableStateOf(false) }
@@ -156,7 +168,9 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
     fun finish() {
         if (finishing) return
         finishing = true
+        val turnAnalyticsOff = !replay && analyticsChoice == null && step < ANALYTICS_STEP
         scope.launch {
+            if (turnAnalyticsOff) settings.setUsageAnalytics(false)
             settings.setOnboardingCompleted(true)
             onFinished()
         }
@@ -177,6 +191,7 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                 port = port,
                 verifyToken = verifyToken,
                 apiKey = apiKey,
+                fingerprint = fingerprint,
                 onDraftId = { draftId = it },
             )
             formError = error
@@ -227,6 +242,7 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                             port = port,
                             verifyToken = verifyToken,
                             apiKey = apiKey,
+                            fingerprint = fingerprint,
                             testing = testing,
                             testResult = testResult,
                             formError = formError,
@@ -234,24 +250,45 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                             onPort = { port = it },
                             onVerify = { verifyToken = it },
                             onApiKey = { apiKey = it },
+                            onFingerprint = { fingerprint = it },
                             onTest = {
                                 val h = host.trim()
                                 val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
-                                if (h.isEmpty() || verifyToken.isBlank()) {
-                                    testResult = false to "请先填写主机地址和 VerifyToken"
+                                val hostError = HostAddress.problem(h)
+                                if (hostError != null || verifyToken.isBlank()) {
+                                    testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
+                                    return@AddServerStep
+                                }
+                                val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
+                                if (fingerprint.isNotBlank() && pin == null) {
+                                    testResult = false to "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
                                     return@AddServerStep
                                 }
                                 testing = true
                                 testResult = null
                                 scope.launch {
-                                    val temp = ServerConfig(id = "test", host = h, port = p, verifyToken = verifyToken)
-                                    testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data")) {
+                                    val temp = ServerConfig(
+                                        id = "test",
+                                        host = h,
+                                        port = p,
+                                        verifyToken = verifyToken,
+                                        certFingerprint = pin.orEmpty(),
+                                    )
+                                    testResult = when (val result = SlHttpClient().getData(temp, "/get_sl_data", useCache = false)) {
                                         is SlHttpClient.HttpResult.Success -> {
                                             val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
                                             val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                                            true to "连接成功：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
+                                            val lock = if (result.encrypted) "加密" else "明文"
+                                            true to "连接成功（$lock）：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
                                         }
-                                        is SlHttpClient.HttpResult.Failure -> false to result.message
+                                        is SlHttpClient.HttpResult.Failure -> {
+                                            trustPrompt = when (val tls = result.tls) {
+                                                is TransportFailure.Tofu -> TransportStatus.Prompt.Tofu(tls.fingerprint)
+                                                is TransportFailure.Mismatch -> TransportStatus.Prompt.Mismatch(tls.pinned, tls.presented)
+                                                else -> null
+                                            }
+                                            false to result.message
+                                        }
                                     }
                                     testing = false
                                 }
@@ -319,6 +356,26 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                 }
             }
         }
+    }
+    when (val prompt = trustPrompt) {
+        is TransportStatus.Prompt.Tofu -> TofuDialog(
+            fingerprint = prompt.fingerprint,
+            onTrust = {
+                CertFingerprint.normalize(prompt.fingerprint)?.let { fingerprint = it }
+                trustPrompt = null
+            },
+            onDismiss = { trustPrompt = null },
+        )
+        is TransportStatus.Prompt.Mismatch -> MismatchDialog(
+            pinned = prompt.pinned,
+            presented = prompt.presented,
+            onTrust = {
+                CertFingerprint.normalize(prompt.presented)?.let { fingerprint = it }
+                trustPrompt = null
+            },
+            onDismiss = { trustPrompt = null },
+        )
+        null -> Unit
     }
 }
 
@@ -414,6 +471,7 @@ private fun AddServerStep(
     port: String,
     verifyToken: String,
     apiKey: String,
+    fingerprint: String,
     testing: Boolean,
     testResult: Pair<Boolean, String>?,
     formError: String?,
@@ -421,6 +479,7 @@ private fun AddServerStep(
     onPort: (String) -> Unit,
     onVerify: (String) -> Unit,
     onApiKey: (String) -> Unit,
+    onFingerprint: (String) -> Unit,
     onTest: () -> Unit,
 ) {
     Text("添加一台服务器", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
@@ -439,14 +498,17 @@ private fun AddServerStep(
         fontFamily = FontFamily.Monospace,
     )
     Text(
-        "Key 的权限在创建时就定了。要值班（duty）Key，创建时把最后的 admin 写成 duty。之后要 admin 权限，就在游戏里再建一把 admin Key，到应用里换上。Key 可以先不填，只看监控。",
+        "Key 的权限在创建时就定了。要值班（duty）Key，创建时把最后的 admin 写成 duty。之后要 admin 权限，就在游戏里再建一把 admin Key，到应用里换上。Key 可以先不填，只看监控。插件支持 TLS 时连接会加密，需要带 TLS 的 SLDataAPI。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    val hostError = if (host.isBlank()) null else HostAddress.problem(host.trim())
     OutlinedTextField(
         value = host,
         onValueChange = onHost,
         label = { Text("主机（IP 或域名）") },
+        isError = hostError != null,
+        supportingText = hostError?.let { message -> { Text(message) } },
         singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
@@ -458,19 +520,25 @@ private fun AddServerStep(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
-    OutlinedTextField(
+    SecretOutlinedField(
         value = verifyToken,
         onValueChange = onVerify,
         label = { Text("VerifyToken") },
-        singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
-    OutlinedTextField(
+    SecretOutlinedField(
         value = apiKey,
         onValueChange = onApiKey,
         label = { Text("API Key（可选）") },
-        singleLine = true,
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
+    )
+    OutlinedTextField(
+        value = fingerprint,
+        onValueChange = onFingerprint,
+        label = { Text("证书指纹（可选）") },
+        supportingText = { Text("可预先粘贴。留空则测试加密连接时再对照控制台确认。") },
+        modifier = Modifier.fillMaxWidth().keepAboveIme(),
+        minLines = 2,
     )
     OutlinedButton(onClick = onTest, enabled = !testing) {
         Text(if (testing) "测试中…" else "测试连接")
@@ -526,11 +594,11 @@ private fun TourStep() {
 private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
     Text("使用统计", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。服务器地址、密钥、控制台内容和玩家昵称会被遮住，不会原样上传。",
+        "匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。开启之后，Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。",
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(
-        "跳过的话保持现在的默认：开启。你可以以后在设置里关掉。" +
+        "如果在走到这一步之前点「跳过」，使用统计会关闭。走到这一步之后如果没有选择就跳过或继续，会按默认开启。以后可以在设置里改。" +
             "除此之外，应用只在检查更新时访问 GitHub；服务器数据只在手机和你自己的服务器之间传输。",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -594,13 +662,19 @@ private suspend fun saveQuickServer(
     port: String,
     verifyToken: String,
     apiKey: String,
+    fingerprint: String,
     onDraftId: (String) -> Unit,
 ): String? {
     val hostText = host.trim()
     val tokenBlank = verifyToken.isBlank()
     val keyBlank = apiKey.isBlank()
     if (hostText.isEmpty() && tokenBlank && keyBlank) return null
+    if (hostText.isNotEmpty()) {
+        HostAddress.problem(hostText)?.let { return it }
+    }
     val p = port.toIntOrNull()
+    val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
+    if (fingerprint.isNotBlank() && pin == null) return "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
     return when {
         hostText.isEmpty() || tokenBlank -> "主机和 VerifyToken 要一起填，或者这一步留空"
         p == null || p !in 1..65535 -> "端口必须是 1-65535"
@@ -613,6 +687,7 @@ private suspend fun saveQuickServer(
                 port = p,
                 verifyToken = verifyToken.filter { it.code in 32..126 }.trim(),
                 apiKey = apiKey.filter { it.code in 32..126 }.trim(),
+                certFingerprint = pin.orEmpty(),
                 createdAt = System.currentTimeMillis(),
             )
             try {

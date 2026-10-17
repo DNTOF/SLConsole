@@ -161,7 +161,7 @@ fun SettingsScreen() {
             SectionCard("使用统计", subtitle = "默认开启") {
                 LabeledSwitch(
                     title = "帮助改进（匿名使用统计）",
-                    subtitle = "用 Microsoft Clarity 匿名记录界面怎么被使用，用来改进应用。服务器地址、密钥、输入框、控制台内容和玩家昵称会被遮住。关闭后立即停止，下次打开也不再收集。",
+                    subtitle = "用 Microsoft Clarity 记录界面怎么被使用，用来改进应用。Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、输入框、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。关闭后立即停止，下次打开也不再收集。第一次打开时，如果在新手引导里还没走到使用统计这一步就跳过，这项会保持关闭。",
                     checked = analytics,
                     onCheckedChange = { enabled ->
                         UsageAnalytics.setEnabled(context, enabled)

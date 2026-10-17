@@ -32,8 +32,8 @@ Apache-2.0: <https://www.apache.org/licenses/LICENSE-2.0>
 
 ## 说明 / Notes
 
-- **Microsoft Clarity**：用于匿名使用统计，默认开启，可以在新手引导或应用设置里关闭。SDK 只以二进制 AAR 形式发布，没有公开源码；它的 Maven 元数据写的是 MIT 许可，但数据收集服务本身受 Microsoft 的使用条款约束。
-  Microsoft Clarity is used for anonymous usage statistics. It is on by default and can be turned off during onboarding or in the app settings. The SDK is distributed as a binary-only AAR; its Maven metadata states MIT, while the analytics service is governed by Microsoft's terms.
+- **Microsoft Clarity**：用于匿名使用统计，默认开启，可以在新手引导或应用设置里关闭。如果在走到使用统计那一步之前跳过引导，则会保持关闭。开启后仍可能收到设备型号、系统版本、IP 地址和点击坐标。SDK 只以二进制 AAR 形式发布，没有公开源码；它的 Maven 元数据写的是 MIT 许可，但数据收集服务本身受 Microsoft 的使用条款约束。
+  Microsoft Clarity is used for anonymous usage statistics. It is on by default and can be turned off during onboarding or in the app settings. Skipping onboarding before the analytics step leaves it off. When enabled it can still receive device model, OS version, IP address and tap coordinates. The SDK is distributed as a binary-only AAR; its Maven metadata states MIT, while the analytics service is governed by Microsoft's terms.
 - **Google Play Install Referrer** is pulled in by the Clarity SDK and is licensed under the Android Software Development Kit License, which is not a free-software license.
 - 与这两个组件一起分发由 [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) 里的 GPLv3 第 7 条附加许可覆盖。
   Distributing SLConsole together with these two components is covered by the GPLv3 section 7 additional permission in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md).

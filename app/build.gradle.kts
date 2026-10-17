@@ -76,8 +76,8 @@ android {
         applicationId = "com.dntof.slconsole"
         minSdk = 26
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.3.0"
+        versionCode = 8
+        versionName = "1.4.0"
     }
 
     signingConfigs {
@@ -151,4 +151,6 @@ dependencies {
     implementation(libs.androidx.fragment)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.okhttp.tls)
+    testImplementation(libs.okhttp.mockwebserver)
 }

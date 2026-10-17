@@ -27,12 +27,30 @@ data class ServerConfig(
     /** 语音流端口;0 = 自动(从 /get_sl_data 的 voice_port 读取)。服务器 voice_port 非默认值时需手动填写。 */
     val voicePort: Int = 0,
     val createdAt: Long = 0,
+    /**
+     * 固定的证书指纹:整张证书 DER 的 SHA-256,大写十六进制、冒号分隔。
+     * 指纹是公开的,不加密。空字符串表示还没固定。
+     */
+    val certFingerprint: String = "",
+    /**
+     * 这台服务器曾经用 TLS 连通过。为 true 时拒绝再退回明文,除非用户在编辑页手动重置。
+     * 旧配置没有这个字段,读出来是 false。
+     */
+    val tlsSeen: Boolean = false,
 ) {
     val displayName: String get() = label.ifBlank { host }
-    val baseUrl: String get() = "http://$host:$port"
-    val wsUrl: String get() = "ws://$host:$port/control"
     val hasControl: Boolean get() = apiKey.isNotBlank()
     val addressText: String get() = "$host:$port"
+
+    fun httpOrigin(secure: Boolean): String = "${if (secure) "https" else "http"}://$host:$port"
+
+    fun controlWebSocket(secure: Boolean): String = "${if (secure) "wss" else "ws"}://$host:$port/control"
+
+    fun voiceStatusUrl(voicePort: Int, secure: Boolean): String =
+        "${if (secure) "https" else "http"}://$host:$voicePort/status"
+
+    fun voiceWebSocket(voicePort: Int, secure: Boolean): String =
+        "${if (secure) "wss" else "ws"}://$host:$voicePort/ws"
 
     companion object {
         const val DEFAULT_PORT = 8081
