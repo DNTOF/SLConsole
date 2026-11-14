@@ -9,6 +9,7 @@ import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.remote.tls.TransportSession
 import com.dntof.slconsole.util.stripRichText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -79,6 +80,8 @@ object MonitorEngine {
         // 轮询全程兜底:任何异常(如服务器返回异常数据)都转为错误状态,绝不击穿进程
         try {
             fetchInternal(server)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             _state.value = MonitorState.Error(server.id, appString(R.string.monitor_engine_request_error, e.message ?: e.javaClass.simpleName))
         }
