@@ -11,6 +11,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.OkHttpClient
 import com.dntof.slconsole.data.remote.AppJson
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * HTTP 通道:每次新会话先试 HTTPS。只有握手表明对端不讲 TLS,才退回 HTTP。
@@ -75,7 +77,7 @@ object TlsHttp {
             }
         } catch (e: IOException) {
             if (!cached.secure) {
-                return Result.Blocked(TransportFailure.Other("无法连接：${e.shortMessage()}"))
+                return Result.Blocked(TransportFailure.Other(appString(R.string.common_cant_connect, e.shortMessage())))
             }
             return stopOrError(config.id, TlsHandshakePolicy.onTlsFailure(e, tlsSeen = true, allowPlaintextFallback = false), e)
         } catch (e: Exception) {
@@ -140,7 +142,7 @@ object TlsHttp {
                     attemptTls(config, key, allowFallback = false, useCache = useCache, block = block)
             }
         } catch (e: IOException) {
-            return Result.Blocked(TransportFailure.Other("无法连接：${e.shortMessage()}"))
+            return Result.Blocked(TransportFailure.Other(appString(R.string.common_cant_connect, e.shortMessage())))
         } catch (e: Exception) {
             return Result.Blocked(TransportFailure.Other(TlsMessages.other(e.shortMessage())))
         }

@@ -54,6 +54,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private fun formatReportTime(iso: String?): String {
     if (iso.isNullOrBlank()) return "—"
@@ -111,9 +115,9 @@ fun ReportsScreen() {
     ) {
         item {
             SectionCard(
-                "举报管理",
-                subtitle = reports?.let { "${it.size} 条待处理 · 每 15 秒自动刷新" } ?: "加载中…",
-                actions = { TextButton(onClick = { load() }) { Text("刷新") } },
+                stringResource(R.string.common_reports),
+                subtitle = reports?.let { pluralStringResource(R.plurals.reports_pending_auto_refresh_every_15, it.size.toInt(), it.size) } ?: stringResource(R.string.common_loading),
+                actions = { TextButton(onClick = { load() }) { Text(stringResource(R.string.common_refresh)) } },
             ) {
                 error?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -124,14 +128,14 @@ fun ReportsScreen() {
         val list = reports
         if (list == null) {
             item {
-                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else if (list.isEmpty()) {
             item {
                 EmptyState(
                     Icons.Filled.CheckCircle,
-                    "所有举报均已处理",
-                    "启用 report_enabled 后,玩家通过服务器设置面板提交的举报会显示在这里。",
+                    stringResource(R.string.reports_all_reports_handled),
+                    stringResource(R.string.reports_report_enabled_reports_players_submit),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -143,7 +147,7 @@ fun ReportsScreen() {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
                                     Text(
-                                        report.reporterName?.takeIf { it.isNotBlank() } ?: "匿名举报",
+                                        report.reporterName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.reports_anonymous_report),
                                         style = MaterialTheme.typography.titleSmall,
                                         maxLines = 1,
                                     )
@@ -155,10 +159,10 @@ fun ReportsScreen() {
                                         maxLines = 1,
                                     )
                                 }
-                                InfoChip("待处理", MaterialTheme.colorScheme.primary)
+                                InfoChip(stringResource(R.string.reports_pending), MaterialTheme.colorScheme.primary)
                             }
                             Text(
-                                "被举报:${report.targetName?.takeIf { it.isNotBlank() } ?: "—"}",
+                                stringResource(R.string.reports_reported, report.targetName?.takeIf { it.isNotBlank() } ?: "—"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 6.dp),
                             )
@@ -185,7 +189,7 @@ fun ReportsScreen() {
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                TextButton(onClick = { handleTarget = report }) { Text("标记已处理") }
+                                TextButton(onClick = { handleTarget = report }) { Text(stringResource(R.string.reports_mark_handled)) }
                             }
                         }
                     }
@@ -195,9 +199,9 @@ fun ReportsScreen() {
 
     handleTarget?.let { report ->
         ConfirmDialog(
-            title = "处理举报",
-            text = "确认将此举报标记为已处理:${report.targetName ?: report.targetSteam64 ?: report.id}",
-            confirmLabel = "确认",
+            title = stringResource(R.string.reports_handle_report),
+            text = stringResource(R.string.reports_mark_report_as_handled, report.targetName ?: report.targetSteam64 ?: report.id),
+            confirmLabel = stringResource(R.string.common_confirm),
             onConfirm = {
                 val target = server ?: return@ConfirmDialog
                 scope.launch {
@@ -209,7 +213,7 @@ fun ReportsScreen() {
                             put("id", report.id)
                         },
                     )
-                    snackbar.showOutcome(outcome, "已标记为处理完成")
+                    snackbar.showOutcome(outcome, appString(R.string.reports_marked_as_handled))
                     load()
                 }
             },

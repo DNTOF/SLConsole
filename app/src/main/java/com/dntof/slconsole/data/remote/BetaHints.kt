@@ -4,19 +4,18 @@
 package com.dntof.slconsole.data.remote
 
 import com.dntof.slconsole.data.repo.ControlRepository
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 把 2.6.1 内测端点的失败翻译成界面上能看懂的句子。 */
 object BetaHints {
-    const val ADAPTED_FORBIDDEN =
-        "这把 API Key 还不能调用适配插件动作。请在 apikey.config 里这把 Key 的 endpoints_override 加上 \"/control/adapted/\": true，也可以只放开某一个插件。admin 和 duty Key 默认都没有这项，不要去改 Key 的角色。"
+    val ADAPTED_FORBIDDEN: String get() = appString(R.string.beta_hints_api_key_cant_call_adapted)
 
-    const val FILES_FORBIDDEN =
-        "这把 API Key 还不能访问文件。请在 apikey.config 里这把 Key 的 endpoints_override 加上 \"/control/files/\": true。文件端点默认拒绝，admin Key 也一样，不要去改 Key 的角色。"
+    val FILES_FORBIDDEN: String get() = appString(R.string.beta_hints_api_key_cant_access_files)
 
-    const val ACTION_TIMEOUT = "插件处理超时"
+    val ACTION_TIMEOUT: String get() = appString(R.string.beta_hints_plugin_timed_out)
 
-    const val SYMLINK_REJECTED =
-        "路径经过符号链接或目录联接，服务器已拒绝，以免读到 FileRoot 外面。"
+    val SYMLINK_REJECTED: String get() = appString(R.string.beta_hints_path_goes_through_symbolic_link)
 
     fun actionFailure(failure: ControlRepository.ControlOutcome.Failure): String = when {
         failure.status == 504 || failure.message.contains("超时") -> ACTION_TIMEOUT

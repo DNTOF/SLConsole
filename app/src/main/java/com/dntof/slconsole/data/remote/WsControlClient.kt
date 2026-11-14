@@ -40,6 +40,8 @@ import okio.ByteString
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * SLDataAPI 控制面 WebSocket 客户端(control_transport: "ws" 时使用)。
@@ -77,7 +79,7 @@ class WsControlClient(private val config: ServerConfig) {
     private val _state = MutableStateFlow(ConnState.CONNECTING)
     val state: StateFlow<ConnState> = _state.asStateFlow()
 
-    private val _stateDetail = MutableStateFlow("正在连接…")
+    private val _stateDetail = MutableStateFlow(appString(R.string.common_connecting))
     val stateDetail: StateFlow<String> = _stateDetail.asStateFlow()
 
     private val _handshakeStatus = MutableStateFlow(0)
@@ -120,9 +122,9 @@ class WsControlClient(private val config: ServerConfig) {
         _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
         _stateDetail.value = if (secure) {
-            "正在加密连接 ${config.addressText}/control…"
+            appString(R.string.ws_control_client_connecting_securely_control, config.addressText)
         } else {
-            "正在以明文连接 ${config.addressText}/control…"
+            appString(R.string.ws_control_client_connecting_plaintext_control, config.addressText)
         }
         val request = Request.Builder()
             .url(config.controlWebSocket(secure))
@@ -162,8 +164,8 @@ class WsControlClient(private val config: ServerConfig) {
                     readyOnce = true
                     _beta.value = ControlBeta.fromHello(obj)
                     _state.value = ConnState.READY
-                    val lock = if (secure) "加密" else "明文"
-                    _stateDetail.value = "已连接 SLDataAPI ${(obj["version"] as? JsonPrimitive)?.content ?: ""}（$lock）"
+                    val lock = if (secure) appString(R.string.common_encrypted) else appString(R.string.common_plaintext)
+                    _stateDetail.value = appString(R.string.ws_control_client_connected_sldataapi, (obj["version"] as? JsonPrimitive)?.content ?: "", lock)
                     if (wantEvents) sendSubscribe()
                 }
                 "pong" -> Unit
@@ -178,14 +180,14 @@ class WsControlClient(private val config: ServerConfig) {
                             )
                         } else {
                             CallResult.Failure(
-                                message = (obj["message"] as? JsonPrimitive)?.content ?: "调用失败",
+                                message = (obj["message"] as? JsonPrimitive)?.content ?: appString(R.string.ws_control_client_call_failed),
                                 status = (obj["status"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0,
                             )
                         }
                     )
                 }
-                "events_subscribed" -> appendSystemEvent("已订阅实时事件")
-                "events_unsubscribed" -> appendSystemEvent("已取消订阅实时事件")
+                "events_subscribed" -> appendSystemEvent(appString(R.string.ws_control_client_subscribed_live_events))
+                "events_unsubscribed" -> appendSystemEvent(appString(R.string.ws_control_client_unsubscribed_from_live_events))
                 "event" -> {
                     val name = (obj["event"] as? JsonPrimitive)?.content ?: return
                     val event = SlEvent(
@@ -195,7 +197,7 @@ class WsControlClient(private val config: ServerConfig) {
                     )
                     _events.value = (listOf(event) + _events.value).take(MAX_EVENT_CACHE)
                 }
-                "error" -> appendSystemEvent("服务器错误:${(obj["message"] as? JsonPrimitive)?.content ?: "未知"}")
+                "error" -> appendSystemEvent(appString(R.string.ws_control_client_server_error, (obj["message"] as? JsonPrimitive)?.content ?: appString(R.string.common_unknown)))
             }
         }
 
@@ -208,7 +210,7 @@ class WsControlClient(private val config: ServerConfig) {
                     return
                 }
                 phase = Phase.FORCE_TLS
-                failAllPending("WS 通道改为加密重试")
+                failAllPending(appString(R.string.ws_control_client_ws_channel_retrying_encryption))
                 connect()
                 return
             }
@@ -219,18 +221,18 @@ class WsControlClient(private val config: ServerConfig) {
                     TlsHandshakePolicy.Decision.UsePlaintext -> {
                         phase = Phase.PLAIN
                         TransportStatus.onPlaintext(config.id)
-                        failAllPending("WS 通道改为明文")
+                        failAllPending(appString(R.string.ws_control_client_ws_channel_switched_plaintext))
                         connect()
                     }
                     TlsHandshakePolicy.Decision.ProbePlaintext -> {
                         phase = Phase.PROBE
-                        failAllPending("WS 通道探测明文")
+                        failAllPending(appString(R.string.ws_control_client_ws_channel_probing_plaintext))
                         connect()
                     }
                     TlsHandshakePolicy.Decision.RetryLater -> {
                         _state.value = ConnState.FAILED
                         _stateDetail.value = TlsMessages.other(t.shortMessage())
-                        failAllPending("WS 通道已断开")
+                        failAllPending(appString(R.string.ws_control_client_ws_channel_disconnected))
                         scheduleReconnect()
                     }
                     TlsHandshakePolicy.Decision.RetryTls -> {
@@ -247,14 +249,14 @@ class WsControlClient(private val config: ServerConfig) {
             if (phase == Phase.PROBE) {
                 phase = Phase.TRY_TLS
                 _state.value = ConnState.FAILED
-                _stateDetail.value = "无法连接：${t.shortMessage()}"
-                failAllPending("WS 通道探测失败")
+                _stateDetail.value = appString(R.string.common_cant_connect, t.shortMessage())
+                failAllPending(appString(R.string.ws_control_client_ws_channel_probe_failed))
                 scheduleReconnect()
                 return
             }
             _state.value = ConnState.FAILED
-            _stateDetail.value = "连接失败:${t.shortMessage()}" + (response?.code?.let { "(HTTP $it)" } ?: "")
-            failAllPending("WS 通道已断开")
+            _stateDetail.value = appString(R.string.ws_control_client_connection_failed, t.shortMessage()) + (response?.code?.let { "(HTTP $it)" } ?: "")
+            failAllPending(appString(R.string.ws_control_client_ws_channel_disconnected))
             scheduleReconnect()
         }
 
@@ -262,8 +264,8 @@ class WsControlClient(private val config: ServerConfig) {
             if (!current()) return
             if (phase == Phase.DEAD) return
             _state.value = ConnState.CLOSED
-            _stateDetail.value = "连接已关闭($code)"
-            failAllPending("WS 通道已关闭")
+            _stateDetail.value = appString(R.string.common_connection_closed, code)
+            failAllPending(appString(R.string.ws_control_client_ws_channel_closed))
             scheduleReconnect()
         }
     }
@@ -331,7 +333,7 @@ class WsControlClient(private val config: ServerConfig) {
     suspend fun call(path: String, body: JsonObject? = null, timeoutMs: Long = CALL_TIMEOUT_MS): CallResult {
         if (!awaitReady()) {
             return CallResult.Failure(
-                "WS 控制通道未就绪:${_stateDetail.value}",
+                appString(R.string.ws_control_client_ws_control_channel_not_ready, _stateDetail.value),
                 status = _handshakeStatus.value,
                 fromHandshake = true,
             )
@@ -348,18 +350,18 @@ class WsControlClient(private val config: ServerConfig) {
         val sent = webSocket?.send(frame.toString()) ?: false
         if (!sent) {
             pending.remove(reqId)
-            return CallResult.Failure("发送失败,WS 通道不可用")
+            return CallResult.Failure(appString(R.string.ws_control_client_send_failed_ws_channel_unavailable))
         }
         return withTimeoutOrNull(timeoutMs) { deferred.await() } ?: run {
             pending.remove(reqId)
-            CallResult.Failure("控制调用超时(${timeoutMs / 1000}s)")
+            CallResult.Failure(appString(R.string.ws_control_client_control_call_timed_out, timeoutMs / 1000))
         }
     }
 
     fun stop() {
         started = false
         phase = Phase.DEAD
-        failAllPending("客户端已停止")
+        failAllPending(appString(R.string.ws_control_client_client_stopped))
         runCatching { webSocket?.cancel() }
         scope.cancel()
     }

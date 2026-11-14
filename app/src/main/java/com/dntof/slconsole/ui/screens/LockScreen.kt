@@ -36,6 +36,9 @@ import com.dntof.slconsole.ui.components.AppIconBadge
 import com.microsoft.clarity.modifiers.clarityMask
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 打开了生物识别解锁、且这次还没解锁时，AppRoot 只画这一屏，主界面完全不组合。
@@ -65,12 +68,12 @@ fun AppLockGate() {
         }
         busy = true
         message = null
-        AppLock.authenticate(context, title = "解锁 SLConsole") { result ->
+        AppLock.authenticate(context, title = appString(R.string.lock_unlock_slconsole)) { result ->
             busy = false
             when (result) {
                 AppLock.Result.Success -> AppLock.markUnlocked()
-                AppLock.Result.Cancelled -> message = "已取消。点「解锁」再试一次。"
-                AppLock.Result.Unavailable -> message = "现在不能使用生物识别或锁屏密码。"
+                AppLock.Result.Cancelled -> message = appString(R.string.lock_cancelled_tap_unlock_try_again)
+                AppLock.Result.Unavailable -> message = appString(R.string.common_biometrics_screen_lock_cant_used)
                 is AppLock.Result.Error -> message = result.message
             }
         }
@@ -101,16 +104,16 @@ private fun LockScreen(message: String?, busy: Boolean, onUnlock: () -> Unit) {
         ) {
             AppIconBadge(size = 88.dp)
             Spacer(Modifier.height(20.dp))
-            Text("SLConsole 已锁定", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.lock_slconsole_locked), style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
             Text(
-                "用指纹、面容或锁屏密码解锁后才能查看。",
+                stringResource(R.string.lock_unlock_fingerprint_face_screen_lock),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(24.dp))
-            Button(onClick = onUnlock, enabled = !busy) { Text("解锁") }
+            Button(onClick = onUnlock, enabled = !busy) { Text(stringResource(R.string.common_unlock)) }
             message?.let {
                 Spacer(Modifier.height(12.dp))
                 Text(

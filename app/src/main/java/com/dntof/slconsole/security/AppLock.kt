@@ -18,6 +18,8 @@ import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 生物识别解锁。开关存在 SettingsStore 里，这里只管「这次进程里有没有解过锁」和弹认证框。
@@ -108,15 +110,15 @@ object AppLock {
 
     fun unavailableText(availability: Availability): String = when (availability) {
         Availability.Ready -> ""
-        Availability.NoneEnrolled -> "这台设备还没有录入指纹或面容，也没有设置锁屏密码。先在系统设置里设置一个，再回来打开。"
-        Availability.NoHardware -> "这台设备不支持生物识别。"
-        Availability.Unavailable -> "这台设备现在不能使用生物识别或锁屏密码。"
+        Availability.NoneEnrolled -> appString(R.string.app_lock_device_has_no_fingerprint_face)
+        Availability.NoHardware -> appString(R.string.app_lock_device_doesnt_support_biometrics)
+        Availability.Unavailable -> appString(R.string.app_lock_biometrics_screen_lock_cant_used)
     }
 
     fun authenticate(
         context: Context,
         title: String,
-        subtitle: String = "用指纹、面容或锁屏密码确认是你本人",
+        subtitle: String = appString(R.string.app_lock_confirm_its_fingerprint_face_screen),
         onResult: (Result) -> Unit,
     ) {
         val activity = context.findFragmentActivity()
@@ -151,7 +153,7 @@ object AppLock {
             .setSubtitle(subtitle)
             .setAllowedAuthenticators(mode.authenticators)
             .setConfirmationRequired(false)
-            .apply { if (mode.needsNegativeButton) setNegativeButtonText("取消") }
+            .apply { if (mode.needsNegativeButton) setNegativeButtonText(appString(R.string.common_cancel)) }
             .build()
         try {
             authenticating = true
@@ -159,7 +161,7 @@ object AppLock {
         } catch (t: Throwable) {
             authenticating = false
             Log.w(TAG, "auth start failed", t)
-            onResult(Result.Error(t.message ?: "无法打开认证"))
+            onResult(Result.Error(t.message ?: appString(R.string.app_lock_couldnt_start_authentication)))
         }
     }
 

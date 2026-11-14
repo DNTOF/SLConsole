@@ -25,6 +25,8 @@ import com.dntof.slconsole.BuildConfig
 import com.dntof.slconsole.data.update.ReleaseNotes
 import com.dntof.slconsole.data.update.UpdateInfo
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 /** 发现新版本时的弹窗：版本、大小、更新说明，以及「立即更新」「稍后」「忽略此版本」。 */
 @Composable
@@ -37,13 +39,13 @@ fun UpdateDialog(
     val notes = remember(info.notes) { ReleaseNotes.toPlain(info.notes) }
     AlertDialog(
         onDismissRequest = onLater,
-        title = { Text("发现新版本 ${info.versionName}") },
+        title = { Text(stringResource(R.string.update_dialog_new_version_available, info.versionName)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     buildString {
-                        append("当前 ${BuildConfig.VERSION_NAME} → ${info.versionName}")
-                        info.sizeBytes?.let { append("　安装包 ${formatBytes(it)}") }
+                        append(stringResource(R.string.update_dialog_current, BuildConfig.VERSION_NAME, info.versionName))
+                        info.sizeBytes?.let { append(stringResource(R.string.update_dialog_package, formatBytes(it))) }
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -55,18 +57,18 @@ fun UpdateDialog(
                         .verticalScroll(rememberScrollState()),
                 ) {
                     Text(
-                        notes.ifBlank { "这个版本没有写更新说明。" },
+                        notes.ifBlank { stringResource(R.string.update_dialog_no_release_notes_version) },
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
                 HorizontalDivider()
                 Text(
-                    "本应用不会自行校验安装包哈希。如果下面有 SHA-256，请下载后自己对比。",
+                    stringResource(R.string.update_dialog_app_doesnt_verify_package_hash),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 info.sha256?.let { sha ->
-                    Text("安装包 SHA-256", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.update_dialog_package_sha_256), style = MaterialTheme.typography.labelMedium)
                     SelectionContainer {
                         Text(
                             sha,
@@ -76,19 +78,19 @@ fun UpdateDialog(
                         )
                     }
                 } ?: Text(
-                    "这次没有提供 SHA-256 摘要。",
+                    stringResource(R.string.update_dialog_no_sha_256_digest_was),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
         confirmButton = {
-            Button(onClick = onUpdate) { Text("立即更新") }
+            Button(onClick = onUpdate) { Text(stringResource(R.string.update_dialog_update_now)) }
         },
         dismissButton = {
             Row {
-                TextButton(onClick = onIgnore) { Text("忽略此版本") }
-                TextButton(onClick = onLater) { Text("稍后") }
+                TextButton(onClick = onIgnore) { Text(stringResource(R.string.update_dialog_ignore_version)) }
+                TextButton(onClick = onLater) { Text(stringResource(R.string.update_dialog_later)) }
             }
         },
     )

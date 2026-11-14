@@ -57,6 +57,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonPrimitive
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 @Composable
 fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
@@ -112,12 +115,12 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
         val hostError = HostAddress.problem(h)
         if (hostError != null || verifyToken.isBlank()) {
-            testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
+            testResult = false to (hostError ?: appString(R.string.common_enter_host_address_verifytoken_first))
             return
         }
         val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
         if (fingerprint.isNotBlank() && pin == null) {
-            testResult = false to "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
+            testResult = false to appString(R.string.common_fingerprint_must_32_byte_sha)
             return
         }
         testing = true
@@ -135,8 +138,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                 is SlHttpClient.HttpResult.Success -> {
                     val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
                     val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                    val lock = if (result.encrypted) "加密" else "明文"
-                    testResult = true to "连接成功（$lock）:${name ?: "(未命名服务器)"}(在线 $count 人)"
+                    val lock = if (result.encrypted) appString(R.string.common_encrypted) else appString(R.string.common_plaintext)
+                    testResult = true to appString(R.string.server_edit_connected_online, lock, name ?: appString(R.string.server_edit_unnamed_server), count)
                 }
                 is SlHttpClient.HttpResult.Failure -> {
                     testResult = false to result.message
@@ -153,7 +156,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
 
     fun save() {
         if (serverId != null && !prefilled) {
-            saveError = "正在读取原配置，请稍候再保存"
+            saveError = appString(R.string.server_edit_still_reading_original_config_please)
             return
         }
         val h = host.trim()
@@ -162,9 +165,9 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         val typedPin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
         when {
             hostError != null -> saveError = hostError
-            p == null || p < 1 || p > 65535 -> saveError = "端口必须是 1-65535 的数字"
-            verifyToken.isBlank() -> saveError = "VerifyToken 是监控数据接口的必填凭据"
-            fingerprint.isNotBlank() && typedPin == null -> saveError = "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
+            p == null || p < 1 || p > 65535 -> saveError = appString(R.string.server_edit_port_must_number_from_1)
+            verifyToken.isBlank() -> saveError = appString(R.string.server_edit_verifytoken_required_credential_monitoring_data)
+            fingerprint.isNotBlank() && typedPin == null -> saveError = appString(R.string.common_fingerprint_must_32_byte_sha)
             else -> {
                 saveError = null
                 scope.launch {
@@ -188,7 +191,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                     try {
                         store.upsert(config)
                     } catch (e: Exception) {
-                        saveError = "保存失败:凭据加密异常(${e.message ?: e.javaClass.simpleName}),配置未写入"
+                        saveError = appString(R.string.server_edit_save_failed_credential_encryption_error, e.message ?: e.javaClass.simpleName)
                         return@launch
                     }
                     ControlRepository.closeServer(config.id)
@@ -206,11 +209,11 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     ) {
         item {
             Text(
-                if (serverId == null) "添加服务器" else "编辑服务器",
+                if (serverId == null) stringResource(R.string.common_add_server) else stringResource(R.string.server_edit_edit_server),
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                "对应游戏服务器上的 SLDataAPI 插件(端口默认 8081)。",
+                stringResource(R.string.server_edit_corresponds_sldataapi_plugin_game_server),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -219,7 +222,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("显示名称(可选)") },
+                label = { Text(stringResource(R.string.server_edit_display_name_optional)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
@@ -229,7 +232,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             OutlinedTextField(
                 value = host,
                 onValueChange = { host = it },
-                label = { Text("主机(IP 或域名)") },
+                label = { Text(stringResource(R.string.server_edit_host_ip_domain)) },
                 isError = hostError != null,
                 supportingText = hostError?.let { message -> { Text(message) } },
                 singleLine = true,
@@ -240,7 +243,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             OutlinedTextField(
                 value = port,
                 onValueChange = { port = it },
-                label = { Text("端口(默认 8081)") },
+                label = { Text(stringResource(R.string.server_edit_port_default_8081)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -250,8 +253,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             SecretOutlinedField(
                 value = verifyToken,
                 onValueChange = { verifyToken = it },
-                label = { Text("VerifyToken(数据面凭据,必填)") },
-                supportingText = { Text("插件 config.yml 中的 verify_token,用于拉取监控数据") },
+                label = { Text(stringResource(R.string.server_edit_verifytoken_data_plane_credential_required)) },
+                supportingText = { Text(stringResource(R.string.server_edit_verify_token_from_plugins_config)) },
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
@@ -259,8 +262,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             SecretOutlinedField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
-                label = { Text("API Key(控制面凭据,可选)") },
-                supportingText = { Text("sld_live_ / sld_duty_ 开头,权限在创建时就定了。要 admin 权限请在游戏里新建 admin Key 再换上;不填则只能看监控") },
+                label = { Text(stringResource(R.string.server_edit_api_key_control_plane_credential)) },
+                supportingText = { Text(stringResource(R.string.server_edit_starts_sld_live_sld_duty)) },
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
             )
         }
@@ -268,8 +271,8 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
             OutlinedTextField(
                 value = voicePortText,
                 onValueChange = { voicePortText = it },
-                label = { Text("语音流端口(可选)") },
-                supportingText = { Text("留空 = 自动从监控读取;服务器 voice_port 非默认 8082 或监控不可用时必填") },
+                label = { Text(stringResource(R.string.server_edit_voice_stream_port_optional)) },
+                supportingText = { Text(stringResource(R.string.server_edit_empty_read_automatically_from_monitoring)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -277,7 +280,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         }
         item {
             Column {
-                Text("控制传输模式", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.server_edit_control_transport_mode), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(6.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     SegmentedButton(
@@ -292,7 +295,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                     ) { Text("WS") }
                 }
                 Text(
-                    "需与插件 control_transport 配置一致;WS 模式才能接收实时事件。",
+                    stringResource(R.string.server_edit_must_match_plugins_control_transport),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -300,10 +303,10 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("证书指纹", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.server_edit_certificate_fingerprint), style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    if (tlsSeen) "已锁定：这台服务器用加密连通过，不会自动改回明文。"
-                    else "还没锁定。插件支持 TLS 时会加密；旧版或关闭 TLS 时走明文。",
+                    if (tlsSeen) stringResource(R.string.server_edit_locked_server_has_connected_encryption)
+                    else stringResource(R.string.server_edit_not_locked_yet_connections_are),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -315,20 +318,20 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
                         fingerprint = it
                         fingerprintDirty = true
                     },
-                    label = { Text("预先粘贴指纹（可选）") },
-                    supportingText = { Text("SHA-256，可以带冒号或空格。留空则第一次加密连接时再确认。") },
+                    label = { Text(stringResource(R.string.server_edit_paste_fingerprint_advance_optional)) },
+                    supportingText = { Text(stringResource(R.string.server_edit_sha_256_colons_spaces_are)) },
                     modifier = Modifier.fillMaxWidth().keepAboveIme(),
                     minLines = 2,
                 )
                 if (tlsSeen && serverId != null) {
-                    OutlinedButton(onClick = { confirmReset = true }) { Text("重置加密记录") }
+                    OutlinedButton(onClick = { confirmReset = true }) { Text(stringResource(R.string.server_edit_reset_encryption_record)) }
                 }
             }
         }
         item {
             Column {
                 Text(
-                    "监控轮询间隔:${intervalSec.toInt()} 秒",
+                    stringResource(R.string.server_edit_monitoring_poll_interval, intervalSec.toInt()),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Slider(
@@ -341,10 +344,10 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(onClick = { testConnection() }, enabled = !testing, modifier = Modifier.weight(1f)) {
-                    Text(if (testing) "测试中…" else "测试连接")
+                    Text(if (testing) stringResource(R.string.common_testing) else stringResource(R.string.common_test_connection))
                 }
                 Button(onClick = { save() }, modifier = Modifier.weight(1f)) {
-                    Text("保存")
+                    Text(stringResource(R.string.common_save))
                 }
             }
             testResult?.let { (ok, message) ->
@@ -360,9 +363,7 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
         }
         item {
             Text(
-                "凭据只保存在这台手机上（AndroidKeyStore 加密），只发给你自己的服务器，不经过任何第三方。" +
-                    "插件支持 TLS 时走 HTTPS/WSS，并固定服务器自签证书。第一次连接请对照控制台指纹（sldataapi cert show，或启动时的 TLS 横幅）再信任。" +
-                    "需要带 TLS 的 SLDataAPI；旧版或 tls_mode 为 off 时会显示「此连接不加密」。",
+                stringResource(R.string.server_edit_credentials_are_stored_only_phone),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -396,9 +397,9 @@ fun ServerEditScreen(serverId: String?, onDone: () -> Unit) {
     }
     if (confirmReset && serverId != null) {
         ConfirmDialog(
-            title = "重置加密记录？",
-            text = "重置后，如果加密握手失败，应用会再次允许明文。只有确认这台服务器已经关掉 TLS 时才这么做。明文连接会一直显示「此连接不加密」。",
-            confirmLabel = "仍然重置",
+            title = stringResource(R.string.server_edit_reset_encryption_record_2),
+            text = stringResource(R.string.server_edit_after_resetting_app_will_allow),
+            confirmLabel = stringResource(R.string.server_edit_reset_anyway),
             danger = true,
             onConfirm = {
                 tlsSeen = false

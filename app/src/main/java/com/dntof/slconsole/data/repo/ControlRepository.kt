@@ -9,6 +9,8 @@ import com.dntof.slconsole.data.remote.WsControlClient
 import com.dntof.slconsole.data.remote.tls.TransportSession
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 控制操作仓库:按服务器配置把 /control/ 开头的控制调用路由到 HTTP 或 WS 通道,
@@ -35,7 +37,7 @@ object ControlRepository {
         body: JsonObject = JsonObject(emptyMap()),
     ): ControlOutcome {
         if (!server.hasControl) {
-            return ControlOutcome.Failure("未配置 API Key,控制功能不可用(请在服务器设置中填写)")
+            return ControlOutcome.Failure(appString(R.string.control_repository_no_api_key_configured_control))
         }
         return when (server.controlTransport) {
             "ws" -> callOverWs(server, path, body)
@@ -51,7 +53,7 @@ object ControlRepository {
             )
             is SlHttpClient.HttpResult.Failure -> ControlOutcome.Failure(
                 message = if (result.transportHint == "ws") {
-                    "服务器要求 WS 控制通道:请在服务器设置中把传输模式改为 WS"
+                    appString(R.string.control_repository_server_requires_ws_control_channel)
                 } else {
                     result.message
                 },
@@ -82,8 +84,8 @@ object ControlRepository {
                 if (result.fromHandshake) {
                     ControlOutcome.Failure(
                         message = when (result.status) {
-                            404 -> "服务器未开放 WS 控制通道(control_transport 为 http),请在服务器设置改回 HTTP"
-                            401, 403 -> "API Key 校验失败(HTTP ${result.status})。改过 apikey.config 里的角色会让这把 Key 失效，请在游戏里新建一把再换上"
+                            404 -> appString(R.string.control_repository_server_hasnt_enabled_ws_control)
+                            401, 403 -> appString(R.string.control_repository_api_key_check_failed_http, result.status)
                             else -> result.message
                         },
                     )

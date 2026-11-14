@@ -48,6 +48,9 @@ import com.dntof.slconsole.ui.components.LocalLiquidGlass
 import com.dntof.slconsole.ui.components.SectionCard
 import kotlinx.coroutines.launch
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 @Composable
 fun SettingsScreen() {
@@ -68,25 +71,25 @@ fun SettingsScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("设置", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.common_settings), style = MaterialTheme.typography.headlineSmall)
             Text(
-                "外观、隐私和解锁方式，只在这台设备上生效。",
+                stringResource(R.string.settings_appearance_privacy_unlock_options_apply),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         item {
-            SectionCard("液态玻璃", subtitle = "默认关闭") {
+            SectionCard(stringResource(R.string.settings_liquid_glass), subtitle = stringResource(R.string.settings_off_by_default)) {
                 LabeledSwitch(
-                    title = "启用液态玻璃",
-                    subtitle = "为导航和卡片加上磨砂与高光。\n关闭后恢复纯色,重启后仍会保持。",
+                    title = stringResource(R.string.settings_enable_liquid_glass),
+                    subtitle = stringResource(R.string.settings_adds_frosted_blur_highlights_navigation),
                     checked = glass,
                     onCheckedChange = { enabled ->
                         scope.launch { ServiceLocator.settingsStore.setLiquidGlass(enabled) }
                     },
                 )
                 Text(
-                    "Android 12 及以上会实时模糊背后正在滚动的内容;更低版本改为半透明。文字仍然可读。",
+                    stringResource(R.string.settings_android_12_later_content_scrolling),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
@@ -94,10 +97,10 @@ fun SettingsScreen() {
             }
         }
         item {
-            SectionCard("检查更新", subtitle = "当前版本 ${BuildConfig.VERSION_NAME}（${BuildConfig.VERSION_CODE}）") {
+            SectionCard(stringResource(R.string.settings_check_updates), subtitle = stringResource(R.string.settings_current_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE)) {
                 LabeledSwitch(
-                    title = "自动检查更新",
-                    subtitle = "启动时请求 GitHub API（api.github.com）查看有没有新版本，最多每 6 小时一次。只读取公开的发布信息，不发送服务器信息或个人数据。",
+                    title = stringResource(R.string.settings_check_updates_automatically),
+                    subtitle = stringResource(R.string.settings_launch_queries_github_api_api),
                     checked = autoUpdate,
                     onCheckedChange = { enabled ->
                         scope.launch { ServiceLocator.settingsStore.setAutoUpdateCheck(enabled) }
@@ -108,7 +111,7 @@ fun SettingsScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        if (lastCheck > 0) "上次检查：${formatCheckTime(lastCheck)}" else "还没有检查过",
+                        if (lastCheck > 0) stringResource(R.string.settings_last_checked, formatCheckTime(lastCheck)) else stringResource(R.string.settings_never_checked),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -131,10 +134,10 @@ fun SettingsScreen() {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                                     Spacer(Modifier.width(8.dp))
-                                    Text("检查中")
+                                    Text(stringResource(R.string.settings_checking))
                                 }
                             } else {
-                                Text("立即检查")
+                                Text(stringResource(R.string.settings_check_now))
                             }
                         }
                     }
@@ -142,26 +145,26 @@ fun SettingsScreen() {
                 ignoredVersion?.let { version ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "已忽略 $version",
+                            stringResource(R.string.settings_ignored, version),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
                         )
                         TextButton(onClick = {
                             scope.launch { ServiceLocator.settingsStore.setIgnoredUpdateVersion(null) }
-                        }) { Text("取消忽略") }
+                        }) { Text(stringResource(R.string.settings_unignore)) }
                     }
                 }
             }
         }
         item {
-            Text("隐私", style = MaterialTheme.typography.headlineSmall)
+            Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.headlineSmall)
         }
         item {
-            SectionCard("使用统计", subtitle = "默认开启") {
+            SectionCard(stringResource(R.string.common_usage_statistics), subtitle = stringResource(R.string.settings_by_default)) {
                 LabeledSwitch(
-                    title = "帮助改进（匿名使用统计）",
-                    subtitle = "用 Microsoft Clarity 记录界面怎么被使用，用来改进应用。Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、输入框、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。关闭后立即停止，下次打开也不再收集。第一次打开时，如果在新手引导里还没走到使用统计这一步就跳过，这项会保持关闭。",
+                    title = stringResource(R.string.settings_help_improve_anonymous_usage_statistics),
+                    subtitle = stringResource(R.string.settings_uses_microsoft_clarity_record_how),
                     checked = analytics,
                     onCheckedChange = { enabled ->
                         UsageAnalytics.setEnabled(context, enabled)
@@ -171,10 +174,10 @@ fun SettingsScreen() {
             }
         }
         item {
-            SectionCard("生物识别解锁", subtitle = "默认关闭") {
+            SectionCard(stringResource(R.string.common_biometric_unlock), subtitle = stringResource(R.string.settings_off_by_default)) {
                 LabeledSwitch(
-                    title = "生物识别解锁",
-                    subtitle = "打开后，启动应用或离开超过 30 秒再回来时，要先用指纹、面容或锁屏密码解锁。",
+                    title = stringResource(R.string.common_biometric_unlock),
+                    subtitle = stringResource(R.string.settings_when_need_unlock_fingerprint_face),
                     checked = biometricLock,
                     onCheckedChange = { enabled ->
                         if (!enabled) {
@@ -188,16 +191,16 @@ fun SettingsScreen() {
                             return@LabeledSwitch
                         }
                         // 先认证成功一次再保存，免得打开后自己解不开。
-                        AppLock.authenticate(context, title = "开启生物识别解锁") { result ->
+                        AppLock.authenticate(context, title = appString(R.string.common_turn_biometric_unlock)) { result ->
                             lockHint = when (result) {
                                 AppLock.Result.Success -> {
                                     AppLock.markUnlocked()
                                     scope.launch { ServiceLocator.settingsStore.setBiometricLock(true) }
                                     null
                                 }
-                                AppLock.Result.Cancelled -> "已取消，没有开启。"
+                                AppLock.Result.Cancelled -> appString(R.string.common_cancelled_not_turned)
                                 AppLock.Result.Unavailable -> AppLock.unavailableText(AppLock.availability(context))
-                                is AppLock.Result.Error -> "没有开启：${result.message}"
+                                is AppLock.Result.Error -> appString(R.string.common_not_turned, result.message)
                             }
                         }
                     },
@@ -213,13 +216,13 @@ fun SettingsScreen() {
             }
         }
         item {
-            SectionCard("新手引导") {
+            SectionCard(stringResource(R.string.common_onboarding)) {
                 Text(
-                    "再看一遍欢迎、添加服务器和功能介绍。",
+                    stringResource(R.string.settings_see_welcome_server_setup_feature),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 TextButton(onClick = LocalReplayOnboarding.current) {
-                    Text("重新查看新手引导")
+                    Text(stringResource(R.string.common_replay_onboarding))
                 }
             }
         }

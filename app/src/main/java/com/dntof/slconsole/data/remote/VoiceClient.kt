@@ -40,6 +40,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.max
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * SLDataAPI 语音转发客户端(直连游戏服)。
@@ -78,7 +80,7 @@ class VoiceClient(
     private val _state = MutableStateFlow(State.IDLE)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val _stateDetail = MutableStateFlow("正在连接…")
+    private val _stateDetail = MutableStateFlow(appString(R.string.common_connecting))
     val stateDetail: StateFlow<String> = _stateDetail.asStateFlow()
 
     private val _speakers = MutableStateFlow<List<SpeakerInfo>>(emptyList())
@@ -126,19 +128,16 @@ class VoiceClient(
                 val parsed = when {
                     it.isSuccessful -> ProbeResult.Ok(secure)
                     it.code == 404 -> ProbeResult.Fail(
-                        "语音端口 $voicePort 可达,但没有 /status 端点 —— 该端口上不是 SLDataAPI 语音服务。" +
-                            "请检查:SLDataAPI 配置 voice_enabled: true 且 voice_port 正确(端口被占用时语音服务会启动失败," +
-                            "但监控数据仍报告配置的端口);手机需能直连该 TCP 端口。响应:$body"
+                        appString(R.string.voice_client_voice_port_reachable_but_has, voicePort, body)
                     )
-                    it.code == 401 -> ProbeResult.Fail("语音端口鉴权失败(HTTP 401):$body")
+                    it.code == 401 -> ProbeResult.Fail(appString(R.string.voice_client_voice_port_authentication_failed_http, body))
                     it.code == 101 -> ProbeResult.Fail(
-                        "语音端口对普通请求返回了协议切换(HTTP 101)—— 该端口上运行的不是 SLDataAPI 语音服务" +
-                            "(常见原因:端口被 QQ/其他程序占用,SLDataAPI 语音服务启动失败)。请改用空闲端口并在服务器设置中更新。"
+                        appString(R.string.voice_client_voice_port_answered_normal_request)
                     )
                     it.code == 403 -> ProbeResult.Fail(
-                        "API Key 未授权语音端点(HTTP 403):$body(需在 apikey.config 的 endpoints_override 放开 voice:/status 与 voice:/ws)"
+                        appString(R.string.voice_client_api_key_isnt_authorized_voice, body)
                     )
-                    else -> ProbeResult.Fail("语音端口探测返回 HTTP ${it.code}:$body")
+                    else -> ProbeResult.Fail(appString(R.string.voice_client_voice_port_probe_returned_http, it.code, body))
                 }
                 TlsHttp.Outcome.Done(parsed)
             }
@@ -157,7 +156,7 @@ class VoiceClient(
         speakerMap.clear()
         _error.value = null
         _state.value = State.CONNECTING
-        _stateDetail.value = "正在探测语音服务(/status)…"
+        _stateDetail.value = appString(R.string.voice_client_probing_voice_service_status)
         scope.launch {
             when (val probe = probeStatus()) {
                 is ProbeResult.Ok -> {
@@ -181,9 +180,9 @@ class VoiceClient(
         val generation = attemptGen.incrementAndGet()
         _state.value = State.CONNECTING
         _stateDetail.value = if (secure) {
-            "正在加密连接 $host:$voicePort/ws…"
+            appString(R.string.voice_client_connecting_securely_ws, host, voicePort)
         } else {
-            "正在以明文连接 $host:$voicePort/ws…"
+            appString(R.string.voice_client_connecting_plaintext_ws, host, voicePort)
         }
         val request = Request.Builder()
             .url(server.voiceWebSocket(voicePort, secure))
@@ -223,8 +222,8 @@ class VoiceClient(
                     sampleRate = (obj["sampleRate"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 48000
                     initAudioTrack()
                     _state.value = State.CONNECTED
-                    val lock = if (secure) "加密" else "明文"
-                    _stateDetail.value = "已连接语音流($sampleRate Hz,$lock)"
+                    val lock = if (secure) appString(R.string.common_encrypted) else appString(R.string.common_plaintext)
+                    _stateDetail.value = appString(R.string.voice_client_voice_stream_connected_hz, sampleRate, lock)
                 }
                 "speaker" -> {
                     val playerId = (obj["playerid"] as? JsonPrimitive)?.content ?: return
@@ -236,7 +235,7 @@ class VoiceClient(
                             else existing.copy(channels = existing.channels + channel)
                         } else {
                             SpeakerInfo(
-                                nickname = (obj["nickname"] as? JsonPrimitive)?.content ?: "未知",
+                                nickname = (obj["nickname"] as? JsonPrimitive)?.content ?: appString(R.string.common_unknown),
                                 steamId = (obj["userid"] as? JsonPrimitive)?.content ?: "",
                                 channels = listOf(channel),
                                 lastSeen = System.currentTimeMillis(),
@@ -245,7 +244,7 @@ class VoiceClient(
                     }
                     publishSpeakers()
                 }
-                "error" -> _error.value = (obj["error"] as? JsonPrimitive)?.content ?: "未知语音错误"
+                "error" -> _error.value = (obj["error"] as? JsonPrimitive)?.content ?: appString(R.string.voice_client_unknown_voice_error)
             }
         }
 
@@ -312,17 +311,17 @@ class VoiceClient(
             if (phase == Phase.PROBE) {
                 phase = Phase.TRY_TLS
                 _state.value = State.FAILED
-                _stateDetail.value = "无法连接：${t.shortMessage()}"
+                _stateDetail.value = appString(R.string.common_cant_connect, t.shortMessage())
                 scheduleReconnect()
                 return
             }
             _state.value = State.FAILED
             _stateDetail.value = buildString {
-                append("连接失败:")
+                append(appString(R.string.voice_client_connection_failed))
                 append(t.shortMessage())
                 if (response?.code == 404) {
-                    append(" —— 语音端口上没有 /ws 端点,该端口可能不是 SLDataAPI 语音服务")
-                    if (!bodyText.isNullOrBlank()) append("(响应:$bodyText)")
+                    append(appString(R.string.voice_client_no_ws_endpoint_voice_port))
+                    if (!bodyText.isNullOrBlank()) append(appString(R.string.voice_client_response, bodyText))
                 }
             }
             scheduleReconnect()
@@ -331,7 +330,7 @@ class VoiceClient(
         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
             if (!current() || phase == Phase.DEAD) return
             _state.value = State.CLOSED
-            _stateDetail.value = "连接已关闭($code)"
+            _stateDetail.value = appString(R.string.common_connection_closed, code)
             scheduleReconnect()
         }
     }
@@ -388,7 +387,7 @@ class VoiceClient(
                 .build()
             audioTrack?.play()
         }.onFailure {
-            _error.value = "音频初始化失败:${it.message ?: "未知错误"}"
+            _error.value = appString(R.string.voice_client_audio_initialization_failed, it.message ?: appString(R.string.common_unknown_error))
         }
     }
 
@@ -405,7 +404,7 @@ class VoiceClient(
         audioTrack = null
         scope.cancel()
         _state.value = State.IDLE
-        _stateDetail.value = "已停止"
+        _stateDetail.value = appString(R.string.common_stopped)
     }
 
     private fun cleanupSpeakers() {

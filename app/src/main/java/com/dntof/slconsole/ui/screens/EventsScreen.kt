@@ -64,6 +64,9 @@ import com.dntof.slconsole.ui.rememberActiveServer
 import com.dntof.slconsole.util.Format
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private fun JsonObject.str(key: String): String = (this[key] as? JsonPrimitive)?.content ?: ""
 
@@ -72,21 +75,19 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
     val server = rememberActiveServer()
 
     if (server == null) {
-        EmptyState(Icons.Outlined.Bolt, "未选择服务器", "先在顶栏添加或选择一个服务器")
+        EmptyState(Icons.Outlined.Bolt, stringResource(R.string.common_no_server_selected), stringResource(R.string.common_add_select_server_top_bar))
         return
     }
     if (!server.hasControl || server.controlTransport != "ws") {
         Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
-            SectionCard("实时事件不可用", subtitle = "需要满足以下条件") {
+            SectionCard(stringResource(R.string.events_live_events_unavailable), subtitle = stringResource(R.string.events_following_conditions_are_required)) {
                 Text(
-                    "1. 服务器配置中填写 API Key(控制面凭据)\n" +
-                        "2. 传输模式设为 WS(与插件 control_transport: ws 一致)\n" +
-                        "3. 服务器插件开启控制通道",
+                    stringResource(R.string.events_1_api_key_control_plane),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.width(0.dp))
                 Button(onClick = onOpenServerEdit, modifier = Modifier.padding(top = 12.dp)) {
-                    Text("去服务器设置")
+                    Text(stringResource(R.string.events_go_server_settings))
                 }
             }
         }
@@ -128,10 +129,10 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(
                             when (connState) {
-                                WsControlClient.ConnState.READY -> "实时连接正常"
-                                WsControlClient.ConnState.CONNECTING -> "正在连接…"
-                                WsControlClient.ConnState.FAILED -> "连接失败"
-                                WsControlClient.ConnState.CLOSED -> "连接已关闭"
+                                WsControlClient.ConnState.READY -> stringResource(R.string.events_live_connection_ok)
+                                WsControlClient.ConnState.CONNECTING -> stringResource(R.string.common_connecting)
+                                WsControlClient.ConnState.FAILED -> stringResource(R.string.common_connection_failed)
+                                WsControlClient.ConnState.CLOSED -> stringResource(R.string.events_connection_closed)
                             },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
@@ -143,11 +144,11 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton(onClick = { client.clearEvents() }) { Text("清空") }
+                    TextButton(onClick = { client.clearEvents() }) { Text(stringResource(R.string.events_clear)) }
                 }
                 if (connState == WsControlClient.ConnState.FAILED && handshake == 404) {
                     Text(
-                        "握手被拒绝(HTTP 404):服务器插件大概率处于 control_transport: http 模式,请在服务器设置中改回 HTTP。",
+                        stringResource(R.string.events_handshake_rejected_http_404_server),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -160,8 +161,8 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
             item {
                 EmptyState(
                     Icons.Outlined.Bolt,
-                    "暂无事件",
-                    "玩家进出、死亡与回合事件会实时推送到这里",
+                    stringResource(R.string.events_no_events_yet),
+                    stringResource(R.string.events_player_joins_leaves_deaths_round),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -178,42 +179,42 @@ private data class EventMeta(val icon: ImageVector, val color: Color, val title:
 private fun eventMeta(event: SlEvent): EventMeta = when (event.event) {
     "player_joined" -> EventMeta(
         Icons.AutoMirrored.Outlined.Login, Color(0xFF4ADE80),
-        "玩家加入", event.data.str("nickname").ifBlank { event.data.str("userid") },
+        appString(R.string.events_player_joined), event.data.str("nickname").ifBlank { event.data.str("userid") },
     )
     "player_left" -> EventMeta(
         Icons.AutoMirrored.Outlined.Logout, Color(0xFF9CA3AF),
-        "玩家离开", event.data.str("nickname").ifBlank { event.data.str("userid") },
+        appString(R.string.events_player_left), event.data.str("nickname").ifBlank { event.data.str("userid") },
     )
     "player_died" -> {
         val attacker = event.data.str("attacker_nickname")
         EventMeta(
             Icons.Outlined.PersonOff, Color(0xFFEF5350),
-            "玩家死亡",
+            appString(R.string.events_player_died),
             buildString {
                 append(event.data.str("nickname").ifBlank { event.data.str("userid") })
                 val oldRole = event.data.str("old_role")
                 if (oldRole.isNotBlank()) append("($oldRole)")
-                if (attacker.isNotBlank()) append(" · 凶手:$attacker")
+                if (attacker.isNotBlank()) append(appString(R.string.events_killer, attacker))
             },
         )
     }
-    "round_started" -> EventMeta(Icons.Outlined.PlayArrow, Color(0xFF7FD8E8), "回合开始", event.data.str("started_at"))
+    "round_started" -> EventMeta(Icons.Outlined.PlayArrow, Color(0xFF7FD8E8), appString(R.string.events_round_started), event.data.str("started_at"))
     "round_ended" -> EventMeta(
         Icons.Outlined.Stop, Color(0xFF60A5FA),
-        "回合结束",
-        event.data.str("leading_team").takeIf { it.isNotBlank() }?.let { "领先阵营:$it" } ?: "",
+        appString(R.string.events_round_ended),
+        event.data.str("leading_team").takeIf { it.isNotBlank() }?.let { appString(R.string.events_leading_team, it) } ?: "",
     )
     "elevator_used" -> EventMeta(
         Icons.Outlined.Elevator, Color(0xFFFFC46B),
-        "使用电梯",
+        appString(R.string.events_used_elevator),
         listOf(event.data.str("nickname"), event.data.str("elevator_group")).filter { it.isNotBlank() }.joinToString(" · "),
     )
     "door_opened" -> EventMeta(
         Icons.Outlined.MeetingRoom, Color(0xFF9AD48E),
-        "开门",
+        appString(R.string.events_opened_door),
         listOf(event.data.str("nickname"), event.data.str("door")).filter { it.isNotBlank() }.joinToString(" · "),
     )
-    "_sys" -> EventMeta(Icons.Outlined.Info, UiColors.Pending, "系统", event.data.str("text"))
+    "_sys" -> EventMeta(Icons.Outlined.Info, UiColors.Pending, appString(R.string.events_system), event.data.str("text"))
     else -> EventMeta(Icons.Outlined.Bolt, UiColors.Unknown, event.event, "")
 }
 

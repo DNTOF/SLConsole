@@ -15,6 +15,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.security.MessageDigest
 import java.security.cert.CertificateFactory
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 核对安装包签名。
@@ -78,7 +80,7 @@ object SignatureCheck {
     }
 
     fun hex(bytes: ByteArray?, separator: String = ":"): String =
-        bytes?.joinToString(separator) { "%02X".format(it.toInt() and 0xFF) } ?: "（读取失败）"
+        bytes?.joinToString(separator) { "%02X".format(it.toInt() and 0xFF) } ?: appString(R.string.signature_check_read_failed)
 
     internal fun bitDiff(a: ByteArray?, b: ByteArray): Int {
         if (a == null || a.size != b.size) return 256

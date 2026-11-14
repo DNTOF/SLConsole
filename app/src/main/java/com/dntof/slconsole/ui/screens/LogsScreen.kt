@@ -63,6 +63,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 private val LINE_OPTIONS = listOf(100, 200, 500, 1000, 2000)
 
@@ -146,8 +149,8 @@ fun LogsScreen() {
         ) {
             item {
                 SectionCard(
-                    "日志文件",
-                    subtitle = files?.let { "共 ${it.size} 个文件" } ?: "加载中…",
+                    stringResource(R.string.logs_log_files),
+                    subtitle = files?.let { pluralStringResource(R.plurals.logs_files_total, it.size.toInt(), it.size) } ?: stringResource(R.string.common_loading),
                 ) {
                     error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
                 }
@@ -156,8 +159,8 @@ fun LogsScreen() {
                 item {
                     EmptyState(
                         Icons.AutoMirrored.Outlined.Article,
-                        "没有日志文件",
-                        "检查插件 log_directory 配置",
+                        stringResource(R.string.logs_no_log_files),
+                        stringResource(R.string.logs_check_plugins_log_directory_setting),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                     )
                 }
@@ -195,7 +198,7 @@ fun LogsScreen() {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(onClick = { selected = null; tail = null }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back_list))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -206,7 +209,7 @@ fun LogsScreen() {
                     )
                     tail?.let {
                         Text(
-                            "共 ${it.total} 行 · 显示最近 ${it.lines.size} 行",
+                            pluralStringResource(R.plurals.logs_lines_total_showing_last, it.total.toInt(), it.total, it.lines.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -233,15 +236,15 @@ fun LogsScreen() {
                 OutlinedTextField(
                     value = filter,
                     onValueChange = { filter = it },
-                    label = { Text("关键字过滤") },
+                    label = { Text(stringResource(R.string.logs_filter_by_keyword)) },
                     singleLine = true,
                     modifier = Modifier.weight(1f).keepAboveIme(),
                 )
                 Spacer(Modifier.width(8.dp))
-                androidx.compose.material3.Button(onClick = { loadTail() }) { Text("刷新") }
+                androidx.compose.material3.Button(onClick = { loadTail() }) { Text(stringResource(R.string.common_refresh)) }
             }
             LabeledSwitch(
-                "自动刷新(每 5 秒)",
+                stringResource(R.string.logs_auto_refresh_every_5),
                 null,
                 auto,
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -268,7 +271,7 @@ fun LogsScreen() {
                 }
             } else {
                 Text(
-                    error ?: "加载中…",
+                    error ?: stringResource(R.string.common_loading),
                     Modifier.padding(16.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = error?.let { MaterialTheme.colorScheme.error } ?: MaterialTheme.colorScheme.onSurfaceVariant,

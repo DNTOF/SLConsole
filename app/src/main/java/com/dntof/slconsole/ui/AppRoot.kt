@@ -164,6 +164,9 @@ import com.dntof.slconsole.ui.screens.VoiceScreen
 import kotlinx.coroutines.launch
 import com.dntof.slconsole.data.update.UpdateChecker
 import com.dntof.slconsole.ui.components.UpdateDialog
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import androidx.annotation.StringRes
 
 val LocalSnackbarHost = staticCompositionLocalOf<SnackbarHostState> {
     error("SnackbarHostState not provided")
@@ -348,32 +351,32 @@ object Routes {
     )
 
     val SUB_TITLES = mapOf(
-        BANS to "封禁管理",
-        LOGS to "服务器日志",
-        AUDIT to "控制审计",
-        PLUGINS to "插件管理",
-        ADAPTED to "适配插件",
-        ADAPTED_DETAIL to "插件详情",
-        REMOTE to "远程控制",
-        EVENTS to "实时动态",
-        VOICE to "语音监听",
-        FILES to "文件管理",
-        REPORTS to "举报管理",
-        SERVERS to "服务器管理",
-        SETTINGS to "设置",
-        ABOUT to "关于",
-        SERVER_EDIT to "编辑服务器",
+        BANS to R.string.common_bans,
+        LOGS to R.string.common_server_logs,
+        AUDIT to R.string.common_control_audit,
+        PLUGINS to R.string.common_plugins,
+        ADAPTED to R.string.common_adapted_plugins,
+        ADAPTED_DETAIL to R.string.app_root_plugin_details,
+        REMOTE to R.string.common_remote_control,
+        EVENTS to R.string.common_live_events,
+        VOICE to R.string.common_voice_monitor,
+        FILES to R.string.common_files,
+        REPORTS to R.string.common_reports,
+        SERVERS to R.string.common_servers,
+        SETTINGS to R.string.common_settings,
+        ABOUT to R.string.common_about,
+        SERVER_EDIT to R.string.app_root_edit_server,
     )
 }
 
-private data class TabItem(val route: String, val label: String, val icon: ImageVector, val iconSelected: ImageVector)
+private data class TabItem(val route: String, @StringRes val label: Int, val icon: ImageVector, val iconSelected: ImageVector)
 
 private val TABS = listOf(
-    TabItem(Routes.DASHBOARD, "概览", Icons.Outlined.SpaceDashboard, Icons.Filled.SpaceDashboard),
-    TabItem(Routes.PLAYERS, "玩家", Icons.Outlined.Groups, Icons.Filled.Groups),
-    TabItem(Routes.CONSOLE, "控制台", Icons.Outlined.Terminal, Icons.Filled.Terminal),
-    TabItem(Routes.MAPS, "地图", Icons.Outlined.Map, Icons.Filled.Map),
-    TabItem(Routes.MORE, "中心", Icons.Outlined.Apps, Icons.Filled.Apps),
+    TabItem(Routes.DASHBOARD, R.string.common_overview, Icons.Outlined.SpaceDashboard, Icons.Filled.SpaceDashboard),
+    TabItem(Routes.PLAYERS, R.string.common_players, Icons.Outlined.Groups, Icons.Filled.Groups),
+    TabItem(Routes.CONSOLE, R.string.common_console, Icons.Outlined.Terminal, Icons.Filled.Terminal),
+    TabItem(Routes.MAPS, R.string.common_map, Icons.Outlined.Map, Icons.Filled.Map),
+    TabItem(Routes.MORE, R.string.common_hub, Icons.Outlined.Apps, Icons.Filled.Apps),
 )
 
 /** 读取当前活动服务器配置(无激活时回退到第一个)。 */
@@ -571,15 +574,14 @@ fun AppRoot(startupNotice: String? = null) {
 private fun UnofficialBuildDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("非官方版本") },
+        title = { Text(stringResource(R.string.common_unofficial_build)) },
         text = {
             Text(
-                "当前安装包的签名与官方签名不一致，可能被修改或重新打包。" +
-                    "请从官方渠道下载：${SignatureCheck.RELEASES_URL}",
+                stringResource(R.string.app_root_packages_signature_doesnt_match_official, SignatureCheck.RELEASES_URL),
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("我知道了") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.app_root_got)) }
         },
     )
 }
@@ -887,9 +889,9 @@ private fun SubRouteTopBar(currentRoute: String?, active: ServerConfig?, onBack:
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
         title = {
             Column {
-                Text(Routes.SUB_TITLES[currentRoute] ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(Routes.SUB_TITLES[currentRoute]?.let { stringResource(it) } ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    active?.displayName ?: "未添加服务器",
+                    active?.displayName ?: stringResource(R.string.app_root_no_server_added),
                     modifier = Modifier.clarityMask(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -900,7 +902,7 @@ private fun SubRouteTopBar(currentRoute: String?, active: ServerConfig?, onBack:
         },
         navigationIcon = {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.app_root_back))
             }
         },
     )
@@ -913,10 +915,10 @@ private fun SubRouteHeader(currentRoute: String?, onBack: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.app_root_back))
         }
         Text(
-            Routes.SUB_TITLES[currentRoute] ?: "",
+            Routes.SUB_TITLES[currentRoute]?.let { stringResource(it) } ?: "",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
         )
@@ -955,21 +957,21 @@ private fun ServerTopBar(
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f, fill = false).clarityMask()) {
                     Text(
-                        active?.displayName ?: "未添加服务器",
+                        active?.displayName ?: stringResource(R.string.app_root_no_server_added),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        active?.addressText ?: "从菜单添加服务器",
+                        active?.addressText ?: stringResource(R.string.app_root_add_server_from_menu),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Icon(Icons.Filled.ArrowDropDown, "切换服务器")
+                Icon(Icons.Filled.ArrowDropDown, stringResource(R.string.app_root_switch_server))
             }
             DropdownMenu(
                 expanded = menuOpen,
@@ -1000,19 +1002,19 @@ private fun ServerTopBar(
                 }
                 if (servers.isNotEmpty()) HorizontalDivider()
                 DropdownMenuItem(
-                    text = { Text("服务器管理") },
+                    text = { Text(stringResource(R.string.common_servers)) },
                     leadingIcon = { Icon(Icons.Filled.Dns, null) },
                     onClick = { onManage(); menuOpen = false },
                 )
                 DropdownMenuItem(
-                    text = { Text("添加服务器") },
+                    text = { Text(stringResource(R.string.common_add_server)) },
                     leadingIcon = { Icon(Icons.Filled.Add, null) },
                     onClick = { onAdd(); menuOpen = false },
                 )
             }
         },
         actions = {
-            IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, "立即刷新") }
+            IconButton(onClick = onRefresh) { Icon(Icons.Filled.Refresh, stringResource(R.string.app_root_refresh_now)) }
         },
     )
 }
@@ -1124,13 +1126,13 @@ private fun NavTab(
         ) {
             Icon(
                 if (selected) tab.iconSelected else tab.icon,
-                tab.label,
+                stringResource(tab.label),
                 tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
         }
         Text(
-            tab.label,
+            stringResource(tab.label),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1159,12 +1161,12 @@ private fun RailTab(
         ) {
             Icon(
                 if (selected) tab.iconSelected else tab.icon,
-                tab.label,
+                stringResource(tab.label),
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                tab.label,
+                stringResource(tab.label),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1182,12 +1184,12 @@ private fun RailTab(
         ) {
             Icon(
                 if (selected) tab.iconSelected else tab.icon,
-                tab.label,
+                stringResource(tab.label),
                 tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(22.dp),
             )
             Text(
-                tab.label,
+                stringResource(tab.label),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,

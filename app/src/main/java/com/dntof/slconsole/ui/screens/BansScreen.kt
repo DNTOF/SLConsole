@@ -56,6 +56,10 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import androidx.compose.ui.text.input.KeyboardType
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 @Composable
 fun BansScreen() {
@@ -95,7 +99,7 @@ fun BansScreen() {
             if (server?.hasControl != true) {
                 AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Panel) {
                     Text(
-                        "封禁管理需要控制面 API Key。请在服务器设置中配置后重试。",
+                        stringResource(R.string.bans_ban_management_needs_control_plane),
                         Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -103,11 +107,11 @@ fun BansScreen() {
                 }
             } else {
                 SectionCard(
-                    "封禁列表",
-                    subtitle = bans?.let { "共 ${it.size} 条记录" } ?: "加载中…",
+                    stringResource(R.string.bans_ban_list),
+                    subtitle = bans?.let { pluralStringResource(R.plurals.bans_records_total, it.size.toInt(), it.size) } ?: stringResource(R.string.common_loading),
                     actions = {
-                        IconButton(onClick = { load() }) { Icon(Icons.Outlined.Refresh, "刷新") }
-                        IconButton(onClick = { showAdd = true }) { Icon(Icons.Outlined.Add, "新增封禁") }
+                        IconButton(onClick = { load() }) { Icon(Icons.Outlined.Refresh, stringResource(R.string.common_refresh)) }
+                        IconButton(onClick = { showAdd = true }) { Icon(Icons.Outlined.Add, stringResource(R.string.bans_add_ban)) }
                     },
                 ) {
                     error?.let {
@@ -119,14 +123,14 @@ fun BansScreen() {
         val list = bans
         if (list == null) {
             item {
-                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else if (list.isEmpty()) {
             item {
                 EmptyState(
                     Icons.Outlined.Gavel,
-                    "暂无封禁记录",
-                    "通过下方按钮可添加离线封禁",
+                    stringResource(R.string.bans_no_bans_yet),
+                    stringResource(R.string.bans_use_button_below_add_offline),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -144,18 +148,18 @@ fun BansScreen() {
                                         )
                                     }
                                     InfoChip(
-                                        if (ban.banType == "ip") "IP 封禁" else "Steam 封禁",
+                                        if (ban.banType == "ip") stringResource(R.string.bans_ip_ban) else stringResource(R.string.bans_steam_ban),
                                         MaterialTheme.colorScheme.secondary,
                                     )
                                 }
                                 Spacer(Modifier.height(6.dp))
                                 KeyValueRow("UserID", ban.userId, mono = true)
-                                KeyValueRow("原因", ban.reason?.takeIf { it.isNotBlank() } ?: "-")
-                                KeyValueRow("签发", "${ban.issuer ?: "-"} · ${Format.banExpiry(ban.issuanceTime)}")
-                                KeyValueRow("到期", Format.banExpiry(ban.expires))
+                                KeyValueRow(stringResource(R.string.common_reason), ban.reason?.takeIf { it.isNotBlank() } ?: "-")
+                                KeyValueRow(stringResource(R.string.bans_issued_by), "${ban.issuer ?: "-"} · ${Format.banExpiry(ban.issuanceTime)}")
+                                KeyValueRow(stringResource(R.string.bans_expires), Format.banExpiry(ban.expires))
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                                     TextButton(onClick = { revokeTarget = ban }) {
-                                        Text("解封", color = MaterialTheme.colorScheme.error)
+                                        Text(stringResource(R.string.bans_unban), color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -166,16 +170,16 @@ fun BansScreen() {
 
     if (showAdd) {
         PromptDialog(
-            title = "新增离线封禁",
-            subtitle = "封禁类型:steam(按账号)或 ip(按地址)",
-            confirmLabel = "封禁",
+            title = stringResource(R.string.bans_add_offline_ban),
+            subtitle = stringResource(R.string.bans_ban_type_steam_by_account),
+            confirmLabel = stringResource(R.string.common_ban),
             danger = true,
             fields = listOf(
-                PromptField("user_id", "UserID(如 76561198…@steam)"),
-                PromptField("original_name", "玩家昵称(可选)"),
-                PromptField("reason", "原因"),
-                PromptField("duration", "时长(分钟,0=永久)", initial = "0", keyboardType = KeyboardType.Number),
-                PromptField("ban_type", "类型(steam / ip)", initial = "steam"),
+                PromptField("user_id", stringResource(R.string.bans_userid_e_g_76561198_steam)),
+                PromptField("original_name", stringResource(R.string.bans_player_nickname_optional)),
+                PromptField("reason", stringResource(R.string.common_reason)),
+                PromptField("duration", stringResource(R.string.common_duration_minutes_0_permanent), initial = "0", keyboardType = KeyboardType.Number),
+                PromptField("ban_type", stringResource(R.string.bans_type_steam_ip), initial = "steam"),
             ),
             onConfirm = { v ->
                 val userId = v["user_id"].orEmpty().trim()
@@ -192,7 +196,7 @@ fun BansScreen() {
                                 put("ban_type", v["ban_type"].orEmpty().trim().ifBlank { "steam" })
                             },
                         )
-                        snackbar.showOutcome(outcome, "封禁已添加")
+                        snackbar.showOutcome(outcome, appString(R.string.bans_ban_added))
                         load()
                     }
                 }
@@ -203,9 +207,9 @@ fun BansScreen() {
 
     revokeTarget?.let { ban ->
         ConfirmDialog(
-            title = "解封 ${ban.originalName ?: ban.userId}?",
-            text = "类型:${ban.banType}",
-            confirmLabel = "解封",
+            title = stringResource(R.string.bans_unban_2, ban.originalName ?: ban.userId),
+            text = stringResource(R.string.bans_type, ban.banType),
+            confirmLabel = stringResource(R.string.bans_unban),
             danger = true,
             onConfirm = {
                 scope.launch {
@@ -218,7 +222,7 @@ fun BansScreen() {
                             put("reason", "移动端解封")
                         },
                     )
-                    snackbar.showOutcome(outcome, "已解封")
+                    snackbar.showOutcome(outcome, appString(R.string.bans_unbanned))
                     load()
                 }
             },

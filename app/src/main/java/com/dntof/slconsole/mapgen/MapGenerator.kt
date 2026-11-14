@@ -3,6 +3,8 @@
 
 package com.dntof.slconsole.mapgen
 
+import com.dntof.slconsole.util.appString
+
 import android.util.Base64
 import kotlin.math.abs
 import kotlin.math.floor
@@ -208,7 +210,7 @@ object MapGenerator {
             val glyph = if (isCorridor) "corridor" else MapGenData.GLYPH_BY_NAME[r.name] ?: "rect"
             val displayName = when {
                 isCorridor -> MapGenData.corridorName(r.shape)
-                MapGenData.ROOM_NAMES.containsKey(r.name) -> MapGenData.ROOM_NAMES[r.name]!!
+                MapGenData.ROOM_NAMES.containsKey(r.name) -> appString(MapGenData.ROOM_NAMES[r.name]!!)
                 else -> r.name.replace(Regex("^\\w{3}_?"), "$1 ")
             }
             MapRoomUi(

@@ -21,6 +21,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private fun JsonElement?.textOrNull(): String? = (this as? JsonPrimitive)?.content
 
@@ -126,10 +128,10 @@ class SlHttpClient {
                 HttpResult.Failure(
                     message = obj?.get("message").textOrNull()
                         ?: when (response.code) {
-                            401 -> "鉴权失败,请检查凭据"
-                            403 -> "API Key 无权访问该端点。需要 admin 权限时，请在游戏里用 sldataapi apikey create <id> admin 新建一把 Key，并在应用里换上"
-                            404 -> "端点不存在(检查传输模式配置)"
-                            503 -> "数据接口已关闭(verify_token 无效或强度不足)"
+                            401 -> appString(R.string.sl_http_client_authentication_failed_please_check_your)
+                            403 -> appString(R.string.sl_http_client_api_key_has_no_access)
+                            404 -> appString(R.string.sl_http_client_endpoint_not_found_check_transport)
+                            503 -> appString(R.string.sl_http_client_data_api_disabled_verify_token)
                             else -> "HTTP ${response.code}"
                         },
                     status = response.code,
@@ -171,7 +173,7 @@ class SlHttpClient {
         } catch (e: IOException) {
             throw e
         } catch (e: Exception) {
-            return TlsHttp.Outcome.Done(RawHttpResult.Failure("请求失败:${e.message ?: "未知错误"}"))
+            return TlsHttp.Outcome.Done(RawHttpResult.Failure(appString(R.string.sl_http_client_request_failed, e.message ?: appString(R.string.common_unknown_error))))
         }
     }
 

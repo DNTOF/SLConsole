@@ -78,6 +78,10 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private data class EditingFile(
     val path: String,
@@ -144,7 +148,7 @@ fun FilesScreen() {
         transferJob?.cancel()
         transferJob = scope.launch {
             val result = FileTransfer.readText(target, filePath, entry.size, chunked) { done, total ->
-                progressText = "正在读取 ${Format.bytes(done)} / ${Format.bytes(total)}"
+                progressText = appString(R.string.files_reading, Format.bytes(done), Format.bytes(total))
                 progress = if (total > 0) (done.toFloat() / total.toFloat()).coerceIn(0f, 1f) else null
             }
             progressText = null
@@ -166,7 +170,7 @@ fun FilesScreen() {
         transferJob?.cancel()
         transferJob = scope.launch {
             val result = FileTransfer.writeText(target, file.path, file.content, chunked) { done, total ->
-                progressText = "正在保存 ${Format.bytes(done)} / ${Format.bytes(total)}"
+                progressText = appString(R.string.files_saving, Format.bytes(done), Format.bytes(total))
                 progress = if (total > 0) (done.toFloat() / total.toFloat()).coerceIn(0f, 1f) else null
             }
             saving = false
@@ -174,7 +178,7 @@ fun FilesScreen() {
             progress = null
             when (result) {
                 FileTransfer.WriteResult.Ok -> {
-                    snackbar.showSnackbar("已保存")
+                    snackbar.showSnackbar(appString(R.string.files_saved))
                     editing = null
                     load(path)
                 }
@@ -197,7 +201,7 @@ fun FilesScreen() {
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { editing = null }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回列表")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.common_back_list))
                 }
                 Column(Modifier.weight(1f)) {
                     Text(
@@ -230,7 +234,7 @@ fun FilesScreen() {
             }
             if (beta.fileChunks) {
                 Text(
-                    "这台服务器打开了分块文件（2.6.1 内测）。比较大的文件会分段读写。",
+                    stringResource(R.string.files_server_has_chunked_files_enabled),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -253,11 +257,11 @@ fun FilesScreen() {
                         editing = null
                     },
                     modifier = Modifier.weight(1f),
-                ) { Text("取消") }
+                ) { Text(stringResource(R.string.common_cancel)) }
                 Button(onClick = { saveConfirm = true }, enabled = !saving, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Outlined.Save, null, Modifier.height(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (saving) "保存中…" else "保存")
+                    Text(if (saving) stringResource(R.string.files_saving_2) else stringResource(R.string.common_save))
                 }
             }
         }
@@ -272,16 +276,16 @@ fun FilesScreen() {
                     TextButton(
                         onClick = { path = parentPath(path) },
                         enabled = path.isNotEmpty(),
-                    ) { Text("上级") }
-                    TextButton(onClick = { path = "" }) { Text("根目录") }
+                    ) { Text(stringResource(R.string.files_up)) }
+                    TextButton(onClick = { path = "" }) { Text(stringResource(R.string.files_root)) }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { load(path) }) { Text("刷新") }
+                    TextButton(onClick = { load(path) }) { Text(stringResource(R.string.common_refresh)) }
                 }
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PathChip("根", path.isEmpty()) { path = "" }
+                    PathChip(stringResource(R.string.files_root_2), path.isEmpty()) { path = "" }
                     var acc = ""
                     path.split("/").forEach { segment ->
                         if (segment.isBlank()) return@forEach
@@ -293,8 +297,8 @@ fun FilesScreen() {
             }
             item {
                 SectionCard(
-                    "文件浏览",
-                    subtitle = listing?.let { "${it.count} 项" } ?: "加载中…",
+                    stringResource(R.string.files_file_browser),
+                    subtitle = listing?.let { pluralStringResource(R.plurals.files_items, it.count.toInt(), it.count) } ?: stringResource(R.string.common_loading),
                 ) {
                     listError?.let {
                         Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -303,13 +307,13 @@ fun FilesScreen() {
             }
             val entries = listing?.entries
             if (entries == null) {
-                item { Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item { Text(stringResource(R.string.common_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else if (entries.isEmpty()) {
                 item {
                     EmptyState(
                         Icons.Outlined.Folder,
-                        "目录为空",
-                        "在 SLDataAPI 配置中设置的 FileRoot 为空",
+                        stringResource(R.string.files_folder_empty),
+                        stringResource(R.string.files_fileroot_set_sldataapi_config_empty),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                     )
                 }
@@ -372,7 +376,7 @@ fun FilesScreen() {
                                     )
                                 }
                             }
-                            if (entry.isProtected) InfoChip("受保护", MaterialTheme.colorScheme.error)
+                            if (entry.isProtected) InfoChip(stringResource(R.string.files_protected), MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -383,9 +387,9 @@ fun FilesScreen() {
     val confirmFile = editing
     if (saveConfirm && confirmFile != null) {
         ConfirmDialog(
-            title = "确认保存",
-            text = "确认保存对 ${confirmFile.path} 的修改?",
-            confirmLabel = "保存",
+            title = stringResource(R.string.files_confirm_save),
+            text = stringResource(R.string.files_save_changes, confirmFile.path),
+            confirmLabel = stringResource(R.string.common_save),
             onConfirm = { doSave(confirmFile) },
             onDismiss = { saveConfirm = false },
         )

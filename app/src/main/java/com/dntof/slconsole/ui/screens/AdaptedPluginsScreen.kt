@@ -69,6 +69,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private const val SL_PLAYER_ID = "dntof.sl_player"
 private const val OMEGA_ID = "dntof.omega_warhead"
@@ -81,14 +84,14 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
     val ready = monitor as? MonitorEngine.MonitorState.Ready
     val plugins = ready?.data?.adaptedPlugins.orEmpty()
     if (ready == null) {
-        EmptyState(Icons.Outlined.Extension, "还没有监控数据", "连上服务器后,这里会列出 SLDataAPI 注册的适配插件")
+        EmptyState(Icons.Outlined.Extension, stringResource(R.string.adapted_plugins_no_monitoring_data_yet), stringResource(R.string.adapted_plugins_once_connected_adapted_plugins_registered))
         return
     }
     if (plugins.isEmpty()) {
         EmptyState(
             Icons.Outlined.Extension,
-            "没有适配插件",
-            "SLPlayer、OmegaWarhead 以及其他通过 PluginEndpointRegistry 注册的插件会出现在这里",
+            stringResource(R.string.adapted_plugins_no_adapted_plugins),
+            stringResource(R.string.adapted_plugins_slplayer_omegawarhead_other_plugins_register),
         )
         return
     }
@@ -98,9 +101,9 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Text("适配插件", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.common_adapted_plugins), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text(
-                "数据来自 get_sl_data.adapted_plugins。SLPlayer 可控制播放;OmegaWarhead 目前只有状态。",
+                stringResource(R.string.adapted_plugins_data_comes_from_get_sl),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -114,7 +117,7 @@ fun AdaptedPluginsScreen(onOpen: (String) -> Unit) {
                 Column(Modifier.padding(14.dp)) {
                     Text(plugin.name ?: plugin.id, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(
-                        plugin.id.ifBlank { "未提供 id" },
+                        plugin.id.ifBlank { stringResource(R.string.adapted_plugins_no_id_provided) },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -150,9 +153,9 @@ fun AdaptedPluginDetailScreen(pluginId: String) {
             item { PluginMetaCard(plugin) }
         } else {
             item {
-                SectionCard("尚未出现在监控快照里") {
+                SectionCard(stringResource(R.string.adapted_plugins_not_monitoring_snapshot_yet)) {
                     Text(
-                        "等下一轮 get_sl_data。若插件未加载,SLDataAPI 不会注册它。",
+                        stringResource(R.string.adapted_plugins_wait_next_get_sl_data),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -175,10 +178,10 @@ fun AdaptedPluginDetailScreen(pluginId: String) {
 
 @Composable
 private fun PluginMetaCard(plugin: AdaptedPlugin) {
-    SectionCard("登记信息", subtitle = "GET /get_sl_data · adapted_plugins") {
-        KeyValueRow("版本", plugin.version ?: "-")
+    SectionCard(stringResource(R.string.adapted_plugins_registration), subtitle = "GET /get_sl_data · adapted_plugins") {
+        KeyValueRow(stringResource(R.string.common_version), plugin.version ?: "-")
         if (plugin.capabilities.isEmpty()) {
-            Text("没有声明 capabilities", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.adapted_plugins_no_capabilities_declared), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 6.dp)) {
                 plugin.capabilities.take(6).forEach { InfoChip(it) }
@@ -231,19 +234,19 @@ private fun SlPlayerPanel(snapshot: String?) {
 
     LaunchedEffect(server?.id) { if (server?.hasControl == true) refresh() }
 
-    SectionCard("SLPlayer 播放", subtitle = "POST /control/plugins/slplayer") {
+    SectionCard(stringResource(R.string.adapted_plugins_slplayer_playback), subtitle = "POST /control/plugins/slplayer") {
         if (server?.hasControl != true) {
             Text(
-                "需要 API Key 才能控制。监控里看到的曲目:${snapshot ?: "未在播放"}",
+                stringResource(R.string.adapted_plugins_api_key_required_control_track, snapshot ?: stringResource(R.string.adapted_plugins_not_playing)),
                 style = MaterialTheme.typography.bodyMedium,
             )
             return@SectionCard
         }
         val now = status
-        Text(now?.song ?: snapshot ?: "未在播放", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Text(now?.song ?: snapshot ?: stringResource(R.string.adapted_plugins_not_playing), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text(
             buildString {
-                append(if (now?.playing == true) "播放中" else "已停止")
+                append(if (now?.playing == true) stringResource(R.string.adapted_plugins_playing) else appString(R.string.common_stopped))
                 now?.source?.let { append(" · $it") }
                 if (now != null && now.durationSeconds > 0) {
                     append(" · ${formatClock(now.elapsedSeconds)} / ${formatClock(now.durationSeconds)}")
@@ -258,7 +261,7 @@ private fun SlPlayerPanel(snapshot: String?) {
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             )
         }
-        Text("音量 ${volume.toInt()}", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.adapted_plugins_volume, volume.toInt()), style = MaterialTheme.typography.labelLarge)
         Slider(
             value = volume,
             onValueChange = { volume = it },
@@ -266,28 +269,28 @@ private fun SlPlayerPanel(snapshot: String?) {
                 act(buildJsonObject {
                     put("action", "volume")
                     put("volume", volume.toInt())
-                }, "音量已更新")
+                }, appString(R.string.adapted_plugins_volume_updated))
             },
             valueRange = 0f..100f,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { act(buildJsonObject { put("action", "next") }, "下一首") }, modifier = Modifier.weight(1f)) { Text("下一首") }
-            OutlinedButton(onClick = { act(buildJsonObject { put("action", "stop") }, "已停止") }, modifier = Modifier.weight(1f)) { Text("停止") }
+            Button(onClick = { act(buildJsonObject { put("action", "next") }, appString(R.string.adapted_plugins_skipped_next)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.adapted_plugins_next)) }
+            OutlinedButton(onClick = { act(buildJsonObject { put("action", "stop") }, appString(R.string.common_stopped)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.common_stop)) }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
-                onClick = { act(buildJsonObject { put("action", "shuffle"); put("shuffle", "toggle") }, "已切换随机") },
+                onClick = { act(buildJsonObject { put("action", "shuffle"); put("shuffle", "toggle") }, appString(R.string.adapted_plugins_shuffle_toggled)) },
                 modifier = Modifier.weight(1f),
-            ) { Text(if (now?.shuffle == true) "随机:开" else "随机:关") }
-            OutlinedButton(onClick = { act(buildJsonObject { put("action", "reload") }, "已重新扫描") }, modifier = Modifier.weight(1f)) { Text("扫描本地") }
-            OutlinedButton(onClick = { refresh() }, modifier = Modifier.weight(1f)) { Text("刷新") }
+            ) { Text(if (now?.shuffle == true) stringResource(R.string.adapted_plugins_shuffle) else stringResource(R.string.adapted_plugins_shuffle_off)) }
+            OutlinedButton(onClick = { act(buildJsonObject { put("action", "reload") }, appString(R.string.adapted_plugins_rescanned)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.adapted_plugins_scan_local)) }
+            OutlinedButton(onClick = { refresh() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_refresh)) }
         }
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = fetchUrl,
             onValueChange = { fetchUrl = it },
-            label = { Text("云端歌单 URL") },
+            label = { Text(stringResource(R.string.adapted_plugins_cloud_playlist_url)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().keepAboveIme(),
         )
@@ -297,15 +300,15 @@ private fun SlPlayerPanel(snapshot: String?) {
                 act(buildJsonObject {
                     put("action", "fetch")
                     put("url", fetchUrl.trim())
-                }, "正在拉取歌单")
+                }, appString(R.string.adapted_plugins_fetching_playlist))
             },
             enabled = fetchUrl.isNotBlank(),
-        ) { Text("拉取歌单") }
+        ) { Text(stringResource(R.string.adapted_plugins_fetch_playlist)) }
         val songs = now?.playlist.orEmpty()
         if (songs.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            Text("播放列表 ${songs.size}", style = MaterialTheme.typography.titleSmall)
-            songs.forEach { song -> SongRow(song) { act(buildJsonObject { put("action", "play"); put("index", song.index) }, "已播放") } }
+            Text(stringResource(R.string.adapted_plugins_playlist, songs.size), style = MaterialTheme.typography.titleSmall)
+            songs.forEach { song -> SongRow(song) { act(buildJsonObject { put("action", "play"); put("index", song.index) }, appString(R.string.adapted_plugins_playing_2)) } }
         }
     }
 }
@@ -320,26 +323,26 @@ private fun SongRow(song: SlPlayerSong, onPlay: () -> Unit) {
             Text(song.display, style = MaterialTheme.typography.bodyMedium, fontWeight = if (song.current) FontWeight.SemiBold else FontWeight.Normal)
             Text(formatClock(song.durationSeconds), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        OutlinedButton(onClick = onPlay) { Text(if (song.current) "正在播放" else "播放") }
+        OutlinedButton(onClick = onPlay) { Text(if (song.current) stringResource(R.string.adapted_plugins_now_playing) else stringResource(R.string.adapted_plugins_play)) }
     }
 }
 
 @Composable
 private fun OmegaPanel(snapshot: OmegaWarheadSnapshot?) {
-    SectionCard("OmegaWarhead", subtitle = "仅状态。2.6.0 和 2.6.1 都没有给它单独的控制端点") {
+    SectionCard("OmegaWarhead", subtitle = stringResource(R.string.adapted_plugins_status_only_neither_2_6)) {
         if (snapshot == null || !snapshot.present) {
-            Text("插件未加载,或这一轮监控还没有 omega_warhead 字段。", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.adapted_plugins_plugin_isnt_loaded_monitoring_round), style = MaterialTheme.typography.bodyMedium)
             return@SectionCard
         }
-        KeyValueRow("阶段", omegaPhaseLabel(snapshot.phase))
+        KeyValueRow(stringResource(R.string.common_phase), omegaPhaseLabel(snapshot.phase))
         KeyValueRow(
-            "控制器",
-            snapshot.controllerHolder ?: "无人持有",
+            stringResource(R.string.adapted_plugins_controller),
+            snapshot.controllerHolder ?: stringResource(R.string.adapted_plugins_not_held),
             modifier = Modifier.clarityMask(),
         )
-        snapshot.countdown?.let { KeyValueRow("倒计时", "${it}s") }
+        snapshot.countdown?.let { KeyValueRow(stringResource(R.string.adapted_plugins_countdown), "${it}s") }
         if (snapshot.coinHolders.isEmpty()) {
-            Text("没有人持有放射性元素", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.adapted_plugins_nobody_holding_radioactive_material), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             Spacer(Modifier.height(6.dp))
             snapshot.coinHolders.forEach { holder ->
@@ -352,7 +355,7 @@ private fun OmegaPanel(snapshot: OmegaWarheadSnapshot?) {
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "控制面只实现了 /control/plugins/slplayer。OmegaWarhead 的引爆、锁定等操作没有对应 HTTP/WS 端点,这里不猜测调用。",
+            stringResource(R.string.adapted_plugins_control_plane_only_implements_control),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -364,12 +367,12 @@ private fun AdaptedRoutesCard(plugin: AdaptedPlugin, actionsEnabled: Boolean) {
     val server = rememberActiveServer()
     val scope = rememberCoroutineScope()
     var output by remember { mutableStateOf<String?>(null) }
-    SectionCard("只读路由", subtitle = "GET /plugins/${plugin.id}/<route>,使用 VerifyToken") {
+    SectionCard(appString(R.string.adapted_plugins_read_only_routes), subtitle = stringResource(R.string.adapted_plugins_get_plugins_route_using_verifytoken, plugin.id)) {
         Text(
             if (actionsEnabled) {
-                "这些路由由插件自己注册，只读。写操作在上面的动作里，每次都会记入控制审计。"
+                stringResource(R.string.adapted_plugins_these_routes_are_registered_by)
             } else {
-                "这些路由由插件自己注册，只读。服务器没在 hello 里声明 adapted_actions 时，这里不提供写操作。"
+                stringResource(R.string.adapted_plugins_these_routes_are_registered_by_2)
             },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -387,7 +390,7 @@ private fun AdaptedRoutesCard(plugin: AdaptedPlugin, actionsEnabled: Boolean) {
                     }
                 },
                 modifier = Modifier.padding(bottom = 6.dp),
-            ) { Text("读取 $route") }
+            ) { Text(stringResource(R.string.adapted_plugins_read, route)) }
         }
         output?.let {
             Text(
@@ -403,11 +406,11 @@ private fun AdaptedRoutesCard(plugin: AdaptedPlugin, actionsEnabled: Boolean) {
 @Composable
 private fun AdaptedActionsCard(plugin: AdaptedPlugin) {
     SectionCard(
-        "写操作",
-        subtitle = "POST /control/adapted/${plugin.id}/<action>，需要 API Key。2.6.1 内测，默认关闭。",
+        stringResource(R.string.adapted_plugins_write_actions),
+        subtitle = stringResource(R.string.adapted_plugins_post_control_adapted_action_requires, plugin.id),
     ) {
         Text(
-            "这些动作会改服务器上的状态，并且写入控制审计。请求体可以留空。",
+            stringResource(R.string.adapted_plugins_these_actions_change_state_server),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -432,7 +435,7 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
         OutlinedTextField(
             value = body,
             onValueChange = { body = it },
-            label = { Text("请求体（可选，JSON）") },
+            label = { Text(stringResource(R.string.adapted_plugins_request_body_optional_json)) },
             modifier = Modifier.fillMaxWidth().keepAboveIme(),
             textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
         )
@@ -440,10 +443,10 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
         Button(
             onClick = { confirm = true },
             enabled = !running && server?.hasControl == true,
-        ) { Text(if (running) "执行中…" else "执行") }
+        ) { Text(if (running) stringResource(R.string.adapted_plugins_running) else stringResource(R.string.common_run)) }
         if (server?.hasControl != true) {
             Text(
-                "需要 API Key 才能执行。",
+                stringResource(R.string.adapted_plugins_api_key_required_run_actions),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -459,9 +462,9 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
     }
     if (confirm) {
         ConfirmDialog(
-            title = "执行 $action？",
-            text = "这是写操作，会记入控制审计。",
-            confirmLabel = "执行",
+            title = stringResource(R.string.adapted_plugins_run, action),
+            text = stringResource(R.string.adapted_plugins_write_action_will_recorded_control),
+            confirmLabel = stringResource(R.string.common_run),
             onConfirm = {
                 val target = server ?: return@ConfirmDialog
                 val parsed = body.trim()
@@ -470,7 +473,7 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
                 } else {
                     val element = runCatching { AppJson.json.parseToJsonElement(parsed) }.getOrNull()
                     if (element !is JsonObject) {
-                        result = "请求体需要是 JSON 对象"
+                        result = appString(R.string.adapted_plugins_request_body_must_json_object)
                         return@ConfirmDialog
                     }
                     element
@@ -480,7 +483,7 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
                 scope.launch {
                     result = when (val outcome = ControlRepository.call(target, "/control/adapted/$pluginId/$action", payload)) {
                         is ControlRepository.ControlOutcome.Success ->
-                            outcome.data?.toString() ?: outcome.message ?: "已执行"
+                            outcome.data?.toString() ?: outcome.message ?: appString(R.string.adapted_plugins_done)
                         is ControlRepository.ControlOutcome.Failure -> BetaHints.actionFailure(outcome)
                     }
                     running = false
@@ -492,21 +495,21 @@ private fun AdaptedActionRow(pluginId: String, action: String) {
 }
 
 private fun pluginKind(plugin: AdaptedPlugin, beta: com.dntof.slconsole.data.model.ControlBeta): String = when {
-    plugin.id.equals(SL_PLAYER_ID, true) -> "可控制"
-    plugin.id.equals(OMEGA_ID, true) -> "仅状态"
-    beta.adaptedActions && plugin.actions.isNotEmpty() -> "可执行动作"
-    plugin.routes.isNotEmpty() -> "只读路由"
-    else -> "仅登记"
+    plugin.id.equals(SL_PLAYER_ID, true) -> appString(R.string.adapted_plugins_controllable)
+    plugin.id.equals(OMEGA_ID, true) -> appString(R.string.adapted_plugins_status_only)
+    beta.adaptedActions && plugin.actions.isNotEmpty() -> appString(R.string.adapted_plugins_has_actions)
+    plugin.routes.isNotEmpty() -> appString(R.string.adapted_plugins_read_only_routes)
+    else -> appString(R.string.adapted_plugins_registered_only)
 }
 
 private fun omegaPhaseLabel(phase: String): String = when (phase) {
-    "none" -> "未开始"
-    "collecting" -> "收集放射性元素"
-    "idle_holding" -> "持有控制器"
-    "confirming" -> "确认中"
-    "locked" -> "已锁定"
-    "counting" -> "倒计时"
-    "detonation" -> "引爆"
+    "none" -> appString(R.string.common_not_started)
+    "collecting" -> appString(R.string.adapted_plugins_collecting_radioactive_material)
+    "idle_holding" -> appString(R.string.adapted_plugins_holding_controller)
+    "confirming" -> appString(R.string.adapted_plugins_confirming)
+    "locked" -> appString(R.string.adapted_plugins_locked)
+    "counting" -> appString(R.string.adapted_plugins_counting_down)
+    "detonation" -> appString(R.string.adapted_plugins_detonation)
     else -> phase
 }
 

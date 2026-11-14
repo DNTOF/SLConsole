@@ -7,10 +7,12 @@ import android.app.Application
 import com.dntof.slconsole.data.local.ServerStore
 import com.dntof.slconsole.data.local.SettingsStore
 import com.dntof.slconsole.data.remote.tls.TlsEvents
+import com.dntof.slconsole.util.AppText
 
 class SlConsoleApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppText.init(this)
         ServiceLocator.init(this)
     }
 }
