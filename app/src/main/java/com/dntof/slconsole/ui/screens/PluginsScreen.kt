@@ -50,6 +50,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 逐字段安全提取:插件响应里 priority/version 等字段在 LabAPI 与 EXILED 间类型不一致,避免整表解析失败。 */
 private fun parsePlugin(o: JsonObject): PluginInfo? {
@@ -114,21 +118,21 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
     ) {
         item {
             TextButton(onClick = onOpenAdapted) {
-                Text("适配插件:SLPlayer / OmegaWarhead")
+                Text(stringResource(R.string.plugins_adapted_plugins_slplayer_omegawarhead))
             }
             SectionCard(
-                "已加载插件",
-                subtitle = plugins?.let { "共 ${it.size} 个(EXILED / LabAPI)" } ?: "加载中…",
+                stringResource(R.string.plugins_loaded_plugins),
+                subtitle = plugins?.let { pluralStringResource(R.plurals.plugins_total_exiled_labapi, it.size.toInt(), it.size) } ?: stringResource(R.string.common_loading),
                 actions = {
-                    TextButton(onClick = { pendingAction = "apply" }) { Text("应用暂存") }
-                    TextButton(onClick = { pendingAction = "reload" }) { Text("重载") }
+                    TextButton(onClick = { pendingAction = "apply" }) { Text(stringResource(R.string.plugins_apply_staged)) }
+                    TextButton(onClick = { pendingAction = "reload" }) { Text(stringResource(R.string.plugins_reload)) }
                 },
             ) {
                 error?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
                 }
                 Text(
-                    "EXILED 插件应用暂存后立即生效;LabAPI 插件需重启回合后生效。",
+                    stringResource(R.string.plugins_exiled_plugins_take_effect_immediately),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -138,14 +142,14 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
         val list = plugins
         if (list == null) {
             item {
-                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else if (list.isEmpty()) {
             item {
                 EmptyState(
                     Icons.Outlined.Extension,
-                    "未发现插件",
-                    "服务器上可能没有安装插件",
+                    stringResource(R.string.plugins_no_plugins_found),
+                    stringResource(R.string.plugins_server_may_not_have_any),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -175,17 +179,17 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
                                         when (plugin.source) {
                                             "exiled" -> "EXILED"
                                             "labapi" -> "LabAPI"
-                                            else -> plugin.source ?: "未知"
+                                            else -> plugin.source ?: stringResource(R.string.common_unknown)
                                         },
                                         MaterialTheme.colorScheme.secondary,
                                     )
-                                    if (plugin.self == true) InfoChip("本插件", MaterialTheme.colorScheme.tertiary)
-                                    if (plugin.staged == true) InfoChip("暂存变更", MaterialTheme.colorScheme.primary)
+                                    if (plugin.self == true) InfoChip(stringResource(R.string.plugins_plugin), MaterialTheme.colorScheme.tertiary)
+                                    if (plugin.staged == true) InfoChip(stringResource(R.string.plugins_staged_change), MaterialTheme.colorScheme.primary)
                                 }
                                 plugin.author?.takeIf { it.isNotBlank() }?.let {
                                     Spacer(Modifier.height(2.dp))
                                     Text(
-                                        "作者:$it",
+                                        stringResource(R.string.plugins_author, it),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -200,7 +204,7 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
                                             put("name", plugin.name)
                                             put("enabled", enabled)
                                         },
-                                        if (enabled) "已暂存启用 ${plugin.name}" else "已暂存禁用 ${plugin.name}",
+                                        if (enabled) appString(R.string.plugins_staged_enable, plugin.name) else appString(R.string.plugins_staged_disable, plugin.name),
                                     )
                                 },
                             )
@@ -212,13 +216,13 @@ fun PluginsScreen(onOpenAdapted: () -> Unit = {}) {
 
     pendingAction?.let { action ->
         ConfirmDialog(
-            title = if (action == "apply") "应用暂存的插件变更?" else "重载全部插件?",
-            text = if (action == "apply") "LabAPI 插件的启停将在重启回合后生效。" else "重载会重新加载服务器上的插件。",
-            confirmLabel = if (action == "apply") "应用" else "重载",
+            title = if (action == "apply") stringResource(R.string.plugins_apply_staged_plugin_changes) else stringResource(R.string.plugins_reload_all_plugins),
+            text = if (action == "apply") stringResource(R.string.plugins_enabling_disabling_labapi_plugins_takes) else stringResource(R.string.plugins_reloading_will_reload_plugins_server),
+            confirmLabel = if (action == "apply") stringResource(R.string.plugins_apply) else stringResource(R.string.plugins_reload),
             onConfirm = {
                 call(
                     buildJsonObject { put("action", action) },
-                    if (action == "apply") "已应用暂存" else "已触发重载",
+                    if (action == "apply") appString(R.string.plugins_staged_changes_applied) else appString(R.string.plugins_reload_triggered),
                 )
             },
             onDismiss = { pendingAction = null },

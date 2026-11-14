@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Visibility
@@ -42,6 +43,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHostState
@@ -66,6 +68,10 @@ import com.dntof.slconsole.ui.rememberImeLift
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -75,6 +81,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.repo.ControlRepository
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 @Composable
 fun StatusDot(color: Color, size: Dp = 10.dp) {
@@ -103,7 +112,7 @@ fun SecretOutlinedField(
             IconButton(onClick = { visible = !visible }) {
                 Icon(
                     if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                    contentDescription = if (visible) "隐藏" else "显示",
+                    contentDescription = if (visible) stringResource(R.string.widgets_hide) else stringResource(R.string.widgets_show),
                 )
             }
         },
@@ -194,7 +203,7 @@ fun FeatureTile(
                 Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.height(10.dp))
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(
                 subtitle,
@@ -205,6 +214,22 @@ fun FeatureTile(
             )
         }
     }
+}
+
+/** 等宽按钮行里的按钮文字:保持单行,放不下时缩小字号,避免英文从单词中间断开。中文短标签仍用原字号。 */
+@Composable
+fun ButtonLabel(text: String) {
+    val style = LocalTextStyle.current
+    Text(
+        text = text,
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Clip,
+        textAlign = TextAlign.Center,
+        style = style.merge(TextStyle(lineBreak = LineBreak.Simple, hyphens = Hyphens.None)),
+        autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = style.fontSize),
+    )
 }
 
 @Composable
@@ -221,6 +246,8 @@ fun InfoChip(
             Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             color = tint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
     if (onClick != null) {
@@ -252,7 +279,7 @@ fun KeyValueRow(key: String, value: String, mono: Boolean = false, modifier: Mod
 fun ConfirmDialog(
     title: String,
     text: String? = null,
-    confirmLabel: String = "确认",
+    confirmLabel: String = stringResource(R.string.common_confirm),
     danger: Boolean = false,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -266,7 +293,7 @@ fun ConfirmDialog(
                 Text(confirmLabel, color = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -330,7 +357,7 @@ fun ImeDialogFrame(
 fun PromptDialog(
     title: String,
     subtitle: String? = null,
-    confirmLabel: String = "确认",
+    confirmLabel: String = stringResource(R.string.common_confirm),
     danger: Boolean = false,
     fields: List<PromptField>,
     onConfirm: (Map<String, String>) -> Unit,
@@ -358,7 +385,7 @@ fun PromptDialog(
             Spacer(Modifier.height(8.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
             TextButton(onClick = { onConfirm(values.toMap()); onDismiss() }) {
                 Text(
                     confirmLabel,
@@ -411,7 +438,7 @@ fun ErrorPanel(message: String, onRetry: (() -> Unit)? = null) {
     ) {
         Icon(Icons.Outlined.CloudOff, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(16.dp))
-        Text("连接异常", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.widgets_connection_problem), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(6.dp))
         Text(
             message,
@@ -421,7 +448,7 @@ fun ErrorPanel(message: String, onRetry: (() -> Unit)? = null) {
         )
         onRetry?.let {
             Spacer(Modifier.height(16.dp))
-            Button(onClick = it) { Text("重试") }
+            Button(onClick = it) { Text(stringResource(R.string.widgets_retry)) }
         }
     }
 }
@@ -476,7 +503,7 @@ fun LabeledSwitch(
 
 suspend fun SnackbarHostState.showOutcome(
     outcome: ControlRepository.ControlOutcome,
-    successText: String = "操作成功",
+    successText: String = appString(R.string.widgets_done),
 ) {
     when (outcome) {
         is ControlRepository.ControlOutcome.Success -> showSnackbar(
@@ -484,7 +511,7 @@ suspend fun SnackbarHostState.showOutcome(
             withDismissAction = true,
         )
         is ControlRepository.ControlOutcome.Failure -> showSnackbar(
-            if (outcome.transportHint != null) "${outcome.message}(提示:${outcome.transportHint})" else outcome.message,
+            if (outcome.transportHint != null) appString(R.string.widgets_hint, outcome.message, outcome.transportHint) else outcome.message,
             withDismissAction = true,
         )
     }

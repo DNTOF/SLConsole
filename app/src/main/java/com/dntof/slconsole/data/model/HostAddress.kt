@@ -2,6 +2,9 @@
 // Copyright (C) 2026 DNT_OF
 
 package com.dntof.slconsole.data.model
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+
 
 /**
  * 主机栏只接受域名、IPv4，或用方括号包起来的 IPv6。
@@ -10,38 +13,38 @@ package com.dntof.slconsole.data.model
 object HostAddress {
     fun problem(raw: String): String? {
         if (raw.any { it.isWhitespace() || it.code < 32 }) {
-            return "主机地址不能包含空格或换行"
+            return appString(R.string.host_address_host_address_must_not_contain)
         }
         val host = raw.trim()
-        if (host.isEmpty()) return "主机地址不能为空"
+        if (host.isEmpty()) return appString(R.string.host_address_host_address_cannot_empty)
         if (host.any { it in FORBIDDEN }) {
-            return "主机只能填写域名、IPv4，或用方括号包起来的 IPv6，不能带 @、/、?、# 或协议"
+            return appString(R.string.host_address_host_must_domain_ipv4_address)
         }
         val lower = host.lowercase()
         if ("://" in host || lower.startsWith("http:") || lower.startsWith("https:") ||
             lower.startsWith("ws:") || lower.startsWith("wss:") || lower.startsWith("intent:")
         ) {
-            return "不要填写协议，只填主机名或 IP"
+            return appString(R.string.host_address_dont_include_scheme_enter_only)
         }
         if (host.startsWith("[")) {
             if (host.length < 3 || !host.endsWith("]") || !isIpv6(host.substring(1, host.length - 1))) {
-                return "IPv6 请写成 [2001:db8::1] 这种带方括号的形式"
+                return appString(R.string.host_address_write_ipv6_addresses_brackets_like)
             }
             return null
         }
         if (':' in host) {
-            return "主机里不要写端口或协议。端口填在旁边的端口栏；IPv6 要用方括号"
+            return appString(R.string.host_address_dont_put_port_scheme_host)
         }
         val dotted = host.split('.')
         if (dotted.size == 4 && dotted.all { part -> part.isNotEmpty() && part.all(Char::isDigit) }) {
             return if (isIpv4(host)) {
                 null
             } else {
-                "IPv4 地址格式不正确，每一段要在 0 到 255，而且不能有前导 0"
+                appString(R.string.host_address_invalid_ipv4_address_each_part)
             }
         }
         if (HOSTNAME.matches(host)) return null
-        return "主机只能是域名、IPv4，或带方括号的 IPv6"
+        return appString(R.string.host_address_host_must_domain_ipv4_address_2)
     }
 
     private const val FORBIDDEN = "@/?#\\%"

@@ -15,7 +15,7 @@ import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -94,12 +94,16 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private val ZONE_FILTERS = listOf(
-    "All" to "全部",
-    "LightContainment" to "轻收容",
-    "HeavyContainment" to "重收容",
-    "Entrance" to "入口区",
+    "All" to R.string.map_all,
+    "LightContainment" to R.string.map_light_containment,
+    "HeavyContainment" to R.string.map_heavy_containment,
+    "Entrance" to R.string.map_entrance_zone,
 )
 
 @Composable
@@ -117,7 +121,7 @@ fun MapScreen() {
     val readyData = (monitor as? MonitorEngine.MonitorState.Ready)?.data
 
     if (server == null) {
-        EmptyState(Icons.Outlined.Map, "未选择服务器", "先在顶栏添加或选择一个服务器")
+        EmptyState(Icons.Outlined.Map, stringResource(R.string.common_no_server_selected), stringResource(R.string.common_add_select_server_top_bar))
         return
     }
 
@@ -145,9 +149,9 @@ fun MapScreen() {
 
     if (!server.hasControl) {
         Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
-            SectionCard("地图视图", subtitle = "需要控制面 API Key") {
+            SectionCard(stringResource(R.string.map_map_view), subtitle = stringResource(R.string.common_requires_control_plane_api_key)) {
                 Text(
-                    "地图种子与设施控制都走控制通道。请在服务器设置中配置 API Key 后重试。",
+                    stringResource(R.string.map_map_seeds_facility_controls_go),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -163,20 +167,20 @@ fun MapScreen() {
             .scrollUnderChrome(),
     ) {
         SectionCard(
-            "地图视图",
+            stringResource(R.string.map_map_view),
             subtitle = when {
                 seedError != null -> seedError
-                seed == null -> "正在获取回合种子…"
-                !seedReady -> "回合种子已就绪(服务器布局采集未完成,按种子本地重建)"
-                else -> "回合种子 ${seed} · 每 30 秒刷新"
+                seed == null -> stringResource(R.string.map_fetching_round_seed)
+                !seedReady -> stringResource(R.string.map_round_seed_ready_server_layout)
+                else -> stringResource(R.string.map_round_seed_refreshes_every_30, seed.toString())
             },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             actions = {
-                seed?.let { TextButton(onClick = { /* 种子随轮询刷新 */ }) { Text("回合进行中") } }
+                seed?.let { TextButton(onClick = { /* 种子随轮询刷新 */ }) { Text(stringResource(R.string.map_round_progress)) } }
             },
         ) {
             if (seed == null && seedError == null) {
-                Text("等待 /control/map/seed 返回…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.map_waiting_control_map_seed), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
 
@@ -229,7 +233,7 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
     val onPanel = MaterialTheme.colorScheme.onBackground
 
     if (layout == null) {
-        Text("布局生成失败", Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
+        Text(stringResource(R.string.map_layout_generation_failed), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.error)
         return
     }
 
@@ -245,17 +249,22 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
     }
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ZONE_FILTERS.forEach { (value, label) ->
-                FilterChip(selected = zoneFilter == value, onClick = { zoneFilter = value; selected = null }, label = { Text(label) })
+                FilterChip(
+                    selected = zoneFilter == value,
+                    onClick = { zoneFilter = value; selected = null },
+                    label = { Text(stringResource(label), maxLines = 1) },
+                )
             }
         }
 
         if (bounds == null) {
-            EmptyState(Icons.Outlined.Map, "该区域没有房间", "切换区域筛选或等待新回合")
+            EmptyState(Icons.Outlined.Map, stringResource(R.string.map_no_rooms_zone), stringResource(R.string.map_change_zone_filter_wait_new))
         } else {
             val (minX, maxX, minZ, maxZ) = bounds
             var canvasSize by remember { mutableStateOf(androidx.compose.ui.unit.IntSize.Zero) }
@@ -280,7 +289,7 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "单指滚动页面。双指拖动地图,捏合缩放。",
+                    stringResource(R.string.map_scroll_page_one_finger_drag),
                     Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -288,7 +297,7 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                 TextButton(onClick = {
                     userScale = 1f
                     userPan = Offset.Zero
-                }) { Text("复位") }
+                }) { Text(stringResource(R.string.map_reset)) }
             }
             Canvas(
                 modifier = Modifier
@@ -538,9 +547,9 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
         // 图例
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             listOf(
-                "轻收容" to "LightContainment",
-                "重收容" to "HeavyContainment",
-                "入口区" to "Entrance",
+                stringResource(R.string.map_light_containment) to "LightContainment",
+                stringResource(R.string.map_heavy_containment) to "HeavyContainment",
+                stringResource(R.string.map_entrance_zone) to "Entrance",
             ).forEach { (label, zone) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     androidx.compose.foundation.layout.Box(
@@ -556,11 +565,11 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
         }
 
         // 玩家位置列表
-        SectionCard("玩家位置", subtitle = "按最近房间归属(y>200 为地表)") {
+        SectionCard(stringResource(R.string.map_player_locations), subtitle = stringResource(R.string.map_by_nearest_room_y_200)) {
             val withPos = players.filter { it.x != null && it.z != null }
             if (withPos.isEmpty()) {
                 Text(
-                    "暂无带坐标的玩家(等待监控数据刷新)",
+                    stringResource(R.string.map_no_players_coordinates_yet_waiting),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -579,7 +588,7 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
                             maxLines = 1,
                         )
                         Text(
-                            room?.label ?: if ((player.y ?: 0.0) > 200) "地表" else "口袋维度",
+                            room?.label ?: if ((player.y ?: 0.0) > 200) stringResource(R.string.map_surface) else stringResource(R.string.map_pocket_dimension),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -698,21 +707,21 @@ private fun FacilityControls(
         }
     }
 
-    SectionCard("设施控制", subtitle = "灯光作用于选中的房间;走廊不可控光") {
+    SectionCard(stringResource(R.string.map_facility_control), subtitle = stringResource(R.string.map_lights_apply_selected_room_corridors)) {
         Text(
-            if (selected == null) "在地图上没有选中房间(再次点击取消选中)"
-            else "选中:${selected.label}(${selected.rawName})",
+            if (selected == null) stringResource(R.string.map_no_room_selected_map_tap)
+            else stringResource(R.string.map_selected, selected.label, selected.rawName),
             style = MaterialTheme.typography.bodyMedium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (selected != null) {
-                TextButton(onClick = { onSelectedChange(null) }) { Text("取消选择") }
+                TextButton(onClick = { onSelectedChange(null) }) { Text(stringResource(R.string.map_deselect)) }
             }
         }
         OutlinedTextField(
             value = lightsDuration,
             onValueChange = { lightsDuration = it },
-            label = { Text("灯光时长(秒,1-300)") },
+            label = { Text(stringResource(R.string.map_light_duration_seconds_1_300)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -727,12 +736,12 @@ private fun FacilityControls(
                             put("lights_off", true)
                             put("duration", lightsDuration.toIntOrNull() ?: 30)
                         },
-                        "已关闭 ${selected?.label.orEmpty()} 的灯光",
+                        appString(R.string.map_turned_off_lights, selected?.label.orEmpty()),
                     )
                 },
                 enabled = selected != null && !selected.isCorridor,
                 modifier = Modifier.weight(1f),
-            ) { Text("关灯") }
+            ) { Text(stringResource(R.string.map_lights_off)) }
             OutlinedButton(
                 onClick = {
                     facility(
@@ -742,57 +751,57 @@ private fun FacilityControls(
                             put("lights_off", false)
                             put("duration", lightsDuration.toIntOrNull() ?: 30)
                         },
-                        "已点亮 ${selected?.label.orEmpty()}",
+                        appString(R.string.map_turned_lights, selected?.label.orEmpty()),
                     )
                 },
                 enabled = selected != null && !selected.isCorridor,
                 modifier = Modifier.weight(1f),
-            ) { Text("开灯") }
+            ) { Text(stringResource(R.string.map_lights)) }
         }
 
         HorizontalDividerThin()
 
-        DropdownField("门类型", MapGenData.DOOR_TYPES, doorType) { doorType = it }
-        DropdownField("作用范围", listOf("type", "all", "all_not_list"), doorScope) { doorScope = it }
+        DropdownField(stringResource(R.string.map_door_type), MapGenData.DOOR_TYPES, doorType) { doorType = it }
+        DropdownField(stringResource(R.string.map_scope), listOf("type", "all", "all_not_list"), doorScope) { doorScope = it }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("lock_door", true)
-                    }, "已锁定 $doorType",
+                    }, appString(R.string.map_locked, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("锁定") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_lock)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("lock_door", false)
-                    }, "已解锁 $doorType",
+                    }, appString(R.string.map_unlocked, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("解锁") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_unlock)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("open_door", true)
-                    }, "已开门 $doorType",
+                    }, appString(R.string.map_opened, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("开门") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_open)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("open_door", false)
-                    }, "已关门 $doorType",
+                    }, appString(R.string.map_closed, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("关门") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_close)) }
         }
 
         HorizontalDividerThin()
 
-        DropdownField("电梯类型", MapGenData.ELEVATOR_TYPES, elevatorType) { elevatorType = it }
-        DropdownField("作用范围", listOf("type", "all"), elevatorScope) { elevatorScope = it }
+        DropdownField(stringResource(R.string.map_elevator_type), MapGenData.ELEVATOR_TYPES, elevatorType) { elevatorType = it }
+        DropdownField(stringResource(R.string.map_scope), listOf("type", "all"), elevatorScope) { elevatorScope = it }
         OutlinedTextField(
             value = sendLevel,
             onValueChange = { sendLevel = it },
-            label = { Text("送层目标(0-20)") },
+            label = { Text(stringResource(R.string.map_target_floor_0_20)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -802,24 +811,24 @@ private fun FacilityControls(
                 facility(
                     buildJsonObject {
                         put("action", "elevators"); put("scope", elevatorScope); put("elevator_type", elevatorType); put("command", "up")
-                    }, "$elevatorType 上行",
+                    }, appString(R.string.map_up, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("上行") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_up_2)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "elevators"); put("scope", elevatorScope); put("elevator_type", elevatorType); put("command", "down")
-                    }, "$elevatorType 下行",
+                    }, appString(R.string.map_down, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("下行") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_down_2)) }
             Button(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "elevators"); put("scope", elevatorScope); put("elevator_type", elevatorType)
                         put("command", "send"); put("level", sendLevel.toIntOrNull() ?: 0)
-                    }, "$elevatorType 送层",
+                    }, appString(R.string.map_sent_floor, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text("送层") }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_send)) }
         }
     }
 }

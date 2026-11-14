@@ -6,15 +6,17 @@ package com.dntof.slconsole.data.remote.tls
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import javax.net.ssl.X509TrustManager
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 还没有指纹。握手只为了拿到证书,然后拒绝,不把请求发出去。 */
-class TofuRequiredException(val fingerprint: String) : CertificateException("需要先确认证书指纹")
+class TofuRequiredException(val fingerprint: String) : CertificateException(appString(R.string.pin_trust_manager_certificate_fingerprint_must_confirmed_fir))
 
 /** 出示的证书和已固定的指纹不一致。禁止退回明文。 */
 class PinMismatchException(
     val expected: String,
     val presented: String,
-) : CertificateException("证书指纹不一致")
+) : CertificateException(appString(R.string.common_certificate_fingerprint_mismatch))
 
 /**
  * 只认这一台服务器的指纹:比较叶子证书 DER 的 SHA-256,不校验证书链,也不看主机名。
@@ -27,11 +29,11 @@ class PinTrustManager(expectedPin: String?) : X509TrustManager {
     var presented: String? = null
 
     override fun checkClientTrusted(chain: Array<X509Certificate>?, authType: String?) {
-        throw CertificateException("不使用客户端证书")
+        throw CertificateException(appString(R.string.pin_trust_manager_client_certificates_are_not_used))
     }
 
     override fun checkServerTrusted(chain: Array<X509Certificate>?, authType: String?) {
-        if (chain.isNullOrEmpty()) throw CertificateException("服务器没有出示证书")
+        if (chain.isNullOrEmpty()) throw CertificateException(appString(R.string.pin_trust_manager_server_presented_no_certificate))
         val fingerprint = CertFingerprint.sha256Der(chain[0].encoded)
         presented = fingerprint
         val pin = expected ?: throw TofuRequiredException(fingerprint)

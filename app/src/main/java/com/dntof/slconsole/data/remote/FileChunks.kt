@@ -4,6 +4,8 @@
 package com.dntof.slconsole.data.remote
 
 import java.security.MessageDigest
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 一块已经按偏移排好的文件内容。偏移是原始字节，不是 base64。 */
 data class FileChunkPiece(
@@ -68,7 +70,7 @@ object FileChunks {
         val out = java.io.ByteArrayOutputStream()
         for (piece in sorted) {
             if (piece.offset != cursor) {
-                return AssembleResult.Gap("分块偏移不连续：期望 $cursor，收到 ${piece.offset}")
+                return AssembleResult.Gap(appString(R.string.file_chunks_chunk_offsets_are_not_contiguous, cursor, piece.offset))
             }
             out.write(piece.bytes)
             cursor += piece.bytes.size

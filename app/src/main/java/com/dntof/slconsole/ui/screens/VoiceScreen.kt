@@ -56,6 +56,8 @@ import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.components.StatusDot
 import com.dntof.slconsole.ui.components.UiColors
 import com.dntof.slconsole.ui.rememberActiveServer
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 @Composable
 fun VoiceScreen() {
@@ -74,7 +76,7 @@ fun VoiceScreen() {
     val enabled = voicePort > 0 && server?.hasControl == true
 
     if (server == null) {
-        EmptyState(Icons.Outlined.GraphicEq, "未选择服务器", "先在顶栏添加或选择一个服务器")
+        EmptyState(Icons.Outlined.GraphicEq, stringResource(R.string.common_no_server_selected), stringResource(R.string.common_add_select_server_top_bar))
         return
     }
 
@@ -85,27 +87,26 @@ fun VoiceScreen() {
             .scrollUnderChrome(),
     ) {
         SectionCard(
-            "语音监听",
-            subtitle = "实时代码语音转发(SLDataAPI voice_enabled)",
+            stringResource(R.string.common_voice_monitor),
+            subtitle = stringResource(R.string.voice_live_voice_relay_sldataapi_voice),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             if (!server.hasControl) {
                 Text(
-                    "语音流使用 API Key 鉴权:请先在服务器设置中配置控制面 API Key。",
+                    stringResource(R.string.voice_voice_stream_authenticates_api_key),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                 )
             } else if (voicePort <= 0) {
                 Text(
-                    "暂未获取到语音端口:确认 SLDataAPI 配置 voice_enabled: true(需重启游戏服生效)," +
-                        "或在服务器设置中手动填写语音流端口(服务器 voice_port 非默认值时必填)。",
+                    stringResource(R.string.voice_no_voice_port_yet_make),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                val source = if (configuredPort > 0) "服务器配置" else "监控自动获取"
+                val source = if (configuredPort > 0) stringResource(R.string.voice_server_config) else stringResource(R.string.voice_auto_from_monitoring)
                 Text(
-                    "监听 ${server.addressText} 的语音流(端口 $voicePort · $source)。多为近距离/对讲频道混音,请调低音量后开始。",
+                    stringResource(R.string.voice_listening_voice_stream_port_mostly, server.addressText, voicePort, source),
                     modifier = Modifier.clarityMask(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -151,11 +152,11 @@ private fun VoicePanel(server: com.dntof.slconsole.data.model.ServerConfig, voic
                     Column(Modifier.weight(1f)) {
                         Text(
                             when (state) {
-                                VoiceClient.State.CONNECTED -> "语音流已连接"
-                                VoiceClient.State.CONNECTING -> "正在连接…"
-                                VoiceClient.State.FAILED -> "连接失败"
-                                VoiceClient.State.IDLE -> "未开始监听"
-                                VoiceClient.State.CLOSED -> "已断开"
+                                VoiceClient.State.CONNECTED -> stringResource(R.string.voice_voice_stream_connected)
+                                VoiceClient.State.CONNECTING -> stringResource(R.string.common_connecting)
+                                VoiceClient.State.FAILED -> stringResource(R.string.common_connection_failed)
+                                VoiceClient.State.IDLE -> stringResource(R.string.voice_not_listening)
+                                VoiceClient.State.CLOSED -> stringResource(R.string.voice_disconnected)
                             },
                             style = MaterialTheme.typography.titleSmall,
                         )
@@ -169,7 +170,7 @@ private fun VoicePanel(server: com.dntof.slconsole.data.model.ServerConfig, voic
                     IconButton(onClick = { client.setMuted(!muted) }) {
                         Icon(
                             if (muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                            if (muted) "取消静音" else "静音",
+                            if (muted) stringResource(R.string.voice_unmute) else stringResource(R.string.voice_mute),
                         )
                     }
                 }
@@ -185,20 +186,20 @@ private fun VoicePanel(server: com.dntof.slconsole.data.model.ServerConfig, voic
                         onClick = { client.start() },
                         enabled = state == VoiceClient.State.IDLE || state == VoiceClient.State.FAILED || state == VoiceClient.State.CLOSED,
                         modifier = Modifier.weight(1f),
-                    ) { Text("开始监听") }
+                    ) { Text(stringResource(R.string.voice_start_listening)) }
                     OutlinedButton(
                         onClick = { client.stop() },
                         enabled = state == VoiceClient.State.CONNECTED || state == VoiceClient.State.CONNECTING,
                         modifier = Modifier.weight(1f),
-                    ) { Text("停止") }
+                    ) { Text(stringResource(R.string.common_stop)) }
                 }
             }
         }
 
-        SectionCard("正在说话", subtitle = "1.5 秒无新音频的说话人会自动移出") {
+        SectionCard(stringResource(R.string.voice_speaking_now), subtitle = stringResource(R.string.voice_speakers_no_new_audio_1)) {
             if (speakers.isEmpty()) {
                 Text(
-                    "点击「开始监听」连接服务器语音流;有人说话时会显示在这里。",
+                    stringResource(R.string.voice_tap_start_listening_connect_server),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -234,11 +235,11 @@ private fun VoicePanel(server: com.dntof.slconsole.data.model.ServerConfig, voic
                         speaker.channels.forEach { channel ->
                             InfoChip(
                                 when (channel) {
-                                    0 -> "近距离"
-                                    1 -> "对讲机"
-                                    2 -> "斯科通"
-                                    3 -> "无线电"
-                                    else -> "频道 $channel"
+                                    0 -> stringResource(R.string.voice_proximity)
+                                    1 -> stringResource(R.string.voice_walkie_talkie)
+                                    2 -> stringResource(R.string.voice_scp_chat)
+                                    3 -> stringResource(R.string.voice_radio)
+                                    else -> stringResource(R.string.voice_channel, channel)
                                 },
                                 MaterialTheme.colorScheme.secondary,
                             )

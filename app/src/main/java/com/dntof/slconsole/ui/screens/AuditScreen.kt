@@ -49,6 +49,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 @Composable
 fun AuditScreen() {
@@ -87,14 +90,14 @@ fun AuditScreen() {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("控制审计", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.common_control_audit), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        entries?.let { "最近 ${it.size} 条操作记录(新→旧)" } ?: "加载中…",
+                        entries?.let { pluralStringResource(R.plurals.audit_most_recent_operations_newest_first, it.size.toInt(), it.size) } ?: stringResource(R.string.common_loading),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                TextButton(onClick = { load() }) { Text("刷新") }
+                TextButton(onClick = { load() }) { Text(stringResource(R.string.common_refresh)) }
             }
             error?.let {
                 Text(
@@ -107,14 +110,14 @@ fun AuditScreen() {
         val list = entries
         if (list == null) {
             item {
-                Text("加载中…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.common_loading), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else if (list.isEmpty()) {
             item {
                 EmptyState(
                     Icons.AutoMirrored.Outlined.FactCheck,
-                    "暂无审计记录",
-                    "控制操作执行后会记录在这里",
+                    stringResource(R.string.audit_no_audit_records_yet),
+                    stringResource(R.string.audit_control_operations_are_recorded_here),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -150,13 +153,13 @@ fun AuditScreen() {
                                 )
                             }
                             Spacer(Modifier.height(4.dp))
-                            KeyValueRow("操作者", entry.actor ?: "-", mono = true)
+                            KeyValueRow(stringResource(R.string.audit_actor), entry.actor ?: "-", mono = true)
                             entry.message?.takeIf { it.isNotBlank() }?.let {
-                                KeyValueRow("结果", it, mono = true)
+                                KeyValueRow(stringResource(R.string.audit_result), it, mono = true)
                             }
                             if (expanded) {
                                 entry.body?.takeIf { it.isNotBlank() }?.let {
-                                    KeyValueRow("请求体", it, mono = true)
+                                    KeyValueRow(stringResource(R.string.audit_request_body), it, mono = true)
                                 }
                             }
                         }

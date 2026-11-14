@@ -50,6 +50,7 @@ import com.dntof.slconsole.R
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.res.stringResource
 
 /** 作者主页。地址留空的按钮不会显示。 */
 object AuthorLinks {
@@ -93,8 +94,8 @@ fun AuthorCard(modifier: Modifier = Modifier) {
     val rise = with(LocalDensity.current) { 16.dp.toPx() }
     val links = listOf(
         AuthorLink("GitHub", AuthorLinks.GITHUB, primary = true),
-        AuthorLink("爱发电", AuthorLinks.AFDIAN, primary = false),
-        AuthorLink("哔哩哔哩", AuthorLinks.BILIBILI, primary = false),
+        AuthorLink(stringResource(R.string.author_card_afdian), AuthorLinks.AFDIAN, primary = false),
+        AuthorLink(stringResource(R.string.author_card_bilibili), AuthorLinks.BILIBILI, primary = false),
     ).filter { it.url.isNotBlank() }
 
     CompositionLocalProvider(LocalIndication provides ripple(color = AuthorOrange)) {
@@ -129,7 +130,7 @@ fun AuthorCard(modifier: Modifier = Modifier) {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    "作者",
+                    stringResource(R.string.author_card_author),
                     color = muted,
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.Normal,

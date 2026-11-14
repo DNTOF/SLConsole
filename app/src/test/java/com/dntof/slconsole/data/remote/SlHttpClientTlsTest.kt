@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote
 
+import com.dntof.slconsole.TestStrings
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.tls.CertFingerprint
 import com.dntof.slconsole.data.remote.tls.TlsClients
@@ -30,6 +31,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SlHttpClientTlsTest {
+    init {
+        TestStrings.install()
+    }
+
     private val client = SlHttpClient()
 
     @After

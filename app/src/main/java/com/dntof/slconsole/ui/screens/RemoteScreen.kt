@@ -46,13 +46,17 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 /** 远程控制:广播 / 管理聊天 / CASSIE / 回合与核弹(命令执行在"控制台"标签页)。 */
 @Composable
 fun RemoteScreen() {
     val server = rememberActiveServer()
     if (server == null) {
-        EmptyState(Icons.Outlined.Terminal, "未选择服务器", "先在顶栏添加或选择一个服务器")
+        EmptyState(Icons.Outlined.Terminal, stringResource(R.string.common_no_server_selected), stringResource(R.string.common_add_select_server_top_bar))
         return
     }
 
@@ -87,17 +91,17 @@ fun RemoteScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            SectionCard("全服广播", subtitle = "显示在所有玩家屏幕中央,内容 ≤500 字符") {
+            SectionCard(stringResource(R.string.common_broadcast), subtitle = stringResource(R.string.remote_shown_center_every_players_screen)) {
                 OutlinedTextField(
                     value = broadcastText,
                     onValueChange = { if (it.length <= 500) broadcastText = it },
-                    label = { Text("广播内容") },
+                    label = { Text(stringResource(R.string.common_broadcast_message)) },
                     minLines = 2,
                     supportingText = { Text("${broadcastText.length}/500") },
                     modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
                 Text(
-                    "显示时长:${broadcastDuration.toInt()} 秒",
+                    stringResource(R.string.remote_duration, broadcastDuration.toInt()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -106,7 +110,7 @@ fun RemoteScreen() {
                     onValueChange = { broadcastDuration = it },
                     valueRange = 1f..60f,
                 )
-                LabeledSwitch("清除上一个广播", null, clearPrevious) { clearPrevious = it }
+                LabeledSwitch(stringResource(R.string.remote_clear_previous_broadcast), null, clearPrevious) { clearPrevious = it }
                 Spacer(Modifier.height(4.dp))
                 Button(
                     enabled = broadcastText.isNotBlank(),
@@ -119,23 +123,23 @@ fun RemoteScreen() {
                                 put("duration_seconds", broadcastDuration)
                                 put("clear_previous", clearPrevious)
                             },
-                            "广播已发送",
+                            appString(R.string.common_broadcast_sent),
                         )
                     },
-                ) { Text("发送广播") }
+                ) { Text(stringResource(R.string.remote_send_broadcast)) }
             }
         }
         item {
-            SectionCard("管理聊天", subtitle = "仅对拥有 AdminChat 权限的玩家可见") {
+            SectionCard(stringResource(R.string.remote_admin_chat), subtitle = stringResource(R.string.remote_only_visible_players_adminchat_permission)) {
                 OutlinedTextField(
                     value = staffText,
                     onValueChange = { if (it.length <= 500) staffText = it },
-                    label = { Text("管理聊天消息") },
+                    label = { Text(stringResource(R.string.remote_admin_chat_message)) },
                     minLines = 2,
                     supportingText = { Text("${staffText.length}/500") },
                     modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
-                LabeledSwitch("静默发送", "不显示发送者", staffSilent) { staffSilent = it }
+                LabeledSwitch(stringResource(R.string.remote_send_silently), stringResource(R.string.remote_hide_sender), staffSilent) { staffSilent = it }
                 Spacer(Modifier.height(4.dp))
                 Button(
                     enabled = staffText.isNotBlank(),
@@ -147,18 +151,18 @@ fun RemoteScreen() {
                                 put("message", staffText.trim())
                                 put("is_silent", staffSilent)
                             },
-                            "已发送到管理聊天",
+                            appString(R.string.remote_sent_admin_chat),
                         )
                     },
-                ) { Text("发送管理聊天") }
+                ) { Text(stringResource(R.string.remote_send_admin_chat)) }
             }
         }
         item {
-            SectionCard("CASSIE 播报", subtitle = "播报使用英文大写单词;字幕文本用于中文翻译") {
+            SectionCard(stringResource(R.string.remote_cassie_announcement), subtitle = stringResource(R.string.remote_announcements_use_uppercase_english_words)) {
                 OutlinedTextField(
                     value = cassieText,
                     onValueChange = { if (it.length <= 500) cassieText = it },
-                    label = { Text("播报文本(英文)") },
+                    label = { Text(stringResource(R.string.remote_announcement_text_english)) },
                     minLines = 2,
                     supportingText = { Text("${cassieText.length}/500") },
                     modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -167,13 +171,13 @@ fun RemoteScreen() {
                 OutlinedTextField(
                     value = cassieTranslation,
                     onValueChange = { if (it.length <= 500) cassieTranslation = it },
-                    label = { Text("字幕翻译(可选)") },
+                    label = { Text(stringResource(R.string.remote_subtitle_translation_optional)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().keepAboveIme(),
                 )
-                LabeledSwitch("保持播报(等待确认)", null, cassieHeld) { cassieHeld = it }
-                LabeledSwitch("包含环境音", null, cassieNoisy) { cassieNoisy = it }
-                LabeledSwitch("显示字幕", null, cassieSubs) { cassieSubs = it }
+                LabeledSwitch(stringResource(R.string.remote_hold_announcement_wait_confirmation), null, cassieHeld) { cassieHeld = it }
+                LabeledSwitch(stringResource(R.string.remote_include_ambient_noise), null, cassieNoisy) { cassieNoisy = it }
+                LabeledSwitch(stringResource(R.string.remote_show_subtitles), null, cassieSubs) { cassieSubs = it }
                 Spacer(Modifier.height(4.dp))
                 Button(
                     enabled = cassieText.isNotBlank(),
@@ -188,58 +192,59 @@ fun RemoteScreen() {
                                 put("isSubtitles", cassieSubs)
                                 if (cassieTranslation.isNotBlank()) put("translation", cassieTranslation.trim())
                             },
-                            "CASSIE 播报已发送",
+                            appString(R.string.remote_cassie_announcement_sent),
                         )
                     },
-                ) { Text("发送 CASSIE") }
+                ) { Text(stringResource(R.string.remote_send_cassie)) }
             }
         }
         item {
-            SectionCard("回合与核弹", subtitle = "危险操作均需二次确认") {
+            SectionCard(stringResource(R.string.remote_round_warhead), subtitle = stringResource(R.string.remote_dangerous_actions_require_confirmation)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pendingRound = "restart" }, modifier = Modifier.weight(1f)) { Text("重启回合") }
-                    OutlinedButton(onClick = { pendingRound = "end" }, modifier = Modifier.weight(1f)) { Text("结束回合") }
-                    OutlinedButton(onClick = { pendingRound = "start" }, modifier = Modifier.weight(1f)) { Text("开始回合") }
+                    OutlinedButton(onClick = { pendingRound = "restart" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_restart_round)) }
+                    OutlinedButton(onClick = { pendingRound = "end" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_end_round)) }
+                    OutlinedButton(onClick = { pendingRound = "start" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_start_round)) }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pendingWarhead = "start" }, modifier = Modifier.weight(1f)) { Text("启动核弹") }
-                    OutlinedButton(onClick = { pendingWarhead = "stop" }, modifier = Modifier.weight(1f)) { Text("停止") }
-                    Button(onClick = { pendingWarhead = "detonate" }, modifier = Modifier.weight(1f)) { Text("引爆") }
+                    OutlinedButton(onClick = { pendingWarhead = "start" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_start_warhead)) }
+                    OutlinedButton(onClick = { pendingWarhead = "stop" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_stop)) }
+                    Button(onClick = { pendingWarhead = "detonate" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_detonate)) }
                 }
             }
         }
     }
 
     pendingRound?.let { action ->
-        val label = when (action) {
-            "restart" -> "重启"
-            "end" -> "结束"
-            else -> "开始"
+        val (label, title, done) = when (action) {
+            "restart" -> Triple(R.string.remote_round_restart, R.string.remote_round_restart_title, R.string.remote_round_restarted)
+            "end" -> Triple(R.string.remote_round_end, R.string.remote_round_end_title, R.string.remote_round_ended)
+            else -> Triple(R.string.remote_round_start, R.string.remote_round_start_title, R.string.remote_round_started)
         }
+        val doneText = stringResource(done)
         ConfirmDialog(
-            title = "确认${label}当前回合?",
+            title = stringResource(title),
             danger = action != "start",
-            confirmLabel = label,
+            confirmLabel = stringResource(label),
             onConfirm = {
-                send("/control/round", buildJsonObject { put("action", action) }, "回合已${label}")
+                send("/control/round", buildJsonObject { put("action", action) }, doneText)
             },
             onDismiss = { pendingRound = null },
         )
     }
     pendingWarhead?.let { action ->
-        val label = when (action) {
-            "start" -> "启动"
-            "stop" -> "停止"
-            else -> "引爆"
+        val (label, title) = when (action) {
+            "start" -> R.string.remote_warhead_start to R.string.remote_warhead_start_title
+            "stop" -> R.string.remote_warhead_stop to R.string.remote_warhead_stop_title
+            else -> R.string.remote_warhead_detonate to R.string.remote_warhead_detonate_title
         }
         ConfirmDialog(
-            title = "确认${label}核弹?",
-            text = if (action == "detonate") "核弹将立即引爆,无法撤回。" else null,
+            title = stringResource(title),
+            text = if (action == "detonate") stringResource(R.string.remote_warhead_will_detonate_immediately_cant) else null,
             danger = action == "detonate",
-            confirmLabel = label,
+            confirmLabel = stringResource(label),
             onConfirm = {
-                send("/control/round/warhead", buildJsonObject { put("action", action) }, "核弹指令已执行")
+                send("/control/round/warhead", buildJsonObject { put("action", action) }, appString(R.string.remote_warhead_command_executed))
             },
             onDismiss = { pendingWarhead = null },
         )

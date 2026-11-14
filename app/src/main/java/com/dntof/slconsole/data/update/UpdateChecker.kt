@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 检查更新。自动检查最多每 [UpdateConfig.AUTO_CHECK_INTERVAL_MS] 一次，出错不打扰用户；
@@ -96,10 +98,10 @@ object UpdateChecker {
     /** 手动检查结果的提示文案；有新版本时弹窗，不需要文案。 */
     fun describe(outcome: Outcome): String? = when (outcome) {
         is Outcome.Available -> null
-        is Outcome.UpToDate -> "已是最新版本（${BuildConfig.VERSION_NAME}）"
-        is Outcome.Incompatible -> "发现 ${outcome.info.versionName}，但它需要 Android API ${outcome.info.minSdk} 以上"
-        is Outcome.Unavailable -> "${outcome.reason}，暂时无法检查更新"
-        is Outcome.Failed -> "检查失败：${outcome.message}"
-        Outcome.Skipped -> "正在检查，请稍候"
+        is Outcome.UpToDate -> appString(R.string.update_checker_youre_latest_version, BuildConfig.VERSION_NAME)
+        is Outcome.Incompatible -> appString(R.string.update_checker_found_but_requires_android_api, outcome.info.versionName, outcome.info.minSdk)
+        is Outcome.Unavailable -> appString(R.string.update_checker_cant_check_updates_right_now, outcome.reason)
+        is Outcome.Failed -> appString(R.string.update_checker_check_failed, outcome.message)
+        Outcome.Skipped -> appString(R.string.update_checker_checking_please_wait)
     }
 }

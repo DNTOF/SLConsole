@@ -12,7 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.app.AppCompatActivity
 import com.dntof.slconsole.data.local.GlassGuard
 import com.dntof.slconsole.security.AppLock
 import com.dntof.slconsole.ui.AppRoot
@@ -20,10 +20,10 @@ import com.dntof.slconsole.ui.theme.SLConsoleTheme
 import com.dntof.slconsole.ui.visibleKeyboardOverlapPx
 
 /**
- * BiometricPrompt 需要 FragmentActivity。FragmentActivity 本身继承自 androidx.activity.ComponentActivity，
- * enableEdgeToEdge、setContent 和下面的键盘 inset 处理都不受影响。
+ * BiometricPrompt 需要 FragmentActivity;AppCompatActivity 继承自它,另外负责在 API 33 以下套用应用内语言。
+ * 它最终也继承自 androidx.activity.ComponentActivity，enableEdgeToEdge、setContent 和下面的键盘 inset 处理都不受影响。
  */
-class MainActivity : FragmentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 最近任务缩略图和截图默认不收录界面，避免令牌和服务器内容被系统截进去。

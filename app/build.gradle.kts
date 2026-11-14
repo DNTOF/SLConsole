@@ -120,6 +120,16 @@ android {
         compose = true
         buildConfig = true
     }
+    bundle {
+        // 应用内可以切换语言,AAB 不能按语言拆分,否则切过去的语言可能没装上
+        language {
+            enableSplit = false
+        }
+    }
+    lint {
+        // 界面文字都放在 strings.xml 里,中英文缺一条就让 lint 失败
+        error += listOf("MissingTranslation", "ExtraTranslation", "MissingQuantity", "StringFormatInvalid", "StringFormatCount")
+    }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -147,8 +157,10 @@ dependencies {
     implementation(libs.kyant.backdrop)
     implementation(libs.clarity.compose)
     implementation(libs.androidx.biometric)
-    // biometric 1.1.0 自带的 fragment 是 1.2.5，太旧；显式用新版，MainActivity 继承 FragmentActivity。
+    // biometric 1.1.0 自带的 fragment 是 1.2.5，太旧；显式用新版，MainActivity 继承的 AppCompatActivity 也是 FragmentActivity。
     implementation(libs.androidx.fragment)
+    // 应用内语言切换(AppCompatDelegate.setApplicationLocales),API 33 以下也能用
+    implementation(libs.androidx.appcompat)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.tls)

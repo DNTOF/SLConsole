@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.dntof.slconsole.data.local.SignatureCheck
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 /** 点徽标或「非官方版本」时弹出：当前安装包证书指纹和官方指纹，方便用户自己核对。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,21 +38,21 @@ fun SignatureSheet(report: SignatureCheck.Report, onDismiss: () -> Unit) {
                 .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("签名证书", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.signature_sheet_signing_certificate), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Text(
                 if (official) {
-                    "当前安装包的签名与官方证书一致。"
+                    stringResource(R.string.signature_sheet_packages_signature_matches_official_certific)
                 } else {
-                    "当前安装包的签名与官方证书不一致，可能被修改或重新打包。请从 ${SignatureCheck.RELEASES_URL} 下载官方版本。"
+                    stringResource(R.string.signature_sheet_packages_signature_doesnt_match_official, SignatureCheck.RELEASES_URL)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (official) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
             )
-            Fingerprint("当前安装包（PackageManager）", SignatureCheck.hex(report.packageManagerHash))
-            Fingerprint("当前安装包（APK 签名块）", SignatureCheck.hex(report.apkBlockHash))
-            Fingerprint("官方证书", SignatureCheck.hex(report.official))
+            Fingerprint(stringResource(R.string.signature_sheet_package_packagemanager), SignatureCheck.hex(report.packageManagerHash))
+            Fingerprint(stringResource(R.string.signature_sheet_package_apk_signing_block), SignatureCheck.hex(report.apkBlockHash))
+            Fingerprint(stringResource(R.string.signature_sheet_official_certificate), SignatureCheck.hex(report.official))
             Text(
-                "SHA-256。官方指纹也写在 GitHub 仓库的 README 里，可以对照核对。",
+                stringResource(R.string.signature_sheet_sha_256_official_fingerprint_also),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -35,6 +35,8 @@ import com.dntof.slconsole.ui.components.decodeBadgePalette
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.SectionCard
 import com.dntof.slconsole.ui.withBottomChrome
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 private const val SOURCE_URL = "https://github.com/DNTOF/SLConsole"
 private const val LICENSE_URL = "https://github.com/DNTOF/SLConsole/blob/main/LICENSE"
@@ -56,7 +58,7 @@ fun AboutScreen() {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            SectionCard("版本") {
+            SectionCard(stringResource(R.string.common_version)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -70,20 +72,19 @@ fun AboutScreen() {
                         Spacer(Modifier.weight(1f))
                         GenuineBadge(palette = palette, onClick = { showSignature = true })
                     } else {
-                        InfoChip("非官方版本", color = MaterialTheme.colorScheme.error) { showSignature = true }
+                        InfoChip(stringResource(R.string.common_unofficial_build), color = MaterialTheme.colorScheme.error) { showSignature = true }
                     }
                 }
             }
         }
         item {
-            SectionCard("功能范围") {
+            SectionCard(stringResource(R.string.about_what_does)) {
                 Text(
-                    "你可以在手机上查看服务器是否在线、这一局进行到哪一步、现在有哪些玩家。" +
-                        "也可以输入控制台命令，打开地图，听语音，处理封禁和举报，管理插件，以及查看、修改服务器上的文件。",
+                    stringResource(R.string.about_see_your_phone_whether_server),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
-                    "SLDataAPI 2.6.1 预发布里的适配插件动作和大文件分块，只有服务器打开对应开关，并且控制连接的 hello 里带有 beta 时才会出现。",
+                    stringResource(R.string.about_adapted_plugin_actions_large_file),
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -91,15 +92,15 @@ fun AboutScreen() {
         }
         item { AuthorCard() }
         item {
-            SectionCard("特别鸣谢") {
+            SectionCard(stringResource(R.string.about_special_thanks)) {
                 Text(
-                    "FXDYJ（提供地图渲染JS）",
+                    stringResource(R.string.about_fxdyj_map_rendering_js),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         }
         item {
-            SectionCard("许可") {
+            SectionCard(stringResource(R.string.about_license)) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -112,30 +113,27 @@ fun AboutScreen() {
                         )
                     }
                     Text(
-                        "SLConsole 是自由软件，依据 GNU 通用公共许可证第 3 版或更新版本发布，不附带任何担保。" +
-                            "分发修改版时需要以同样的许可公开源代码，并保留版权声明；修改版请换用其他名称和图标。" +
-                            "另有一项附加许可（链接例外），允许与 Microsoft Clarity SDK、Google Play Install Referrer 库一起分发，见 LICENSE-EXCEPTION.md。",
+                        stringResource(R.string.about_slconsole_free_software_released_under),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        InfoChip("源代码", color = MaterialTheme.colorScheme.primary) {
+                        InfoChip(stringResource(R.string.about_source_code), color = MaterialTheme.colorScheme.primary) {
                             runCatching { uriHandler.openUri(SOURCE_URL) }
                         }
-                        InfoChip("许可证全文", color = MaterialTheme.colorScheme.primary) {
+                        InfoChip(stringResource(R.string.about_full_license), color = MaterialTheme.colorScheme.primary) {
                             runCatching { uriHandler.openUri(LICENSE_URL) }
                         }
                     }
                     Text(
-                        "液态玻璃绘制使用 Backdrop 1.0.6（Apache-2.0）。",
+                        stringResource(R.string.about_liquid_glass_rendering_uses_backdrop),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        "匿名使用统计使用 Microsoft Clarity。默认开启；如果第一次打开时在引导里还没走到使用统计这一步就跳过，则会关闭，也可以在设置里改。开启后 Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。敏感内容会尽量遮住，但不是每一项都保证被遮住。" +
-                            "检查更新会访问 GitHub API。除此之外不上传数据，服务器数据只发给你自己的服务器。",
+                        stringResource(R.string.about_anonymous_usage_statistics_use_microsoft),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Text(
-                        "界面里的 Lora、Poppins 字体以 SIL Open Font License 提供。",
+                        stringResource(R.string.about_lora_poppins_fonts_interface_are),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
@@ -143,7 +141,7 @@ fun AboutScreen() {
         }
         item {
             TextButton(onClick = LocalReplayOnboarding.current) {
-                Text("重新查看新手引导")
+                Text(stringResource(R.string.common_replay_onboarding))
             }
         }
     }

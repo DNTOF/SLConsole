@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote.tls
 
+import com.dntof.slconsole.TestStrings
 import com.dntof.slconsole.data.model.ServerConfig
 import java.io.EOFException
 import java.io.IOException
@@ -22,6 +23,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaintextRetryTest {
+    init {
+        TestStrings.install()
+    }
+
     @After
     fun tearDown() {
         TransportSession.reset()

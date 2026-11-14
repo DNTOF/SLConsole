@@ -60,6 +60,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 private const val TERMINAL_BG = 0xFF0B0E13
 private const val TERMINAL_TEXT = 0xFFD8DEE9
@@ -79,14 +82,14 @@ fun ConsoleScreen() {
     val server = rememberActiveServer()
 
     if (server == null) {
-        EmptyState(Icons.Outlined.Terminal, "未选择服务器", "先在顶栏添加或选择一个服务器")
+        EmptyState(Icons.Outlined.Terminal, stringResource(R.string.common_no_server_selected), stringResource(R.string.common_add_select_server_top_bar))
         return
     }
     if (!server.hasControl) {
         Column(Modifier.fillMaxSize().belowTopBar().padding(16.dp).bottomChromePadding()) {
-            SectionCard("控制台", subtitle = "需要控制面 API Key") {
+            SectionCard(stringResource(R.string.common_console), subtitle = stringResource(R.string.common_requires_control_plane_api_key)) {
                 Text(
-                    "控制台通过 API Key 执行服务器命令。请在服务器设置中配置 API Key 后重试。",
+                    stringResource(R.string.console_console_runs_server_commands_api),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -122,7 +125,7 @@ fun ConsoleScreen() {
                     val parsed = outcome.data?.let {
                         runCatching { AppJson.json.decodeFromJsonElement(ConsoleOutputData.serializer(), it) }.getOrNull()
                     }
-                    val out = parsed?.output ?: parsed?.console ?: outcome.message ?: "(无输出)"
+                    val out = parsed?.output ?: parsed?.console ?: outcome.message ?: appString(R.string.console_no_output)
                     "❯ $cmd\n$out\n\n"
                 }
                 is ControlRepository.ControlOutcome.Failure -> "❯ $cmd\n✗ ${outcome.message}\n\n"
@@ -162,7 +165,7 @@ fun ConsoleScreen() {
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        "${server.addressText} — 控制台",
+                        stringResource(R.string.console_console, server.addressText),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF8B95A3),
                         fontFamily = FontFamily.Monospace,
@@ -172,9 +175,7 @@ fun ConsoleScreen() {
                 SelectionContainer {
                     Text(
                         transcript.ifBlank {
-                            "SLConsole 终端已就绪(连接:${server.addressText})\n" +
-                                "输入命令执行,输出实时追加到这里。\n" +
-                                "提示:sldataapi 命令被服务器拒绝。\n"
+                            stringResource(R.string.console_slconsole_terminal_ready_connected_ntype, server.addressText)
                         },
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
@@ -202,7 +203,7 @@ fun ConsoleScreen() {
             OutlinedTextField(
                 value = command,
                 onValueChange = { command = it },
-                placeholder = { Text("输入命令,如:list / help", fontFamily = FontFamily.Monospace) },
+                placeholder = { Text(stringResource(R.string.console_enter_command_e_g_list), fontFamily = FontFamily.Monospace) },
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     fontFamily = FontFamily.Monospace,
@@ -218,7 +219,7 @@ fun ConsoleScreen() {
             IconButton(onClick = { exec() }, enabled = command.isNotBlank() && !running) {
                 Icon(
                     Icons.AutoMirrored.Filled.Send,
-                    "执行",
+                    stringResource(R.string.common_run),
                     tint = if (command.isNotBlank() && !running) {
                         MaterialTheme.colorScheme.primary
                     } else {

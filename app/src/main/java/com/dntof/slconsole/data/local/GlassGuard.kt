@@ -6,6 +6,8 @@ package com.dntof.slconsole.data.local
 import android.content.Context
 import com.dntof.slconsole.ServiceLocator
 import kotlinx.coroutines.runBlocking
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 玻璃绘制一旦崩溃,DataStore 里的开关还在,下次启动会立刻再崩。
@@ -15,8 +17,8 @@ import kotlinx.coroutines.runBlocking
 object GlassGuard {
     private const val PREFS = "slconsole_glass_guard"
     private const val PENDING = "render_pending"
-    const val RECOVERY_NOTICE = "液态玻璃上次绘制失败,已自动关闭。"
-    const val FAILURE_NOTICE = "液态玻璃绘制失败,已自动关闭。"
+    val RECOVERY_NOTICE: String get() = appString(R.string.glass_guard_liquid_glass_failed_render_last)
+    val FAILURE_NOTICE: String get() = appString(R.string.glass_guard_liquid_glass_failed_render_was)
 
     fun recoverIfNeeded(context: Context): String? {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

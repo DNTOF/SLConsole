@@ -9,6 +9,7 @@ import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.remote.SlHttpClient
 import com.dntof.slconsole.data.remote.tls.TransportSession
 import com.dntof.slconsole.util.stripRichText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 活动服务器监控引擎:按配置间隔轮询 GET /get_sl_data。
@@ -77,8 +80,10 @@ object MonitorEngine {
         // 轮询全程兜底:任何异常(如服务器返回异常数据)都转为错误状态,绝不击穿进程
         try {
             fetchInternal(server)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            _state.value = MonitorState.Error(server.id, "请求异常:${e.message ?: e.javaClass.simpleName}")
+            _state.value = MonitorState.Error(server.id, appString(R.string.monitor_engine_request_error, e.message ?: e.javaClass.simpleName))
         }
     }
 
@@ -98,7 +103,7 @@ object MonitorEngine {
                     )
                 }
                 _state.value = if (data == null) {
-                    MonitorState.Error(server.id, "状态数据解析失败,插件版本可能不兼容")
+                    MonitorState.Error(server.id, appString(R.string.monitor_engine_failed_parse_status_data_plugin))
                 } else {
                     MonitorState.Ready(server.id, data, result.body, startedAt, rtt)
                 }

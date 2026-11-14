@@ -4,6 +4,8 @@
 package com.dntof.slconsole.data.remote
 
 import java.io.InputStream
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 单次监控响应和单次文件读取的体积上限。读到上限就停，避免把过大的响应整段放进内存。
@@ -19,9 +21,9 @@ object BodyLimits {
     }
 
     fun tooLargeMessage(path: String): String = when (path.substringBefore('?')) {
-        "/get_sl_data" -> "监控数据太大，已停止读取。请稍后再试。"
-        "/control/files/read" -> "文件响应太大，已停止读取。请改打开较小的文件，或使用分块读取。"
-        else -> "响应太大，已停止读取。"
+        "/get_sl_data" -> appString(R.string.body_limits_monitoring_data_too_large_stopped)
+        "/control/files/read" -> appString(R.string.body_limits_file_response_too_large_stopped)
+        else -> appString(R.string.body_limits_response_too_large_stopped_reading)
     }
 
     /** 超过 [maxBytes] 时返回 null，调用方应丢掉已读内容并关闭连接。 */

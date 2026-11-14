@@ -56,6 +56,8 @@ import com.dntof.slconsole.ui.components.EmptyState
 import com.dntof.slconsole.ui.components.InfoChip
 import com.dntof.slconsole.ui.components.UiColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -70,18 +72,18 @@ private fun ServerChips(server: ServerConfig) {
             if (server.controlTransport == "ws") MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
         )
         InfoChip(
-            if (server.verifyToken.isNotBlank()) "监控✓" else "监控✗",
+            if (server.verifyToken.isNotBlank()) stringResource(R.string.servers_monitor) else stringResource(R.string.servers_monitor_2),
             if (server.verifyToken.isNotBlank()) UiColors.Online else UiColors.Offline,
         )
         InfoChip(
-            if (server.hasControl) "控制✓" else "控制✗",
+            if (server.hasControl) stringResource(R.string.servers_control) else stringResource(R.string.servers_control_2),
             if (server.hasControl) UiColors.Online else UiColors.Offline,
         )
         if (server.certFingerprint.isNotBlank()) {
-            InfoChip("指纹已固定", MaterialTheme.colorScheme.tertiary)
+            InfoChip(stringResource(R.string.servers_fingerprint_pinned), MaterialTheme.colorScheme.tertiary)
         }
         if (server.tlsSeen) {
-            InfoChip("禁止降级", MaterialTheme.colorScheme.primary)
+            InfoChip(stringResource(R.string.servers_no_downgrade), MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -98,9 +100,9 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
         if (servers.isEmpty()) {
             EmptyState(
                 Icons.Outlined.Dns,
-                "还没有服务器",
-                "添加一个运行 SLDataAPI 插件的游戏服务器",
-                "添加服务器",
+                stringResource(R.string.common_no_servers_yet),
+                stringResource(R.string.servers_add_game_server_running_sldataapi),
+                stringResource(R.string.common_add_server),
                 onAdd,
             )
         } else {
@@ -130,16 +132,16 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                                 Column(Modifier.weight(1f).clarityMask()) {
                                     Text(server.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                                     Text(
-                                        "${server.addressText} · 每 ${server.refetchIntervalMs / 1000}s 轮询",
+                                        stringResource(R.string.servers_polls_every, server.addressText, server.refetchIntervalMs / 1000),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                                 IconButton(onClick = { onEdit(server.id) }) {
-                                    Icon(Icons.Filled.Edit, "编辑")
+                                    Icon(Icons.Filled.Edit, stringResource(R.string.servers_edit))
                                 }
                                 IconButton(onClick = { deleteTarget = server }) {
-                                    Icon(Icons.Outlined.DeleteOutline, "删除", tint = MaterialTheme.colorScheme.error)
+                                    Icon(Icons.Outlined.DeleteOutline, stringResource(R.string.servers_delete), tint = MaterialTheme.colorScheme.error)
                                 }
                             }
                             ServerChips(server)
@@ -156,15 +158,15 @@ fun ServersScreen(onEdit: (String) -> Unit, onAdd: () -> Unit) {
                 .bottomChromePadding()
                 .padding(end = 20.dp, bottom = 8.dp),
         ) {
-            Icon(Icons.Filled.Add, "添加服务器")
+            Icon(Icons.Filled.Add, stringResource(R.string.common_add_server))
         }
     }
 
     deleteTarget?.let { target ->
         ConfirmDialog(
-            title = "删除服务器 ${target.displayName}?",
-            text = "本地保存的连接配置与凭据将被移除,游戏服务器本身不受影响。",
-            confirmLabel = "删除",
+            title = stringResource(R.string.servers_delete_server, target.displayName),
+            text = stringResource(R.string.servers_locally_saved_connection_settings_credentials),
+            confirmLabel = stringResource(R.string.servers_delete),
             danger = true,
             onConfirm = {
                 scope.launch {

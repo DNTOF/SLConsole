@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote.tls
 
+import com.dntof.slconsole.TestStrings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,6 +11,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CertFingerprintTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun format_isUppercaseColonSeparatedSha256() {
         val raw = ByteArray(32) { it.toByte() }

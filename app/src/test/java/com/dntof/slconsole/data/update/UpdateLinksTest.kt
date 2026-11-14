@@ -3,12 +3,17 @@
 
 package com.dntof.slconsole.data.update
 
+import com.dntof.slconsole.TestStrings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpdateLinksTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun acceptsRepositoryHttpsUrls() {
         listOf(

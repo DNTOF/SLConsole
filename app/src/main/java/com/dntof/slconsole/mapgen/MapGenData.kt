@@ -2,6 +2,9 @@
 // Copyright (C) 2026 DNT_OF
 
 package com.dntof.slconsole.mapgen
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+
 
 /**
  * 地图生成静态数据:glyph 颜色对、区域候选表、区域元数据、连接模式、中文显示名。
@@ -219,57 +222,57 @@ object MapGenData {
         "HczRampTunnel" to "pass", "HczTesla" to "pass",
     )
 
-    /** 房间中文显示名(与 Web 端 roomNames.ts 一致)。 */
-    val ROOM_NAMES: Map<String, String> = mapOf(
-        "LczToilets" to "卫生间",
-        "LczAirlock" to "气闸室",
-        "LczComputerRoom" to "电脑房",
-        "LczGreenhouse" to "温室",
-        "LczCheckpointA" to "A 电梯(轻收容侧)",
-        "LczCheckpointB" to "B 电梯(轻收容侧)",
-        "LczClassDSpawn" to "D 级人员出生点",
-        "LczArmory" to "轻型武器库",
-        "Lcz173" to "旧 173 收容间",
-        "LczGlassroom" to "玻璃房",
-        "Lcz914" to "SCP-914 收容间",
-        "Lcz330" to "糖果屋(SCP-330)",
-        "HczAcroamaticAbatement" to "瀑布房",
-        "Hcz127" to "SCP-127 收容间",
-        "HczWarhead" to "核弹控制室",
-        "HczArmory" to "重型武器库",
-        "HczRampTunnel" to "斜坡",
-        "Hcz049" to "049 / 173 收容间",
-        "Hcz939" to "SCP-939 收容间",
-        "HczWaysideIncinerator" to "路边焚化炉",
-        "HczServers" to "机房",
-        "HczMicroHID" to "微型 HID 室",
-        "HczCheckpointToEntranceZone" to "检查点(通往办公区)",
-        "HczTesla" to "电网",
-        "HczTestroom" to "老狗家",
-        "Hcz079" to "SCP-079 收容间",
-        "Hcz096" to "SCP-096 收容间",
-        "Hcz106" to "SCP-106 收容间",
-        "HczCheckpointA" to "A 电梯(重收容侧)",
-        "HczCheckpointB" to "B 电梯(重收容侧)",
-        "EzGateA" to "A 大门(地表出口)",
-        "EzGateB" to "B 大门(地表出口)",
-        "EzEvacShelter" to "避难所",
-        "EzIntercom" to "广播室",
-        "EzRedroom" to "红房",
-        "EzOfficeLarge" to "大型办公室",
-        "EzOfficeSmall" to "小型办公室",
-        "EzOfficeStoried" to "普通办公室",
-        "EzCollapsedTunnel" to "坍塌隧道",
+    /** 房间显示名的字符串资源(中文与 Web 端 roomNames.ts 一致)。 */
+    val ROOM_NAMES: Map<String, Int> = mapOf(
+        "LczToilets" to R.string.map_gen_data_toilets,
+        "LczAirlock" to R.string.map_gen_data_airlock,
+        "LczComputerRoom" to R.string.map_gen_data_pc_room,
+        "LczGreenhouse" to R.string.map_gen_data_greenhouse,
+        "LczCheckpointA" to R.string.map_gen_data_elevator_lcz_side,
+        "LczCheckpointB" to R.string.map_gen_data_elevator_b_lcz_side,
+        "LczClassDSpawn" to R.string.map_gen_data_class_d_spawn,
+        "LczArmory" to R.string.map_gen_data_light_armory,
+        "Lcz173" to R.string.map_gen_data_old_scp_173_chamber,
+        "LczGlassroom" to R.string.map_gen_data_glass_room,
+        "Lcz914" to R.string.map_gen_data_scp_914_chamber,
+        "Lcz330" to R.string.map_gen_data_candy_room_scp_330,
+        "HczAcroamaticAbatement" to R.string.map_gen_data_waterfall_room,
+        "Hcz127" to R.string.map_gen_data_scp_127_chamber,
+        "HczWarhead" to R.string.map_gen_data_warhead_control_room,
+        "HczArmory" to R.string.map_gen_data_heavy_armory,
+        "HczRampTunnel" to R.string.map_gen_data_ramp,
+        "Hcz049" to R.string.map_gen_data_scp_049_173_chamber,
+        "Hcz939" to R.string.map_gen_data_scp_939_chamber,
+        "HczWaysideIncinerator" to R.string.map_gen_data_wayside_incinerator,
+        "HczServers" to R.string.map_gen_data_server_room,
+        "HczMicroHID" to R.string.map_gen_data_micro_hid_room,
+        "HczCheckpointToEntranceZone" to R.string.map_gen_data_checkpoint_entrance_zone,
+        "HczTesla" to R.string.map_gen_data_tesla_gate,
+        "HczTestroom" to R.string.map_gen_data_test_room,
+        "Hcz079" to R.string.map_gen_data_scp_079_chamber,
+        "Hcz096" to R.string.map_gen_data_scp_096_chamber,
+        "Hcz106" to R.string.map_gen_data_scp_106_chamber,
+        "HczCheckpointA" to R.string.map_gen_data_elevator_hcz_side,
+        "HczCheckpointB" to R.string.map_gen_data_elevator_b_hcz_side,
+        "EzGateA" to R.string.map_gen_data_gate_surface_exit,
+        "EzGateB" to R.string.map_gen_data_gate_b_surface_exit,
+        "EzEvacShelter" to R.string.map_gen_data_evacuation_shelter,
+        "EzIntercom" to R.string.map_gen_data_intercom_room,
+        "EzRedroom" to R.string.map_gen_data_red_room,
+        "EzOfficeLarge" to R.string.map_gen_data_large_office,
+        "EzOfficeSmall" to R.string.map_gen_data_small_office,
+        "EzOfficeStoried" to R.string.map_gen_data_office,
+        "EzCollapsedTunnel" to R.string.map_gen_data_collapsed_tunnel,
     )
 
     /** 走廊显示名(按形状)。 */
     fun corridorName(shape: String): String = when (shape) {
-        "TShape" -> "T 形路口"
-        "Straight" -> "直线走廊"
-        "XShape" -> "十字路口"
-        "Curve" -> "转角走廊"
-        "Endroom" -> "死路"
-        else -> "走廊"
+        "TShape" -> appString(R.string.map_gen_data_t_junction)
+        "Straight" -> appString(R.string.map_gen_data_straight_corridor)
+        "XShape" -> appString(R.string.map_gen_data_crossroads)
+        "Curve" -> appString(R.string.map_gen_data_corner_corridor)
+        "Endroom" -> appString(R.string.map_gen_data_dead_end)
+        else -> appString(R.string.map_gen_data_corridor)
     }
 
     /** 门类型(设施控制下拉)。 */

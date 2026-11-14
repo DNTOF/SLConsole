@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.model
 
+import com.dntof.slconsole.TestStrings
 import com.dntof.slconsole.data.remote.AppJson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,6 +11,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HelloAndActionsTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun helloBeta_readsBothFlags() {
         val hello = AppJson.json.parseToJsonElement(

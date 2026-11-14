@@ -37,6 +37,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.security.MessageDigest
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 指纹第二段（异或后），见 SignatureCheck.officialFingerprint。 */
 internal val badgeSeed = intArrayOf(0xB4, 0xC2, 0x6C, 0x41, 0x7D, 0x17, 0xDA, 0xAA, 0x3C, 0x7C, 0x0E)
@@ -115,7 +118,7 @@ fun GenuineBadge(palette: List<Color>, modifier: Modifier = Modifier, onClick: (
             )
             .border(1.dp, colors.border, shape)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .clearAndSetSemantics { contentDescription = "官方签名：使用 DNT_OF 系列程序" },
+            .clearAndSetSemantics { contentDescription = appString(R.string.genuine_badge_official_signature_part_dnt_suite) },
     ) {
         Canvas(
             Modifier
@@ -144,9 +147,9 @@ fun GenuineBadge(palette: List<Color>, modifier: Modifier = Modifier, onClick: (
         ) {
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(fontSize = 9.sp, color = colors.secondaryText)) { append("使用 ") }
+                    withStyle(SpanStyle(fontSize = 9.sp, color = colors.secondaryText)) { append(stringResource(R.string.genuine_badge_part)) }
                     withStyle(SpanStyle(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)) {
-                        append("DNT_OF 系列程序")
+                        append(stringResource(R.string.genuine_badge_dnt_suite))
                     }
                 },
                 maxLines = 1,
@@ -158,7 +161,7 @@ fun GenuineBadge(palette: List<Color>, modifier: Modifier = Modifier, onClick: (
                 ),
             )
             Text(
-                "官方签名",
+                stringResource(R.string.genuine_badge_official),
                 maxLines = 1,
                 softWrap = false,
                 style = TextStyle(

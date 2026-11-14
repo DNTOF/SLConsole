@@ -85,6 +85,10 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private val ROLE_PRESETS = listOf(
     "ClassD", "Scientist", "FacilityGuard",
@@ -113,12 +117,12 @@ fun PlayersScreen() {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         item {
-            Text("玩家", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.common_players), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             Text(
                 when {
-                    players.isEmpty() -> "等待玩家加入"
-                    query.isBlank() -> "在线 ${players.size}"
-                    else -> "在线 ${players.size} · 匹配 ${filtered.size}"
+                    players.isEmpty() -> stringResource(R.string.players_waiting_players_join)
+                    query.isBlank() -> stringResource(R.string.players_online, players.size)
+                    else -> stringResource(R.string.players_online_matched, players.size, filtered.size)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -127,7 +131,7 @@ fun PlayersScreen() {
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                label = { Text("搜索昵称 / SteamID") },
+                label = { Text(stringResource(R.string.players_search_nickname_steamid)) },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -137,8 +141,8 @@ fun PlayersScreen() {
             item {
                 EmptyState(
                     Icons.Outlined.Groups,
-                    if (players.isEmpty()) "暂无在线玩家" else "没有匹配的玩家",
-                    "玩家加入后自动出现在这里",
+                    if (players.isEmpty()) stringResource(R.string.players_no_players_online) else stringResource(R.string.players_no_matching_players),
+                    stringResource(R.string.players_players_appear_here_automatically_when),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 )
             }
@@ -180,7 +184,7 @@ private fun PlayerRow(player: PlayerInfo, onClick: () -> Unit) {
                 )
             }
             Spacer(Modifier.width(8.dp))
-            InfoChip(player.team.ifBlank { "未知" }, teamColor(player.team))
+            InfoChip(player.team.ifBlank { stringResource(R.string.common_unknown) }, teamColor(player.team))
         }
     }
 }
@@ -256,16 +260,16 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
             }
             Spacer(Modifier.height(8.dp))
             Row {
-                InfoChip(player.role.ifBlank { "未知角色" }, MaterialTheme.colorScheme.primary)
+                InfoChip(player.role.ifBlank { stringResource(R.string.players_unknown_role) }, MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                InfoChip(player.team.ifBlank { "未知" }, teamColor(player.team))
+                InfoChip(player.team.ifBlank { stringResource(R.string.common_unknown) }, teamColor(player.team))
             }
 
             if (server?.hasControl != true) {
                 Spacer(Modifier.height(16.dp))
                 AppSurface {
                     Text(
-                        "在服务器设置中配置 API Key 后,即可使用玩家管理操作。",
+                        stringResource(R.string.players_configure_api_key_server_settings),
                         Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -273,16 +277,16 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                 }
             } else {
                 Spacer(Modifier.height(16.dp))
-                SectionCard("玩家详情") {
+                SectionCard(stringResource(R.string.players_player_details)) {
                     if (detail != null) {
                         Column(Modifier.clarityMask()) {
                             KeyValueRow("UserID", detail?.userid ?: "-", mono = true)
                             KeyValueRow("PlayerId", detail?.playerId?.toString() ?: "-")
-                            KeyValueRow("血量", detail?.health?.let { "%.0f".format(it) } ?: "-")
-                            KeyValueRow("房间", detail?.room ?: "-")
+                            KeyValueRow(stringResource(R.string.players_health), detail?.health?.let { "%.0f".format(it) } ?: "-")
+                            KeyValueRow(stringResource(R.string.players_room), detail?.room ?: "-")
                             detail?.position?.let { pos ->
                                 KeyValueRow(
-                                    "坐标",
+                                    stringResource(R.string.players_position),
                                     listOfNotNull(pos.x, pos.y, pos.z).joinToString(", ") { "%.0f".format(it) },
                                     mono = true,
                                 )
@@ -290,27 +294,27 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                         }
                     } else {
                         Text(
-                            detailError ?: "读取中…",
+                            detailError ?: stringResource(R.string.players_loading),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                SectionCard("管理操作") {
+                SectionCard(stringResource(R.string.players_management)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { dialog = "msg" }, modifier = Modifier.weight(1f)) { Text("私信") }
-                        TextButton(onClick = { dialog = "kick" }, modifier = Modifier.weight(1f)) { Text("踢出") }
-                        TextButton(onClick = { dialog = "ban" }, modifier = Modifier.weight(1f)) { Text("封禁") }
+                        TextButton(onClick = { dialog = "msg" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_message)) }
+                        TextButton(onClick = { dialog = "kick" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_kick)) }
+                        TextButton(onClick = { dialog = "ban" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_ban)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { muteAction = "mute" }, modifier = Modifier.weight(1f)) { Text("禁言") }
-                        TextButton(onClick = { muteAction = "unmute" }, modifier = Modifier.weight(1f)) { Text("解除禁言") }
-                        TextButton(onClick = { dialog = "role" }, modifier = Modifier.weight(1f)) { Text("换角色") }
+                        TextButton(onClick = { muteAction = "mute" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_mute)) }
+                        TextButton(onClick = { muteAction = "unmute" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_unmute)) }
+                        TextButton(onClick = { dialog = "role" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_set_role)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { dialog = "effect" }, modifier = Modifier.weight(1f)) { Text("效果") }
-                        TextButton(onClick = { dialog = "teleport" }, modifier = Modifier.weight(1f)) { Text("传送") }
+                        TextButton(onClick = { dialog = "effect" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_effect)) }
+                        TextButton(onClick = { dialog = "teleport" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_teleport)) }
                         Spacer(Modifier.weight(1f))
                     }
                 }
@@ -320,12 +324,12 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
 
     when (dialog) {
         "msg" -> PromptDialog(
-            title = "私信 ${player.nickname}",
-            subtitle = "以提示(hint)形式显示在目标玩家屏幕上",
-            confirmLabel = "发送",
+            title = stringResource(R.string.players_message_2, player.nickname),
+            subtitle = stringResource(R.string.players_shown_as_hint_target_players),
+            confirmLabel = stringResource(R.string.common_send),
             fields = listOf(
-                PromptField("message", "消息内容"),
-                PromptField("duration", "显示秒数(1-60)", initial = "5", keyboardType = KeyboardType.Number),
+                PromptField("message", stringResource(R.string.players_message_3)),
+                PromptField("duration", stringResource(R.string.common_seconds_display_1_60), initial = "5", keyboardType = KeyboardType.Number),
             ),
             onConfirm = { v ->
                 val message = v["message"].orEmpty().trim()
@@ -338,17 +342,17 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                             put("msg_type", "hint")
                             put("duration_seconds", v["duration"]?.toFloatOrNull() ?: 5f)
                         },
-                        "已发送",
+                        appString(R.string.players_sent),
                     )
                 }
             },
             onDismiss = { dialog = null },
         )
         "kick" -> PromptDialog(
-            title = "踢出 ${player.nickname}",
-            confirmLabel = "踢出",
+            title = stringResource(R.string.players_kick_2, player.nickname),
+            confirmLabel = stringResource(R.string.players_kick),
             danger = true,
-            fields = listOf(PromptField("reason", "原因(可选)")),
+            fields = listOf(PromptField("reason", stringResource(R.string.players_reason_optional))),
             onConfirm = { v ->
                 callControl(
                     "/control/moderation/kick",
@@ -356,19 +360,19 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                         put("target", player.steamId)
                         put("reason", v["reason"].orEmpty().ifBlank { "由管理端移出" })
                     },
-                    "已踢出",
+                    appString(R.string.players_kicked),
                 )
             },
             onDismiss = { dialog = null },
         )
         "ban" -> PromptDialog(
-            title = "封禁 ${player.nickname}",
-            subtitle = "时长为分钟数,0 表示永久封禁",
-            confirmLabel = "封禁",
+            title = stringResource(R.string.players_ban, player.nickname),
+            subtitle = stringResource(R.string.players_duration_minutes_0_means_permanent),
+            confirmLabel = stringResource(R.string.common_ban),
             danger = true,
             fields = listOf(
-                PromptField("reason", "原因"),
-                PromptField("duration", "时长(分钟,0=永久)", initial = "0", keyboardType = KeyboardType.Number),
+                PromptField("reason", stringResource(R.string.common_reason)),
+                PromptField("duration", stringResource(R.string.common_duration_minutes_0_permanent), initial = "0", keyboardType = KeyboardType.Number),
             ),
             onConfirm = { v ->
                 callControl(
@@ -378,7 +382,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                         put("reason", v["reason"].orEmpty().ifBlank { "违规行为" })
                         put("duration", v["duration"]?.toIntOrNull() ?: 0)
                     },
-                    "已封禁",
+                    appString(R.string.players_banned),
                 )
             },
             onDismiss = { dialog = null },
@@ -391,17 +395,17 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                         put("target", player.steamId)
                         put("role", role)
                     },
-                    "角色已设置为 $role",
+                    appString(R.string.players_role_set, role),
                 )
             },
             onDismiss = { dialog = null },
         )
         "effect" -> PromptDialog(
-            title = "施加效果",
-            subtitle = "效果为 EffectType 名称,如 Flashed / Blurred / Burned",
+            title = stringResource(R.string.players_apply_effect),
+            subtitle = stringResource(R.string.players_effect_effecttype_name_such_as),
             fields = listOf(
-                PromptField("effect", "效果名", initial = "Flashed"),
-                PromptField("duration", "持续秒数", initial = "10", keyboardType = KeyboardType.Number),
+                PromptField("effect", stringResource(R.string.players_effect_name), initial = "Flashed"),
+                PromptField("duration", stringResource(R.string.players_duration_seconds), initial = "10", keyboardType = KeyboardType.Number),
             ),
             onConfirm = { v ->
                 val effect = v["effect"].orEmpty().trim()
@@ -413,15 +417,15 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                             put("effect", effect)
                             put("effect_duration", v["duration"]?.toFloatOrNull() ?: 10f)
                         },
-                        "效果已施加",
+                        appString(R.string.players_effect_applied),
                     )
                 }
             },
             onDismiss = { dialog = null },
         )
         "teleport" -> PromptDialog(
-            title = "传送玩家",
-            subtitle = "输入目标世界坐标",
+            title = stringResource(R.string.players_teleport_player),
+            subtitle = stringResource(R.string.players_enter_target_world_coordinates),
             fields = listOf(
                 PromptField("x", "X", keyboardType = KeyboardType.Decimal),
                 PromptField("y", "Y", keyboardType = KeyboardType.Decimal),
@@ -440,7 +444,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                             put("y", y)
                             put("z", z)
                         },
-                        "已传送",
+                        appString(R.string.players_teleported),
                     )
                 }
             },
@@ -451,9 +455,9 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
     muteAction?.let { action ->
         val muting = action == "mute"
         ConfirmDialog(
-            title = if (muting) "禁言 ${player.nickname}?" else "解除 ${player.nickname} 的禁言?",
-            text = "作用于语音频道。",
-            confirmLabel = if (muting) "禁言" else "解除",
+            title = if (muting) stringResource(R.string.players_mute_2, player.nickname) else stringResource(R.string.players_unmute_2, player.nickname),
+            text = stringResource(R.string.players_applies_voice_chat),
+            confirmLabel = if (muting) stringResource(R.string.players_mute) else stringResource(R.string.players_unmute_3),
             danger = muting,
             onConfirm = {
                 callControl(
@@ -463,7 +467,7 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                         put("mute", muting)
                         put("mute_scope", "voice")
                     },
-                    if (muting) "已禁言" else "已解除禁言",
+                    if (muting) appString(R.string.players_muted) else appString(R.string.players_unmuted),
                 )
             },
             onDismiss = { muteAction = null },
@@ -476,10 +480,10 @@ private fun RoleDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
     var role by remember { mutableStateOf("ClassD") }
     var expanded by remember { mutableStateOf(false) }
     ImeDialogFrame(onDismiss = onDismiss) {
-        Text("设置角色", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.players_set_role_2), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
         Text(
-            "填入 RoleTypeId 枚举名,或从常用列表选择。",
+            stringResource(R.string.players_enter_roletypeid_enum_name_pick),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -492,7 +496,7 @@ private fun RoleDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
                 singleLine = true,
                 trailingIcon = {
                     IconButton(onClick = { expanded = true }) {
-                        Icon(Icons.Filled.ArrowDropDown, "选择常用角色")
+                        Icon(Icons.Filled.ArrowDropDown, stringResource(R.string.players_pick_common_role))
                     }
                 },
                 modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -511,11 +515,11 @@ private fun RoleDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
             TextButton(onClick = {
                 if (role.isNotBlank()) onConfirm(role.trim())
                 onDismiss()
-            }) { Text("设置") }
+            }) { Text(stringResource(R.string.players_set)) }
         }
     }
 }

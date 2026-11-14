@@ -15,6 +15,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /** 远端最新版本的信息。拿不到的字段为 null。 */
 data class UpdateInfo(
@@ -67,22 +69,22 @@ internal object UpdateHttp {
             client.newCall(request).execute().use { response ->
                 when {
                     response.code == 404 || response.code == 410 ->
-                        null to FetchResult.Unavailable("更新源暂不可用（HTTP ${response.code}）")
+                        null to FetchResult.Unavailable(appString(R.string.update_source_update_source_unavailable_http, response.code))
                     response.code == 403 || response.code == 429 ->
-                        null to FetchResult.Failed("请求太频繁，被更新源暂时限制了，稍后再试")
+                        null to FetchResult.Failed(appString(R.string.update_source_too_many_requests_update_source))
                     !response.isSuccessful ->
-                        null to FetchResult.Failed("更新源返回 HTTP ${response.code}")
+                        null to FetchResult.Failed(appString(R.string.update_source_update_source_returned_http, response.code))
                     else -> {
                         val body = response.body?.string().orEmpty()
                         val obj = runCatching { json.parseToJsonElement(body) as? JsonObject }.getOrNull()
-                        if (obj == null) null to FetchResult.Failed("更新信息格式不对") else obj to null
+                        if (obj == null) null to FetchResult.Failed(appString(R.string.update_source_update_info_malformed)) else obj to null
                     }
                 }
             }
         } catch (e: IOException) {
-            null to FetchResult.Failed("网络错误：${e.message ?: e.javaClass.simpleName}")
+            null to FetchResult.Failed(appString(R.string.update_source_network_error, e.message ?: e.javaClass.simpleName))
         } catch (e: IllegalArgumentException) {
-            null to FetchResult.Failed("更新地址无效")
+            null to FetchResult.Failed(appString(R.string.update_source_invalid_update_url))
         }
     }
 }
@@ -105,10 +107,10 @@ class GitHubReleaseSource(private val url: String) : UpdateSource {
 
     override suspend fun fetchLatest(): FetchResult {
         val (obj, error) = UpdateHttp.getJson(url, "application/vnd.github+json")
-        if (obj == null) return error ?: FetchResult.Failed("没有拿到更新信息")
-        val tag = obj.str("tag_name") ?: return FetchResult.Failed("发布信息里没有版本号")
+        if (obj == null) return error ?: FetchResult.Failed(appString(R.string.update_source_couldnt_get_update_info))
+        val tag = obj.str("tag_name") ?: return FetchResult.Failed(appString(R.string.update_source_release_has_no_version_number))
         if ((obj["draft"] as? JsonPrimitive)?.content == "true") {
-            return FetchResult.Unavailable("最新发布还是草稿")
+            return FetchResult.Unavailable(appString(R.string.update_source_latest_release_still_draft))
         }
         val assets = (obj["assets"] as? JsonArray).orEmpty().mapNotNull { it as? JsonObject }
         val apk = assets.firstOrNull { it.str("name")?.endsWith(".apk", ignoreCase = true) == true }
@@ -133,12 +135,12 @@ class GitHubReleaseSource(private val url: String) : UpdateSource {
  * 另外可选 `size`（字节）和 `pageUrl`。
  */
 class ManifestSource(private val url: String) : UpdateSource {
-    override val label = "更新清单"
+    override val label: String get() = appString(R.string.update_source_update_manifest)
 
     override suspend fun fetchLatest(): FetchResult {
         val (obj, error) = UpdateHttp.getJson(url, "application/json")
-        if (obj == null) return error ?: FetchResult.Failed("没有拿到更新信息")
-        val name = obj.str("versionName") ?: return FetchResult.Failed("清单里没有 versionName")
+        if (obj == null) return error ?: FetchResult.Failed(appString(R.string.update_source_couldnt_get_update_info))
+        val name = obj.str("versionName") ?: return FetchResult.Failed(appString(R.string.update_source_manifest_has_no_versionname))
         return FetchResult.Found(
             UpdateInfo(
                 versionName = name.removePrefix("v"),

@@ -22,6 +22,8 @@ import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.util.Base64
 import kotlin.coroutines.coroutineContext
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
 
 /**
  * 文件读和写。file_chunks 没开，或者内容还放得进单条消息时，走原来的 files/read 和 files/write。
@@ -64,7 +66,7 @@ object FileTransfer {
         val bytes = content.toByteArray(Charsets.UTF_8)
         if (bytes.size > FileChunks.MAX_WRITE_BYTES) {
             return WriteResult.Failed(
-                ControlRepository.ControlOutcome.Failure("内容超过 512KB，服务器不会写入"),
+                ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_content_exceeds_512kb_server_wont)),
             )
         }
         if (!chunked) return writeOnce(server, path, content)
@@ -84,7 +86,7 @@ object FileTransfer {
             is ControlRepository.ControlOutcome.Success -> {
                 val data = outcome.data?.let {
                     runCatching { AppJson.json.decodeFromJsonElement(FileReadData.serializer(), it) }.getOrNull()
-                } ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("文件内容解析失败"))
+                } ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_failed_parse_file_content)))
                 ReadResult.Ok(data.content, data.size)
             }
             is ControlRepository.ControlOutcome.Failure -> ReadResult.Failed(outcome)
@@ -127,15 +129,15 @@ object FileTransfer {
             val chunk = when (outcome) {
                 is ControlRepository.ControlOutcome.Success -> outcome.data?.let {
                     runCatching { AppJson.json.decodeFromJsonElement(FileChunkReadData.serializer(), it) }.getOrNull()
-                } ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("分块内容解析失败"))
+                } ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_failed_parse_chunk_content)))
                 is ControlRepository.ControlOutcome.Failure -> return ReadResult.Failed(outcome)
             }
             if (offset == 0L) {
                 expectedSha = chunk.sha256?.takeIf { it.isNotBlank() }
-                    ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("服务器没有返回 sha256，已放弃这次读取"))
+                    ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_server_didnt_return_sha256_read)))
             }
             val raw = decodeBase64(chunk.data)
-                ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("分块数据不是合法 base64"))
+                ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_chunk_data_not_valid_base64)))
             pieces += FileChunkPiece(chunk.offset, raw)
             val done = chunk.nextOffset.coerceAtLeast(offset + raw.size)
             if (chunk.size > 0) total = chunk.size
@@ -143,7 +145,7 @@ object FileTransfer {
             if (chunk.eof || raw.isEmpty() && chunk.offset >= total) break
             val next = if (chunk.nextOffset > offset) chunk.nextOffset else offset + raw.size
             if (next == offset) {
-                return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("分块没有向前推进"))
+                return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_chunk_did_not_advance)))
             }
             offset = next
         }
@@ -151,11 +153,11 @@ object FileTransfer {
         return when (val assembled = FileChunks.assemble(pieces, expectedSha)) {
             is FileChunks.AssembleResult.Ok -> {
                 val text = decodeUtf8(assembled.bytes)
-                    ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure("文件不是 UTF-8 文本，无法编辑"))
+                    ?: return ReadResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_file_not_utf_8_text)))
                 ReadResult.Ok(text, assembled.bytes.size.toLong())
             }
             is FileChunks.AssembleResult.HashMismatch -> ReadResult.Failed(
-                ControlRepository.ControlOutcome.Failure("文件校验失败，已丢弃内容"),
+                ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_file_checksum_failed_content_discarded)),
             )
             is FileChunks.AssembleResult.Gap -> ReadResult.Failed(
                 ControlRepository.ControlOutcome.Failure(assembled.message),
@@ -222,7 +224,7 @@ object FileTransfer {
                         if (final && progress?.committed == false) {
                             uploadId?.let { abort(server, path, it) }
                             uploadId = null
-                            return WriteResult.Failed(ControlRepository.ControlOutcome.Failure("服务器没有完成写入"))
+                            return WriteResult.Failed(ControlRepository.ControlOutcome.Failure(appString(R.string.file_transfer_server_didnt_finish_writing)))
                         }
                     }
                 }

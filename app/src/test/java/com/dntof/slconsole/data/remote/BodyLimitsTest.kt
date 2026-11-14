@@ -3,12 +3,17 @@
 
 package com.dntof.slconsole.data.remote
 
+import com.dntof.slconsole.TestStrings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.io.ByteArrayInputStream
 
 class BodyLimitsTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun limitsOnlyMonitorAndSingleFileRead() {
         assertEquals(BodyLimits.MONITOR_MAX_BYTES, BodyLimits.limitFor("/get_sl_data"))

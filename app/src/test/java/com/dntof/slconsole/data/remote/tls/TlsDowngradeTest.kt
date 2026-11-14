@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote.tls
 
+import com.dntof.slconsole.TestStrings
 import com.dntof.slconsole.data.model.ServerConfig
 import com.dntof.slconsole.data.remote.AppJson
 import com.dntof.slconsole.data.update.UpdateHttp
@@ -22,6 +23,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TlsDowngradeTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun tlsOk_staysEncrypted() {
         assertEquals(

@@ -84,38 +84,43 @@ import com.dntof.slconsole.ui.keepAboveIme
 import com.dntof.slconsole.util.stripRichText
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
+import androidx.compose.ui.res.stringResource
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+import androidx.annotation.StringRes
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private const val STEP_COUNT = 6
 
 /** 使用统计是第 4 步（从 0 数是 3）。在这之前跳过，统计保持关闭。 */
 private const val ANALYTICS_STEP = 3
 
-private data class TourCard(val title: String, val body: String, val icon: ImageVector)
+private data class TourCard(@StringRes val title: Int, @StringRes val body: Int, val icon: ImageVector)
 
 private val TOUR = listOf(
     TourCard(
-        "概览",
-        "底栏第一项。看服务器是否在线、这一局进行到哪，以及现在有多少人。",
+        R.string.common_overview,
+        R.string.onboarding_first_tab_see_whether_server,
         Icons.Outlined.SpaceDashboard,
     ),
     TourCard(
-        "玩家",
-        "底栏第二项。可以搜索在线玩家，也可以踢出、封禁或发私信。",
+        R.string.common_players,
+        R.string.onboarding_second_tab_search_online_players,
         Icons.Outlined.Groups,
     ),
     TourCard(
-        "控制台",
-        "底栏第三项。把命令直接发到服务器，回显会留在下面。",
+        R.string.common_console,
+        R.string.onboarding_third_tab_send_commands_straight,
         Icons.Outlined.Terminal,
     ),
     TourCard(
-        "地图",
-        "底栏第四项。用这一局的种子在手机上画出设施，并标出玩家位置。",
+        R.string.common_map,
+        R.string.onboarding_fourth_tab_draws_facility_your,
         Icons.Outlined.Map,
     ),
     TourCard(
-        "中心",
-        "底栏最后一项。适配插件、文件、语音和封禁都从这里进。设置里可以打开液态玻璃。",
+        R.string.common_hub,
+        R.string.onboarding_last_tab_adapted_plugins_files,
         Icons.Outlined.Apps,
     ),
 )
@@ -230,7 +235,7 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "新手引导",
+                        stringResource(R.string.common_onboarding),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = if (step == 0) Modifier.staggerIn(entranceProgress, 0) else Modifier,
@@ -256,12 +261,12 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                                 val p = port.toIntOrNull() ?: ServerConfig.DEFAULT_PORT
                                 val hostError = HostAddress.problem(h)
                                 if (hostError != null || verifyToken.isBlank()) {
-                                    testResult = false to (hostError ?: "请先填写主机地址和 VerifyToken")
+                                    testResult = false to (hostError ?: appString(R.string.common_enter_host_address_verifytoken_first))
                                     return@AddServerStep
                                 }
                                 val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
                                 if (fingerprint.isNotBlank() && pin == null) {
-                                    testResult = false to "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
+                                    testResult = false to appString(R.string.common_fingerprint_must_32_byte_sha)
                                     return@AddServerStep
                                 }
                                 testing = true
@@ -278,8 +283,8 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                                         is SlHttpClient.HttpResult.Success -> {
                                             val name = (result.body["server_name"] as? JsonPrimitive)?.content?.let { stripRichText(it) }
                                             val count = (result.body["players_count"] as? JsonPrimitive)?.content
-                                            val lock = if (result.encrypted) "加密" else "明文"
-                                            true to "连接成功（$lock）：${name ?: "未命名服务器"}（在线 ${count ?: "?"} 人）"
+                                            val lock = if (result.encrypted) appString(R.string.common_encrypted) else appString(R.string.common_plaintext)
+                                            true to appString(R.string.onboarding_connected_online, lock, name ?: appString(R.string.onboarding_unnamed_server), count ?: "?")
                                         }
                                         is SlHttpClient.HttpResult.Failure -> {
                                             trustPrompt = when (val tls = result.tls) {
@@ -308,16 +313,16 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                             message = lockMessage,
                             onEnable = {
                                 lockMessage = null
-                                AppLock.authenticate(context, title = "开启生物识别解锁") { result ->
+                                AppLock.authenticate(context, title = appString(R.string.common_turn_biometric_unlock)) { result ->
                                     when (result) {
                                         AppLock.Result.Success -> {
                                             AppLock.markUnlocked()
                                             lockChoice = true
                                             scope.launch { settings.setBiometricLock(true) }
                                         }
-                                        AppLock.Result.Cancelled -> lockMessage = "已取消，没有开启。"
-                                        AppLock.Result.Unavailable -> lockMessage = "现在不能使用生物识别或锁屏密码。"
-                                        is AppLock.Result.Error -> lockMessage = "没有开启：${result.message}"
+                                        AppLock.Result.Cancelled -> lockMessage = appString(R.string.common_cancelled_not_turned)
+                                        AppLock.Result.Unavailable -> lockMessage = appString(R.string.common_biometrics_screen_lock_cant_used)
+                                        is AppLock.Result.Error -> lockMessage = appString(R.string.common_not_turned, result.message)
                                     }
                                 }
                             },
@@ -344,13 +349,13 @@ fun OnboardingScreen(replay: Boolean, onFinished: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(onClick = { finish() }, enabled = !finishing) { Text("跳过") }
+                        TextButton(onClick = { finish() }, enabled = !finishing) { Text(stringResource(R.string.onboarding_skip)) }
                         Spacer(Modifier.weight(1f))
                         TextButton(onClick = { if (step > 0) step -= 1 }, enabled = step > 0 && !finishing) {
-                            Text("上一步")
+                            Text(stringResource(R.string.onboarding_back))
                         }
                         Button(onClick = { goNext() }, enabled = !finishing && !testing && !saving) {
-                            Text(if (step >= STEP_COUNT - 1) "完成" else "下一步")
+                            Text(if (step >= STEP_COUNT - 1) stringResource(R.string.onboarding_done) else stringResource(R.string.onboarding_next))
                         }
                     }
                 }
@@ -393,13 +398,13 @@ private fun WelcomeStep(phase: State<Float>?, progress: () -> Float) {
         AppIconBadge(size = 84.dp)
     }
     Text(
-        "欢迎使用 SLConsole",
+        stringResource(R.string.onboarding_welcome_slconsole),
         style = MaterialTheme.typography.headlineMedium,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.staggerIn(progress, 1),
     )
     Text(
-        "这是用来查看和管理 SCP:SL 服务器的手机客户端。它直接连接你服务器上的 SLDataAPI，地址和密钥只保存在这台手机上。",
+        stringResource(R.string.onboarding_mobile_client_viewing_managing_scp),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.staggerIn(progress, 2),
@@ -409,7 +414,7 @@ private fun WelcomeStep(phase: State<Float>?, progress: () -> Float) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        listOf("实时监控", "远程控制", "地图与语音", "文件与插件").forEach { label ->
+        listOf(stringResource(R.string.onboarding_live_monitoring), stringResource(R.string.onboarding_remote_control), stringResource(R.string.onboarding_map_voice), stringResource(R.string.onboarding_files_plugins)).forEach { label ->
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.85f),
@@ -433,14 +438,14 @@ private fun BiometricStep(
     onEnable: () -> Unit,
     onDecline: () -> Unit,
 ) {
-    Text("生物识别解锁", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.common_biometric_unlock), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "打开后，启动应用或离开超过 30 秒再回来时，要先用指纹、面容或锁屏密码解锁。默认关闭，以后也可以在设置里改。",
+        stringResource(R.string.onboarding_when_need_unlock_fingerprint_face),
         style = MaterialTheme.typography.bodyLarge,
     )
     if (availability != AppLock.Availability.Ready) {
         Text(
-            "暂不可用：${AppLock.unavailableText(availability)}",
+            stringResource(R.string.onboarding_unavailable, AppLock.unavailableText(availability)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -448,20 +453,20 @@ private fun BiometricStep(
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (selected == true) {
-            Button(onClick = onEnable, modifier = Modifier.weight(1f)) { Text("开启") }
+            Button(onClick = onEnable, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         } else {
-            OutlinedButton(onClick = onEnable, modifier = Modifier.weight(1f)) { Text("开启") }
+            OutlinedButton(onClick = onEnable, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         }
         if (selected == false) {
-            Button(onClick = onDecline, modifier = Modifier.weight(1f)) { Text("暂不") }
+            Button(onClick = onDecline, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_not_now)) }
         } else {
-            OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) { Text("暂不") }
+            OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_not_now)) }
         }
     }
     when {
         message != null -> Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-        selected == true -> Text("已开启。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-        selected == false -> Text("先不开启。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        selected == true -> Text(stringResource(R.string.onboarding_turned), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        selected == false -> Text(stringResource(R.string.onboarding_not_turned_now), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -482,14 +487,14 @@ private fun AddServerStep(
     onFingerprint: (String) -> Unit,
     onTest: () -> Unit,
 ) {
-    Text("添加一台服务器", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.onboarding_add_server), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "这一步可以留空。主机和 VerifyToken 都填了的话，点下一步会保存，并把它设为当前服务器。",
+        stringResource(R.string.onboarding_can_leave_step_empty_if),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Text(
-        "verify_token 用来读取监控数据，写在插件的 config.yml 里。API Key 用来执行控制，从 SLDataAPI 2.6 开始使用，在游戏控制台创建：",
+        stringResource(R.string.onboarding_verify_token_reads_monitoring_data),
         style = MaterialTheme.typography.bodyMedium,
     )
     Text(
@@ -498,7 +503,7 @@ private fun AddServerStep(
         fontFamily = FontFamily.Monospace,
     )
     Text(
-        "Key 的权限在创建时就定了。要值班（duty）Key，创建时把最后的 admin 写成 duty。之后要 admin 权限，就在游戏里再建一把 admin Key，到应用里换上。Key 可以先不填，只看监控。插件支持 TLS 时连接会加密，需要带 TLS 的 SLDataAPI。",
+        stringResource(R.string.onboarding_keys_permissions_are_fixed_when),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -506,7 +511,7 @@ private fun AddServerStep(
     OutlinedTextField(
         value = host,
         onValueChange = onHost,
-        label = { Text("主机（IP 或域名）") },
+        label = { Text(stringResource(R.string.onboarding_host_ip_domain)) },
         isError = hostError != null,
         supportingText = hostError?.let { message -> { Text(message) } },
         singleLine = true,
@@ -515,7 +520,7 @@ private fun AddServerStep(
     OutlinedTextField(
         value = port,
         onValueChange = onPort,
-        label = { Text("端口") },
+        label = { Text(stringResource(R.string.onboarding_port)) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
@@ -529,19 +534,19 @@ private fun AddServerStep(
     SecretOutlinedField(
         value = apiKey,
         onValueChange = onApiKey,
-        label = { Text("API Key（可选）") },
+        label = { Text(stringResource(R.string.onboarding_api_key_optional)) },
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
     )
     OutlinedTextField(
         value = fingerprint,
         onValueChange = onFingerprint,
-        label = { Text("证书指纹（可选）") },
-        supportingText = { Text("可预先粘贴。留空则测试加密连接时再对照控制台确认。") },
+        label = { Text(stringResource(R.string.onboarding_certificate_fingerprint_optional)) },
+        supportingText = { Text(stringResource(R.string.onboarding_can_paste_advance_if_left)) },
         modifier = Modifier.fillMaxWidth().keepAboveIme(),
         minLines = 2,
     )
     OutlinedButton(onClick = onTest, enabled = !testing) {
-        Text(if (testing) "测试中…" else "测试连接")
+        Text(if (testing) stringResource(R.string.common_testing) else stringResource(R.string.common_test_connection))
     }
     testResult?.let { (ok, message) ->
         Text(
@@ -557,9 +562,9 @@ private fun AddServerStep(
 
 @Composable
 private fun TourStep() {
-    Text("主要功能", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.onboarding_main_features), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "底栏有五项。中心里还能进适配插件和设置。",
+        stringResource(R.string.onboarding_bottom_bar_has_five_tabs),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -578,9 +583,9 @@ private fun TourStep() {
                 )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(card.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(card.title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text(
-                        card.body,
+                        stringResource(card.body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -592,36 +597,35 @@ private fun TourStep() {
 
 @Composable
 private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
-    Text("使用统计", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.common_usage_statistics), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。开启之后，Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。",
+        stringResource(R.string.onboarding_anonymous_usage_statistics_microsoft_clarity),
         style = MaterialTheme.typography.bodyLarge,
     )
     Text(
-        "如果在走到这一步之前点「跳过」，使用统计会关闭。走到这一步之后如果没有选择就跳过或继续，会按默认开启。以后可以在设置里改。" +
-            "除此之外，应用只在检查更新时访问 GitHub；服务器数据只在手机和你自己的服务器之间传输。",
+        stringResource(R.string.onboarding_if_tap_skip_before_reaching),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (selected == true) {
-            Button(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { Text("开启") }
+            Button(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         } else {
-            OutlinedButton(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { Text("开启") }
+            OutlinedButton(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         }
         if (selected == false) {
-            Button(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { Text("不开启") }
+            Button(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_dont_turn)) }
         } else {
-            OutlinedButton(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { Text("不开启") }
+            OutlinedButton(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_dont_turn)) }
         }
     }
 }
 
 @Composable
 private fun DoneStep() {
-    Text("可以开始了", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+    Text(stringResource(R.string.onboarding_youre_all_set), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
     Text(
-        "用底栏在概览、玩家、控制台、地图和中心之间切换。以后想再看一遍，到设置或关于里点「重新查看新手引导」。",
+        stringResource(R.string.onboarding_use_bottom_bar_switch_between),
         style = MaterialTheme.typography.bodyLarge,
     )
 }
@@ -674,10 +678,10 @@ private suspend fun saveQuickServer(
     }
     val p = port.toIntOrNull()
     val pin = if (fingerprint.isBlank()) "" else CertFingerprint.normalize(fingerprint)
-    if (fingerprint.isNotBlank() && pin == null) return "指纹应为 32 字节的 SHA-256，可以带冒号或空格"
+    if (fingerprint.isNotBlank() && pin == null) return appString(R.string.common_fingerprint_must_32_byte_sha)
     return when {
-        hostText.isEmpty() || tokenBlank -> "主机和 VerifyToken 要一起填，或者这一步留空"
-        p == null || p !in 1..65535 -> "端口必须是 1-65535"
+        hostText.isEmpty() || tokenBlank -> appString(R.string.onboarding_fill_both_host_verifytoken_leave)
+        p == null || p !in 1..65535 -> appString(R.string.onboarding_port_must_1_65535)
         else -> {
             val id = draftId ?: ServerConfig.newId()
             onDraftId(id)
@@ -696,7 +700,7 @@ private suspend fun saveQuickServer(
                 store.setActive(config.id)
                 null
             } catch (e: Exception) {
-                "保存失败：${e.message ?: "凭据加密异常"}"
+                appString(R.string.onboarding_save_failed, e.message ?: appString(R.string.onboarding_credential_encryption_error))
             }
         }
     }

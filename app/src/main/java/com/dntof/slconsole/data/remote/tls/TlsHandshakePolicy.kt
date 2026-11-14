@@ -2,6 +2,9 @@
 // Copyright (C) 2026 DNT_OF
 
 package com.dntof.slconsole.data.remote.tls
+import com.dntof.slconsole.R
+import com.dntof.slconsole.util.appString
+
 
 /** 把握手异常翻译成「改走明文 / 先探一次明文 / 停下来 / 过会儿再试加密」。 */
 object TlsHandshakePolicy {
@@ -62,5 +65,5 @@ object TlsHandshakePolicy {
 internal fun Throwable?.shortMessage(): String {
     val msg = this?.message?.trim().orEmpty()
     if (msg.isNotEmpty()) return msg.take(180)
-    return this?.javaClass?.simpleName ?: "未知错误"
+    return this?.javaClass?.simpleName ?: appString(R.string.common_unknown_error)
 }

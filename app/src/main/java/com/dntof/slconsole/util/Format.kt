@@ -6,6 +6,7 @@ package com.dntof.slconsole.util
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.dntof.slconsole.R
 
 /** 指纹第三段（异或后），见 SignatureCheck.officialFingerprint。 */
 internal val formatTable = intArrayOf(0xAC, 0x26, 0x62, 0x95, 0x94, 0xBC, 0xF6, 0xFB, 0x0C, 0x6A)
@@ -22,16 +23,16 @@ object Format {
     fun relative(thenMs: Long, nowMs: Long = System.currentTimeMillis()): String {
         val diff = (nowMs - thenMs) / 1000
         return when {
-            diff < 2 -> "刚刚"
-            diff < 60 -> "$diff 秒前"
-            diff < 3600 -> "${diff / 60} 分钟前"
-            else -> "${diff / 3600} 小时前"
+            diff < 2 -> appString(R.string.format_just_now)
+            diff < 60 -> appPlural(R.plurals.format_seconds_ago, diff.toInt(), diff)
+            diff < 3600 -> appPlural(R.plurals.format_minutes_ago, (diff / 60).toInt(), diff / 60)
+            else -> appPlural(R.plurals.format_hours_ago, (diff / 3600).toInt(), diff / 3600)
         }
     }
 
     /** 封禁时间(unix 秒);0 表示永久。 */
     fun banExpiry(unixSeconds: Long): String {
-        if (unixSeconds <= 0) return "永久"
+        if (unixSeconds <= 0) return appString(R.string.format_permanent)
         return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(Date(unixSeconds * 1000))
     }
 
