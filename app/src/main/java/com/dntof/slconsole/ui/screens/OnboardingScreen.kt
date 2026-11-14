@@ -88,6 +88,7 @@ import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
 import androidx.annotation.StringRes
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private const val STEP_COUNT = 6
 
@@ -452,14 +453,14 @@ private fun BiometricStep(
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (selected == true) {
-            Button(onClick = onEnable, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_turn)) }
+            Button(onClick = onEnable, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         } else {
-            OutlinedButton(onClick = onEnable, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_turn)) }
+            OutlinedButton(onClick = onEnable, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         }
         if (selected == false) {
-            Button(onClick = onDecline, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_not_now)) }
+            Button(onClick = onDecline, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_not_now)) }
         } else {
-            OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_not_now)) }
+            OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_not_now)) }
         }
     }
     when {
@@ -608,14 +609,14 @@ private fun ConsentStep(selected: Boolean?, onPick: (Boolean) -> Unit) {
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (selected == true) {
-            Button(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_turn)) }
+            Button(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         } else {
-            OutlinedButton(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_turn)) }
+            OutlinedButton(onClick = { onPick(true) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_turn)) }
         }
         if (selected == false) {
-            Button(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_dont_turn)) }
+            Button(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_dont_turn)) }
         } else {
-            OutlinedButton(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.onboarding_dont_turn)) }
+            OutlinedButton(onClick = { onPick(false) }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.onboarding_dont_turn)) }
         }
     }
 }

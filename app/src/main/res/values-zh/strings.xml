@@ -700,15 +700,6 @@
     <string name="remote_start_round">开始回合</string>
     <string name="remote_start_warhead">启动核弹</string>
     <string name="remote_detonate">引爆</string>
-    <string name="remote_text">重启</string>
-    <string name="remote_text_2">结束</string>
-    <string name="remote_text_3">开始</string>
-    <string name="remote_text_4">确认%1$s当前回合?</string>
-    <string name="remote_text_5">回合已%1$s</string>
-    <string name="remote_text_6">启动</string>
-    <string name="remote_text_7">停止</string>
-    <string name="remote_text_8">引爆</string>
-    <string name="remote_text_9">确认%1$s核弹?</string>
     <string name="remote_warhead_will_detonate_immediately_cant">核弹将立即引爆,无法撤回。</string>
     <string name="remote_warhead_command_executed">核弹指令已执行</string>
     <plurals name="reports_pending_auto_refresh_every_15">

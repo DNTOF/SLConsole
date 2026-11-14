@@ -197,7 +197,7 @@ fun FeatureTile(
                 Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.height(10.dp))
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(2.dp))
             Text(
                 subtitle,
@@ -208,6 +208,12 @@ fun FeatureTile(
             )
         }
     }
+}
+
+/** 等宽按钮行里的按钮文字:英文较长时最多折成两行,再长就省略。 */
+@Composable
+fun ButtonLabel(text: String) {
+    Text(text, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
 }
 
 @Composable
@@ -224,6 +230,8 @@ fun InfoChip(
             Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
             color = tint,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
     if (onClick != null) {

@@ -50,6 +50,15 @@ import kotlinx.coroutines.launch
 import com.dntof.slconsole.ui.withBottomChrome
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
+import androidx.core.os.LocaleListCompat
 import com.dntof.slconsole.util.appString
 
 @Composable
@@ -77,6 +86,9 @@ fun SettingsScreen() {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        item {
+            LanguageSection()
         }
         item {
             SectionCard(stringResource(R.string.settings_liquid_glass), subtitle = stringResource(R.string.settings_off_by_default)) {
@@ -231,3 +243,55 @@ fun SettingsScreen() {
 
 private fun formatCheckTime(time: Long): String =
     SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(Date(time))
+
+private enum class AppLanguage(val tag: String, @StringRes val label: Int) {
+    SYSTEM("", R.string.settings_language_system),
+    ZH("zh-CN", R.string.settings_language_zh),
+    EN("en", R.string.settings_language_en),
+}
+
+private fun currentAppLanguage(): AppLanguage {
+    val locale = AppCompatDelegate.getApplicationLocales()[0] ?: return AppLanguage.SYSTEM
+    return when (locale.language) {
+        "zh" -> AppLanguage.ZH
+        "en" -> AppLanguage.EN
+        else -> AppLanguage.SYSTEM
+    }
+}
+
+/**
+ * 应用内语言。AppCompat 在 API 33 起交给系统 LocaleManager 保存,更早的版本由清单里的
+ * autoStoreLocales 自动存取;切换后 Activity 会重建,界面直接换成新语言。
+ */
+@Composable
+private fun LanguageSection() {
+    var selected by remember { mutableStateOf(currentAppLanguage()) }
+    SectionCard(stringResource(R.string.settings_language_title), subtitle = stringResource(R.string.settings_language_subtitle)) {
+        Column(Modifier.selectableGroup()) {
+            AppLanguage.entries.forEach { option ->
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = selected == option,
+                            role = Role.RadioButton,
+                            onClick = {
+                                if (selected == option) return@selectable
+                                selected = option
+                                AppCompatDelegate.setApplicationLocales(
+                                    if (option.tag.isEmpty()) LocaleListCompat.getEmptyLocaleList()
+                                    else LocaleListCompat.forLanguageTags(option.tag),
+                                )
+                            },
+                        )
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(selected = selected == option, onClick = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(option.label), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+    }
+}

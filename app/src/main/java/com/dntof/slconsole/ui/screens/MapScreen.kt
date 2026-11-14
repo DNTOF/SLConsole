@@ -98,6 +98,7 @@ import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
 import androidx.compose.ui.text.style.TextOverflow
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private val ZONE_FILTERS = listOf(
     "All" to R.string.map_all,
@@ -765,28 +766,28 @@ private fun FacilityControls(
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("lock_door", true)
                     }, appString(R.string.map_locked, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_lock)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_lock)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("lock_door", false)
                     }, appString(R.string.map_unlocked, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_unlock)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_unlock)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("open_door", true)
                     }, appString(R.string.map_opened, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_open)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_open)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "doors"); put("scope", doorScope); put("door_type", doorType); put("open_door", false)
                     }, appString(R.string.map_closed, doorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_close)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_close)) }
         }
 
         HorizontalDividerThin()
@@ -808,14 +809,14 @@ private fun FacilityControls(
                         put("action", "elevators"); put("scope", elevatorScope); put("elevator_type", elevatorType); put("command", "up")
                     }, appString(R.string.map_up, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_up_2)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_up_2)) }
             OutlinedButton(onClick = {
                 facility(
                     buildJsonObject {
                         put("action", "elevators"); put("scope", elevatorScope); put("elevator_type", elevatorType); put("command", "down")
                     }, appString(R.string.map_down, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_down_2)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_down_2)) }
             Button(onClick = {
                 facility(
                     buildJsonObject {
@@ -823,7 +824,7 @@ private fun FacilityControls(
                         put("command", "send"); put("level", sendLevel.toIntOrNull() ?: 0)
                     }, appString(R.string.map_sent_floor, elevatorType),
                 )
-            }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.map_send)) }
+            }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.map_send)) }
         }
     }
 }

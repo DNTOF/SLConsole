@@ -13,6 +13,10 @@ import org.junit.Test
 import java.security.MessageDigest
 
 class SignatureHardeningTest {
+    init {
+        TestStrings.install()
+    }
+
     // 测试里只放官方指纹的 SHA-256，不放指纹原文（原文写在 README 里）
     private val fingerprintDigest = "15794d3fd7cd1089403d00aa978f9da2cbecd8cefaa035fe01ab44179f8779d3"
 

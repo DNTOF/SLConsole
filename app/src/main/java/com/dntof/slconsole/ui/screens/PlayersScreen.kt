@@ -88,6 +88,7 @@ import kotlinx.serialization.json.put
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private val ROLE_PRESETS = listOf(
     "ClassD", "Scientist", "FacilityGuard",
@@ -302,18 +303,18 @@ private fun PlayerActionsSheet(player: PlayerInfo, server: ServerConfig?, onDism
                 Spacer(Modifier.height(12.dp))
                 SectionCard(stringResource(R.string.players_management)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { dialog = "msg" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_message)) }
-                        TextButton(onClick = { dialog = "kick" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_kick)) }
-                        TextButton(onClick = { dialog = "ban" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_ban)) }
+                        TextButton(onClick = { dialog = "msg" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_message)) }
+                        TextButton(onClick = { dialog = "kick" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_kick)) }
+                        TextButton(onClick = { dialog = "ban" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_ban)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { muteAction = "mute" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_mute)) }
-                        TextButton(onClick = { muteAction = "unmute" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_unmute)) }
-                        TextButton(onClick = { dialog = "role" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_set_role)) }
+                        TextButton(onClick = { muteAction = "mute" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_mute)) }
+                        TextButton(onClick = { muteAction = "unmute" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_unmute)) }
+                        TextButton(onClick = { dialog = "role" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_set_role)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        TextButton(onClick = { dialog = "effect" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_effect)) }
-                        TextButton(onClick = { dialog = "teleport" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.players_teleport)) }
+                        TextButton(onClick = { dialog = "effect" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_effect)) }
+                        TextButton(onClick = { dialog = "teleport" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.players_teleport)) }
                         Spacer(Modifier.weight(1f))
                     }
                 }

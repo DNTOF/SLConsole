@@ -120,6 +120,12 @@ android {
         compose = true
         buildConfig = true
     }
+    bundle {
+        // 应用内可以切换语言,AAB 不能按语言拆分,否则切过去的语言可能没装上
+        language {
+            enableSplit = false
+        }
+    }
     lint {
         // 界面文字都放在 strings.xml 里,中英文缺一条就让 lint 失败
         error += listOf("MissingTranslation", "ExtraTranslation", "MissingQuantity", "StringFormatInvalid", "StringFormatCount")

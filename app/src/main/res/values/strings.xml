@@ -708,15 +708,6 @@
     <string name="remote_start_round">Start round</string>
     <string name="remote_start_warhead">Start warhead</string>
     <string name="remote_detonate">Detonate</string>
-    <string name="remote_text"></string>
-    <string name="remote_text_2"></string>
-    <string name="remote_text_3"></string>
-    <string name="remote_text_4"></string>
-    <string name="remote_text_5"></string>
-    <string name="remote_text_6"></string>
-    <string name="remote_text_7"></string>
-    <string name="remote_text_8"></string>
-    <string name="remote_text_9"></string>
     <string name="remote_warhead_will_detonate_immediately_cant">The warhead will detonate immediately. This can\'t be undone.</string>
     <string name="remote_warhead_command_executed">Warhead command executed</string>
     <plurals name="reports_pending_auto_refresh_every_15">

@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.data.remote.tls
 
+import com.dntof.slconsole.TestStrings
 import java.security.cert.CertificateException
 import java.security.interfaces.RSAPublicKey
 import okhttp3.tls.HeldCertificate
@@ -11,6 +12,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PinTrustManagerTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun accept_matchingSelfSignedLeaf_withoutChainValidation() {
         val held = rsaCert("sldataapi.local")

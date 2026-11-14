@@ -5,7 +5,6 @@ package com.dntof.slconsole.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -87,11 +86,10 @@ fun UpdateDialog(
         confirmButton = {
             Button(onClick = onUpdate) { Text(stringResource(R.string.update_dialog_update_now)) }
         },
+        // 不包 Row:AlertDialog 的按钮区是 FlowRow,英文较长时三个按钮能自动换行。
         dismissButton = {
-            Row {
-                TextButton(onClick = onIgnore) { Text(stringResource(R.string.update_dialog_ignore_version)) }
-                TextButton(onClick = onLater) { Text(stringResource(R.string.update_dialog_later)) }
-            }
+            TextButton(onClick = onIgnore) { Text(stringResource(R.string.update_dialog_ignore_version)) }
+            TextButton(onClick = onLater) { Text(stringResource(R.string.update_dialog_later)) }
         },
     )
 }

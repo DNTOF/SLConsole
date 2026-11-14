@@ -49,6 +49,7 @@ import com.dntof.slconsole.ui.withBottomChrome
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 /** 远程控制:广播 / 管理聊天 / CASSIE / 回合与核弹(命令执行在"控制台"标签页)。 */
 @Composable
@@ -200,15 +201,15 @@ fun RemoteScreen() {
         item {
             SectionCard(stringResource(R.string.remote_round_warhead), subtitle = stringResource(R.string.remote_dangerous_actions_require_confirmation)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pendingRound = "restart" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_restart_round)) }
-                    OutlinedButton(onClick = { pendingRound = "end" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remote_end_round)) }
-                    OutlinedButton(onClick = { pendingRound = "start" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remote_start_round)) }
+                    OutlinedButton(onClick = { pendingRound = "restart" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_restart_round)) }
+                    OutlinedButton(onClick = { pendingRound = "end" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_end_round)) }
+                    OutlinedButton(onClick = { pendingRound = "start" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_start_round)) }
                 }
                 HorizontalDivider(Modifier.padding(vertical = 10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { pendingWarhead = "start" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remote_start_warhead)) }
-                    OutlinedButton(onClick = { pendingWarhead = "stop" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_stop)) }
-                    Button(onClick = { pendingWarhead = "detonate" }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.remote_detonate)) }
+                    OutlinedButton(onClick = { pendingWarhead = "start" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_start_warhead)) }
+                    OutlinedButton(onClick = { pendingWarhead = "stop" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_stop)) }
+                    Button(onClick = { pendingWarhead = "detonate" }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.remote_detonate)) }
                 }
             }
         }

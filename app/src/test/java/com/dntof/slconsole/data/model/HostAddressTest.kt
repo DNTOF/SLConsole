@@ -3,11 +3,16 @@
 
 package com.dntof.slconsole.data.model
 
+import com.dntof.slconsole.TestStrings
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class HostAddressTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun acceptsHostnameAndAddresses() {
         listOf(

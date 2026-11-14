@@ -3,6 +3,7 @@
 
 package com.dntof.slconsole.util
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
@@ -20,6 +21,8 @@ import androidx.appcompat.app.AppCompatDelegate
  * [AppCompatDelegate.getApplicationLocales] 另建一份带语言的 Context。
  */
 object AppText {
+    // 只保存 applicationContext,不会泄漏 Activity
+    @SuppressLint("StaticFieldLeak")
     @Volatile
     private var app: Context? = null
 

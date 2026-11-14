@@ -72,6 +72,7 @@ import kotlinx.serialization.json.put
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.ui.components.ButtonLabel
 
 private const val SL_PLAYER_ID = "dntof.sl_player"
 private const val OMEGA_ID = "dntof.omega_warhead"
@@ -274,8 +275,8 @@ private fun SlPlayerPanel(snapshot: String?) {
             valueRange = 0f..100f,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { act(buildJsonObject { put("action", "next") }, appString(R.string.adapted_plugins_skipped_next)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.adapted_plugins_next)) }
-            OutlinedButton(onClick = { act(buildJsonObject { put("action", "stop") }, appString(R.string.common_stopped)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.common_stop)) }
+            Button(onClick = { act(buildJsonObject { put("action", "next") }, appString(R.string.adapted_plugins_skipped_next)) }, modifier = Modifier.weight(1f)) { ButtonLabel(appString(R.string.adapted_plugins_next)) }
+            OutlinedButton(onClick = { act(buildJsonObject { put("action", "stop") }, appString(R.string.common_stopped)) }, modifier = Modifier.weight(1f)) { ButtonLabel(appString(R.string.common_stop)) }
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -283,8 +284,8 @@ private fun SlPlayerPanel(snapshot: String?) {
                 onClick = { act(buildJsonObject { put("action", "shuffle"); put("shuffle", "toggle") }, appString(R.string.adapted_plugins_shuffle_toggled)) },
                 modifier = Modifier.weight(1f),
             ) { Text(if (now?.shuffle == true) stringResource(R.string.adapted_plugins_shuffle) else stringResource(R.string.adapted_plugins_shuffle_off)) }
-            OutlinedButton(onClick = { act(buildJsonObject { put("action", "reload") }, appString(R.string.adapted_plugins_rescanned)) }, modifier = Modifier.weight(1f)) { Text(appString(R.string.adapted_plugins_scan_local)) }
-            OutlinedButton(onClick = { refresh() }, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.common_refresh)) }
+            OutlinedButton(onClick = { act(buildJsonObject { put("action", "reload") }, appString(R.string.adapted_plugins_rescanned)) }, modifier = Modifier.weight(1f)) { ButtonLabel(appString(R.string.adapted_plugins_scan_local)) }
+            OutlinedButton(onClick = { refresh() }, modifier = Modifier.weight(1f)) { ButtonLabel(stringResource(R.string.common_refresh)) }
         }
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(

@@ -3,12 +3,17 @@
 
 package com.dntof.slconsole.data.remote
 
+import com.dntof.slconsole.TestStrings
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FileChunksTest {
+    init {
+        TestStrings.install()
+    }
+
     @Test
     fun split_isSequentialAndCoversEveryByte() {
         val bytes = ByteArray(100) { it.toByte() }
