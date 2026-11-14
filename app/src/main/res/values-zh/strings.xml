@@ -271,7 +271,7 @@
     <string name="about_source_code">源代码</string>
     <string name="about_full_license">许可证全文</string>
     <string name="about_liquid_glass_rendering_uses_backdrop">液态玻璃绘制使用 Backdrop 1.0.6（Apache-2.0）。</string>
-    <string name="about_anonymous_usage_statistics_use_microsoft">匿名使用统计使用 Microsoft Clarity。默认开启；如果第一次打开时在引导里还没走到使用统计这一步就跳过，则会关闭，也可以在设置里改。开启后 Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。敏感内容会尽量遮住，但不是每一项都保证被遮住。检查更新会访问 GitHub API。除此之外不上传数据，服务器数据只发给你自己的服务器。</string>
+    <string name="about_anonymous_usage_statistics_use_microsoft">匿名使用统计使用 Microsoft Clarity。默认开启；如果第一次打开时在引导里还没走到使用统计这一步就跳过，则会关闭，也可以在设置里改。开启后 Clarity 仍会采集设备型号、系统版本、IP 地址和点击坐标这类元数据。项目已在 Clarity 启用严格遮罩，界面上的文字和输入内容（包括服务器地址、密钥、控制台内容和玩家信息）都会被遮住。检查更新会访问 GitHub API。除此之外不上传数据，服务器数据只发给你自己的服务器。</string>
     <string name="about_lora_poppins_fonts_interface_are">界面里的 Lora、Poppins 字体以 SIL Open Font License 提供。</string>
     <string name="common_replay_onboarding">重新查看新手引导</string>
     <string name="adapted_plugins_no_monitoring_data_yet">还没有监控数据</string>
@@ -592,7 +592,7 @@
     <string name="onboarding_main_features">主要功能</string>
     <string name="onboarding_bottom_bar_has_five_tabs">底栏有五项。中心里还能进适配插件和设置。</string>
     <string name="common_usage_statistics">使用统计</string>
-    <string name="onboarding_anonymous_usage_statistics_microsoft_clarity">匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。开启之后，Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。</string>
+    <string name="onboarding_anonymous_usage_statistics_microsoft_clarity">匿名使用统计（Microsoft Clarity）用来看哪些界面不好用，好继续改这个应用。开启之后，Clarity 仍会采集设备型号、系统版本、IP 地址和点击坐标这类元数据。项目已在 Clarity 启用严格遮罩，界面上的文字和输入内容（包括服务器地址、密钥、控制台内容和玩家信息）都会被遮住。</string>
     <string name="onboarding_if_tap_skip_before_reaching">如果在走到这一步之前点「跳过」，使用统计会关闭。走到这一步之后如果没有选择就跳过或继续，会按默认开启。以后可以在设置里改。除此之外，应用只在检查更新时访问 GitHub；服务器数据只在手机和你自己的服务器之间传输。</string>
     <string name="onboarding_dont_turn">不开启</string>
     <string name="onboarding_youre_all_set">可以开始了</string>
@@ -775,7 +775,7 @@
     <string name="settings_privacy">隐私</string>
     <string name="settings_by_default">默认开启</string>
     <string name="settings_help_improve_anonymous_usage_statistics">帮助改进（匿名使用统计）</string>
-    <string name="settings_uses_microsoft_clarity_record_how">用 Microsoft Clarity 记录界面怎么被使用，用来改进应用。Clarity 仍可能收到设备型号、系统版本、IP 地址和点击坐标。服务器地址、密钥、输入框、控制台内容和玩家信息会尽量遮住，但不是每一项都保证被遮住。关闭后立即停止，下次打开也不再收集。第一次打开时，如果在新手引导里还没走到使用统计这一步就跳过，这项会保持关闭。</string>
+    <string name="settings_uses_microsoft_clarity_record_how">用 Microsoft Clarity 记录界面怎么被使用，用来改进应用。Clarity 仍会采集设备型号、系统版本、IP 地址和点击坐标这类元数据。项目已在 Clarity 启用严格遮罩，界面上的文字和输入内容（包括服务器地址、密钥、输入框、控制台内容和玩家信息）都会被遮住。关闭后立即停止，下次打开也不再收集。第一次打开时，如果在新手引导里还没走到使用统计这一步就跳过，这项会保持关闭。</string>
     <string name="settings_when_need_unlock_fingerprint_face">打开后，启动应用或离开超过 30 秒再回来时，要先用指纹、面容或锁屏密码解锁。</string>
     <string name="settings_see_welcome_server_setup_feature">再看一遍欢迎、添加服务器和功能介绍。</string>
     <string name="voice_live_voice_relay_sldataapi_voice">实时代码语音转发(SLDataAPI voice_enabled)</string>

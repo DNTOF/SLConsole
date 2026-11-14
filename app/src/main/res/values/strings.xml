@@ -272,7 +272,7 @@
     <string name="about_source_code">Source code</string>
     <string name="about_full_license">Full license</string>
     <string name="about_liquid_glass_rendering_uses_backdrop">Liquid Glass rendering uses Backdrop 1.0.6 (Apache-2.0).</string>
-    <string name="about_anonymous_usage_statistics_use_microsoft">Anonymous usage statistics use Microsoft Clarity. On by default; it is turned off if you skip the onboarding before reaching the usage statistics step, and you can change it in Settings. When on, Clarity may still receive device model, OS version, IP address, and tap coordinates. Sensitive content is masked where possible, but not every item is guaranteed to be masked. Checking for updates contacts the GitHub API. Nothing else is uploaded; server data is only sent to your own server.</string>
+    <string name="about_anonymous_usage_statistics_use_microsoft">Anonymous usage statistics use Microsoft Clarity. On by default; it is turned off if you skip the onboarding before reaching the usage statistics step, and you can change it in Settings. When on, Clarity still collects metadata such as device model, OS version, IP address, and tap coordinates. Strict masking is enabled in Clarity, so on-screen text and input (including server addresses, keys, console content, and player info) is masked. Checking for updates contacts the GitHub API. Nothing else is uploaded; server data is only sent to your own server.</string>
     <string name="about_lora_poppins_fonts_interface_are">The Lora and Poppins fonts in the interface are provided under the SIL Open Font License.</string>
     <string name="common_replay_onboarding">Replay onboarding</string>
     <string name="adapted_plugins_no_monitoring_data_yet">No monitoring data yet</string>
@@ -599,7 +599,7 @@
     <string name="onboarding_main_features">Main features</string>
     <string name="onboarding_bottom_bar_has_five_tabs">The bottom bar has five tabs. The Hub also leads to adapted plugins and settings.</string>
     <string name="common_usage_statistics">Usage statistics</string>
-    <string name="onboarding_anonymous_usage_statistics_microsoft_clarity">Anonymous usage statistics (Microsoft Clarity) show which screens are hard to use so the app can keep improving. When on, Clarity may still receive device model, OS version, IP address, and tap coordinates. Server addresses, keys, console content, and player info are masked where possible, but not every item is guaranteed to be masked.</string>
+    <string name="onboarding_anonymous_usage_statistics_microsoft_clarity">Anonymous usage statistics (Microsoft Clarity) show which screens are hard to use so the app can keep improving. When on, Clarity still collects metadata such as device model, OS version, IP address, and tap coordinates. Strict masking is enabled in Clarity, so on-screen text and input (including server addresses, keys, console content, and player info) is masked.</string>
     <string name="onboarding_if_tap_skip_before_reaching">If you tap \"Skip\" before reaching this step, usage statistics stay off. If you skip or continue from this step without choosing, they\'re on by default. You can change this in Settings later. Apart from that, the app only contacts GitHub when checking for updates; server data only travels between your phone and your own server.</string>
     <string name="onboarding_dont_turn">Don\'t turn on</string>
     <string name="onboarding_youre_all_set">You\'re all set</string>
@@ -784,7 +784,7 @@
     <string name="settings_privacy">Privacy</string>
     <string name="settings_by_default">On by default</string>
     <string name="settings_help_improve_anonymous_usage_statistics">Help improve (anonymous usage statistics)</string>
-    <string name="settings_uses_microsoft_clarity_record_how">Uses Microsoft Clarity to record how the interface is used, to improve the app. Clarity may still receive device model, OS version, IP address, and tap coordinates. Server addresses, keys, input fields, console content, and player info are masked where possible, but not every item is guaranteed to be masked. Turning it off stops collection immediately and it won\'t resume next time. On first launch, if you skip onboarding before reaching the usage statistics step, this stays off.</string>
+    <string name="settings_uses_microsoft_clarity_record_how">Uses Microsoft Clarity to record how the interface is used, to improve the app. Clarity still collects metadata such as device model, OS version, IP address, and tap coordinates. Strict masking is enabled in Clarity, so on-screen text and input (including server addresses, keys, input fields, console content, and player info) is masked. Turning it off stops collection immediately and it won\'t resume next time. On first launch, if you skip onboarding before reaching the usage statistics step, this stays off.</string>
     <string name="settings_when_need_unlock_fingerprint_face">When on, you need to unlock with fingerprint, face, or screen lock when starting the app or returning after more than 30 seconds.</string>
     <string name="settings_see_welcome_server_setup_feature">See the welcome, server setup, and feature tour again.</string>
     <string name="voice_live_voice_relay_sldataapi_voice">Live voice relay (SLDataAPI voice_enabled)</string>

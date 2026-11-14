@@ -66,7 +66,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
-import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.util.resolveCompose
 
 private fun JsonObject.str(key: String): String = (this[key] as? JsonPrimitive)?.content ?: ""
 
@@ -138,7 +138,7 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
                             fontWeight = FontWeight.SemiBold,
                         )
                         Text(
-                            detail,
+                            detail.resolveCompose(),
                             modifier = Modifier.clarityMask(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -176,51 +176,62 @@ fun EventsScreen(onOpenServerEdit: () -> Unit) {
 
 private data class EventMeta(val icon: ImageVector, val color: Color, val title: String, val subtitle: String)
 
+@Composable
 private fun eventMeta(event: SlEvent): EventMeta = when (event.event) {
     "player_joined" -> EventMeta(
         Icons.AutoMirrored.Outlined.Login, Color(0xFF4ADE80),
-        appString(R.string.events_player_joined), event.data.str("nickname").ifBlank { event.data.str("userid") },
+        stringResource(R.string.events_player_joined), event.data.str("nickname").ifBlank { event.data.str("userid") },
     )
     "player_left" -> EventMeta(
         Icons.AutoMirrored.Outlined.Logout, Color(0xFF9CA3AF),
-        appString(R.string.events_player_left), event.data.str("nickname").ifBlank { event.data.str("userid") },
+        stringResource(R.string.events_player_left), event.data.str("nickname").ifBlank { event.data.str("userid") },
     )
     "player_died" -> {
         val attacker = event.data.str("attacker_nickname")
         EventMeta(
             Icons.Outlined.PersonOff, Color(0xFFEF5350),
-            appString(R.string.events_player_died),
+            stringResource(R.string.events_player_died),
             buildString {
                 append(event.data.str("nickname").ifBlank { event.data.str("userid") })
                 val oldRole = event.data.str("old_role")
                 if (oldRole.isNotBlank()) append("($oldRole)")
-                if (attacker.isNotBlank()) append(appString(R.string.events_killer, attacker))
+                if (attacker.isNotBlank()) append(stringResource(R.string.events_killer, attacker))
             },
         )
     }
-    "round_started" -> EventMeta(Icons.Outlined.PlayArrow, Color(0xFF7FD8E8), appString(R.string.events_round_started), event.data.str("started_at"))
+    "round_started" -> EventMeta(Icons.Outlined.PlayArrow, Color(0xFF7FD8E8), stringResource(R.string.events_round_started), event.data.str("started_at"))
     "round_ended" -> EventMeta(
         Icons.Outlined.Stop, Color(0xFF60A5FA),
-        appString(R.string.events_round_ended),
-        event.data.str("leading_team").takeIf { it.isNotBlank() }?.let { appString(R.string.events_leading_team, it) } ?: "",
+        stringResource(R.string.events_round_ended),
+        event.data.str("leading_team").takeIf { it.isNotBlank() }?.let { stringResource(R.string.events_leading_team, it) } ?: "",
     )
     "elevator_used" -> EventMeta(
         Icons.Outlined.Elevator, Color(0xFFFFC46B),
-        appString(R.string.events_used_elevator),
+        stringResource(R.string.events_used_elevator),
         listOf(event.data.str("nickname"), event.data.str("elevator_group")).filter { it.isNotBlank() }.joinToString(" · "),
     )
     "door_opened" -> EventMeta(
         Icons.Outlined.MeetingRoom, Color(0xFF9AD48E),
-        appString(R.string.events_opened_door),
+        stringResource(R.string.events_opened_door),
         listOf(event.data.str("nickname"), event.data.str("door")).filter { it.isNotBlank() }.joinToString(" · "),
     )
-    "_sys" -> EventMeta(Icons.Outlined.Info, UiColors.Pending, appString(R.string.events_system), event.data.str("text"))
+    "_sys" -> EventMeta(Icons.Outlined.Info, UiColors.Pending, stringResource(R.string.events_system), sysSubtitle(event))
     else -> EventMeta(Icons.Outlined.Bolt, UiColors.Unknown, event.event, "")
 }
 
 @Composable
+private fun sysSubtitle(event: SlEvent): String {
+    val res = event.messageRes
+    return if (res != null) {
+        if (event.messageArgs.isEmpty()) stringResource(res) else stringResource(res, *event.messageArgs.toTypedArray())
+    } else {
+        event.data.str("text")
+    }
+}
+
+@Composable
 private fun EventRow(event: SlEvent) {
-    val meta = remember(event) { eventMeta(event) }
+    val meta = eventMeta(event)
     AppSurface(Modifier.fillMaxWidth(), role = GlassRole.Row) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(

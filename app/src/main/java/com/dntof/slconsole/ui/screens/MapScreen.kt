@@ -15,7 +15,7 @@ import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -97,7 +97,6 @@ import kotlin.math.min
 import androidx.compose.ui.res.stringResource
 import com.dntof.slconsole.R
 import com.dntof.slconsole.util.appString
-import androidx.compose.ui.text.style.TextOverflow
 import com.dntof.slconsole.ui.components.ButtonLabel
 
 private val ZONE_FILTERS = listOf(
@@ -250,12 +249,17 @@ private fun MapCanvasPanel(seed: Int, players: List<PlayerInfo>) {
     }
 
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             ZONE_FILTERS.forEach { (value, label) ->
-                FilterChip(selected = zoneFilter == value, onClick = { zoneFilter = value; selected = null }, label = { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis) })
+                FilterChip(
+                    selected = zoneFilter == value,
+                    onClick = { zoneFilter = value; selected = null },
+                    label = { Text(stringResource(label), maxLines = 1) },
+                )
             }
         }
 

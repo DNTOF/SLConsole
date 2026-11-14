@@ -40,8 +40,11 @@ import okio.ByteString
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import androidx.annotation.StringRes
 import com.dntof.slconsole.R
+import com.dntof.slconsole.util.StatusMessage
 import com.dntof.slconsole.util.appString
+import com.dntof.slconsole.util.statusRes
 
 /**
  * SLDataAPI 控制面 WebSocket 客户端(control_transport: "ws" 时使用)。
@@ -79,8 +82,8 @@ class WsControlClient(private val config: ServerConfig) {
     private val _state = MutableStateFlow(ConnState.CONNECTING)
     val state: StateFlow<ConnState> = _state.asStateFlow()
 
-    private val _stateDetail = MutableStateFlow(appString(R.string.common_connecting))
-    val stateDetail: StateFlow<String> = _stateDetail.asStateFlow()
+    private val _stateDetail = MutableStateFlow<StatusMessage>(statusRes(R.string.common_connecting))
+    val stateDetail: StateFlow<StatusMessage> = _stateDetail.asStateFlow()
 
     private val _handshakeStatus = MutableStateFlow(0)
     val handshakeStatus: StateFlow<Int> = _handshakeStatus.asStateFlow()
@@ -122,9 +125,9 @@ class WsControlClient(private val config: ServerConfig) {
         _beta.value = ControlBeta.None
         _state.value = ConnState.CONNECTING
         _stateDetail.value = if (secure) {
-            appString(R.string.ws_control_client_connecting_securely_control, config.addressText)
+            statusRes(R.string.ws_control_client_connecting_securely_control, config.addressText)
         } else {
-            appString(R.string.ws_control_client_connecting_plaintext_control, config.addressText)
+            statusRes(R.string.ws_control_client_connecting_plaintext_control, config.addressText)
         }
         val request = Request.Builder()
             .url(config.controlWebSocket(secure))
@@ -164,8 +167,11 @@ class WsControlClient(private val config: ServerConfig) {
                     readyOnce = true
                     _beta.value = ControlBeta.fromHello(obj)
                     _state.value = ConnState.READY
-                    val lock = if (secure) appString(R.string.common_encrypted) else appString(R.string.common_plaintext)
-                    _stateDetail.value = appString(R.string.ws_control_client_connected_sldataapi, (obj["version"] as? JsonPrimitive)?.content ?: "", lock)
+                    _stateDetail.value = statusRes(
+                        R.string.ws_control_client_connected_sldataapi,
+                        (obj["version"] as? JsonPrimitive)?.content ?: "",
+                        StatusMessage.Arg.Res(if (secure) R.string.common_encrypted else R.string.common_plaintext),
+                    )
                     if (wantEvents) sendSubscribe()
                 }
                 "pong" -> Unit
@@ -186,8 +192,8 @@ class WsControlClient(private val config: ServerConfig) {
                         }
                     )
                 }
-                "events_subscribed" -> appendSystemEvent(appString(R.string.ws_control_client_subscribed_live_events))
-                "events_unsubscribed" -> appendSystemEvent(appString(R.string.ws_control_client_unsubscribed_from_live_events))
+                "events_subscribed" -> appendSystemEvent(R.string.ws_control_client_subscribed_live_events)
+                "events_unsubscribed" -> appendSystemEvent(R.string.ws_control_client_unsubscribed_from_live_events)
                 "event" -> {
                     val name = (obj["event"] as? JsonPrimitive)?.content ?: return
                     val event = SlEvent(
@@ -197,7 +203,10 @@ class WsControlClient(private val config: ServerConfig) {
                     )
                     _events.value = (listOf(event) + _events.value).take(MAX_EVENT_CACHE)
                 }
-                "error" -> appendSystemEvent(appString(R.string.ws_control_client_server_error, (obj["message"] as? JsonPrimitive)?.content ?: appString(R.string.common_unknown)))
+                "error" -> appendSystemEvent(
+                    R.string.ws_control_client_server_error,
+                    (obj["message"] as? JsonPrimitive)?.content ?: appString(R.string.common_unknown),
+                )
             }
         }
 
@@ -231,7 +240,7 @@ class WsControlClient(private val config: ServerConfig) {
                     }
                     TlsHandshakePolicy.Decision.RetryLater -> {
                         _state.value = ConnState.FAILED
-                        _stateDetail.value = TlsMessages.other(t.shortMessage())
+                        _stateDetail.value = StatusMessage.Literal(TlsMessages.other(t.shortMessage()))
                         failAllPending(appString(R.string.ws_control_client_ws_channel_disconnected))
                         scheduleReconnect()
                     }
@@ -249,13 +258,15 @@ class WsControlClient(private val config: ServerConfig) {
             if (phase == Phase.PROBE) {
                 phase = Phase.TRY_TLS
                 _state.value = ConnState.FAILED
-                _stateDetail.value = appString(R.string.common_cant_connect, t.shortMessage())
+                _stateDetail.value = statusRes(R.string.common_cant_connect, t.shortMessage())
                 failAllPending(appString(R.string.ws_control_client_ws_channel_probe_failed))
                 scheduleReconnect()
                 return
             }
             _state.value = ConnState.FAILED
-            _stateDetail.value = appString(R.string.ws_control_client_connection_failed, t.shortMessage()) + (response?.code?.let { "(HTTP $it)" } ?: "")
+            _stateDetail.value = StatusMessage.Literal(
+                appString(R.string.ws_control_client_connection_failed, t.shortMessage()) + (response?.code?.let { "(HTTP $it)" } ?: ""),
+            )
             failAllPending(appString(R.string.ws_control_client_ws_channel_disconnected))
             scheduleReconnect()
         }
@@ -264,7 +275,7 @@ class WsControlClient(private val config: ServerConfig) {
             if (!current()) return
             if (phase == Phase.DEAD) return
             _state.value = ConnState.CLOSED
-            _stateDetail.value = appString(R.string.common_connection_closed, code)
+            _stateDetail.value = statusRes(R.string.common_connection_closed, code)
             failAllPending(appString(R.string.ws_control_client_ws_channel_closed))
             scheduleReconnect()
         }
@@ -282,7 +293,7 @@ class WsControlClient(private val config: ServerConfig) {
         phase = Phase.DEAD
         attemptGen.incrementAndGet()
         _state.value = ConnState.FAILED
-        _stateDetail.value = message
+        _stateDetail.value = StatusMessage.Literal(message)
         failAllPending(message)
         runCatching { webSocket?.cancel() }
     }
@@ -333,7 +344,7 @@ class WsControlClient(private val config: ServerConfig) {
     suspend fun call(path: String, body: JsonObject? = null, timeoutMs: Long = CALL_TIMEOUT_MS): CallResult {
         if (!awaitReady()) {
             return CallResult.Failure(
-                appString(R.string.ws_control_client_ws_control_channel_not_ready, _stateDetail.value),
+                appString(R.string.ws_control_client_ws_control_channel_not_ready, _stateDetail.value.resolve()),
                 status = _handshakeStatus.value,
                 fromHandshake = true,
             )
@@ -371,12 +382,13 @@ class WsControlClient(private val config: ServerConfig) {
         pending.clear()
     }
 
-    private fun appendSystemEvent(text: String) {
+    private fun appendSystemEvent(@StringRes id: Int, vararg args: String) {
         _events.value = (
             listOf(
                 SlEvent(
                     event = "_sys",
-                    data = buildJsonObject { put("text", text) },
+                    messageRes = id,
+                    messageArgs = args.toList(),
                 )
             ) + _events.value
             ).take(MAX_EVENT_CACHE)

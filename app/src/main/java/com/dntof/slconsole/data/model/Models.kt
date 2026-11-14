@@ -3,8 +3,10 @@
 
 package com.dntof.slconsole.data.model
 
+import androidx.annotation.StringRes
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 
@@ -221,6 +223,9 @@ data class SlEvent(
     val utc: String? = null,
     val data: JsonObject = JsonObject(emptyMap()),
     val receivedAt: Long = System.currentTimeMillis(),
+    /** 应用自己生成的系统事件文案,按当前语言解析;服务端事件保持 null。 */
+    @Transient @StringRes val messageRes: Int? = null,
+    @Transient val messageArgs: List<String> = emptyList(),
 )
 
 /** GET /control/map/seed 响应。seed 为 32 位 int,可为本地图形算法重建布局。 */
